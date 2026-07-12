@@ -1,6 +1,7 @@
 // Handles account registration, login, password changes, and admin provisioning.
 import bcrypt from "bcrypt";
 import type { Request, Response } from "express";
+import type { Prisma } from "../generated/prisma/client";
 import { prisma } from "../config/prisma";
 import { createAuthToken } from "../utils/jwt";
 import { generateTempPassword } from "../utils/generateTempPassword";
@@ -29,12 +30,15 @@ function duplicate(response: Response): void {
     .json({ message: "An account with these details already exists." });
 }
 
-
-async function phoneAvailable(phone: string): Promise<boolean> {
-  return !(await prisma.user.findUnique({
-    where: { phone },
+async function accountDetailsAvailable(
+  phone: string,
+  email: string,
+): Promise<boolean> {
+  const existing = await prisma.user.findFirst({
+    where: { OR: [{ phone }, { email }] },
     select: { id: true },
-  }));
+  });
+  return !existing;
 }
 
 export async function register(
@@ -42,45 +46,46 @@ export async function register(
   response: Response,
 ): Promise<void> {
   const input = validateRegister(request.body);
-  if (!(await phoneAvailable(input.phone))) {
+  if (!(await accountDetailsAvailable(input.phone, input.email))) {
     duplicate(response);
     return;
   }
-  const passwordHash = await bcrypt.hash(input.password, bcryptRounds);
+  const { password, ...customerDetails } = input;
+  const passwordHash = await bcrypt.hash(password, bcryptRounds);
   const user = await prisma.user.create({
     data: {
-      ...input,
+      ...customerDetails,
       role: "customer",
       passwordHash,
       mustChangePassword: false,
     },
     select: publicUser,
   });
-  response
-    .status(201)
-    .json({
-      token: createAuthToken(user.id, user.role),
-      role: user.role,
-      name: user.name,
-      mustChangePassword: false,
-    });
+  response.status(201).json({
+    token: createAuthToken(user.id, user.role),
+    role: user.role,
+    name: user.name,
+    mustChangePassword: false,
+  });
 }
-
-
 
 export async function login(
   request: Request,
   response: Response,
 ): Promise<void> {
   const input = validateLogin(request.body);
-  const user = await prisma.user.findUnique({ where: { phone: input.phone } });
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ phone: input.identifier }, { email: input.identifier }] },
+  });
   // Keep both failures on the same bcrypt timing path to avoid phone-account enumeration.
   const passwordMatches = await bcrypt.compare(
     input.password,
     user?.passwordHash ?? dummyHash,
   );
   if (!user || !passwordMatches) {
-    response.status(401).json({ message: "Invalid phone or password." });
+    response
+      .status(401)
+      .json({ message: "Invalid email, phone, or password." });
     return;
   }
   response.json({
@@ -90,8 +95,6 @@ export async function login(
     mustChangePassword: user.mustChangePassword,
   });
 }
-
-
 
 export async function changePassword(
   request: Request,
@@ -137,14 +140,12 @@ export async function me(request: Request, response: Response): Promise<void> {
   response.json(user);
 }
 
-
-
 export async function provisionStaff(
   request: Request,
   response: Response,
 ): Promise<void> {
   const input = validateProvisionStaff(request.body);
-  if (!(await phoneAvailable(input.phone))) {
+  if (!(await accountDetailsAvailable(input.phone, input.email))) {
     duplicate(response);
     return;
   }
@@ -157,19 +158,23 @@ export async function provisionStaff(
       passwordHash: await bcrypt.hash(temporaryPassword, bcryptRounds),
       mustChangePassword: true,
     },
-    select: { id: true, phone: true, role: true },
+    select: { id: true, phone: true, email: true, role: true },
   });
   // The plaintext credential is deliberately returned only here and never persisted separately.
   response.status(201).json({ ...user, temporaryPassword });
 }
-
 
 export async function provisionAdmin(
   request: Request,
   response: Response,
 ): Promise<void> {
   const input = validateProvisionAdmin(request.body);
-  if (!(await phoneAvailable(input.phone))) {
+  if (
+    await prisma.user.findUnique({
+      where: { phone: input.phone },
+      select: { id: true },
+    })
+  ) {
     duplicate(response);
     return;
   }
@@ -186,25 +191,27 @@ export async function provisionAdmin(
     return;
   }
   const temporaryPassword = generateTempPassword();
-  const user = await prisma.$transaction(async (transaction) => {
-    const created = await transaction.user.create({
-      data: {
-        phone: input.phone,
-        name: input.name,
-        role: "admin",
-        passwordHash: await bcrypt.hash(temporaryPassword, bcryptRounds),
-        mustChangePassword: true,
-      },
-      select: { id: true, phone: true, role: true },
-    });
-    await transaction.adminAuditLog.create({
-      data: {
-        actingAdminId: request.user!.id,
-        createdUserId: created.id,
-        action: "admin_created_admin",
-      },
-    });
-    return created;
-  });
+  const user = await prisma.$transaction(
+    async (transaction: Prisma.TransactionClient) => {
+      const created = await transaction.user.create({
+        data: {
+          phone: input.phone,
+          name: input.name,
+          role: "admin",
+          passwordHash: await bcrypt.hash(temporaryPassword, bcryptRounds),
+          mustChangePassword: true,
+        },
+        select: { id: true, phone: true, email: true, role: true },
+      });
+      await transaction.adminAuditLog.create({
+        data: {
+          actingAdminId: request.user!.id,
+          createdUserId: created.id,
+          action: "admin_created_admin",
+        },
+      });
+      return created;
+    },
+  );
   response.status(201).json({ ...user, temporaryPassword });
 }
