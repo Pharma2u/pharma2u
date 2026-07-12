@@ -1,0 +1,242 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  customer
+  vendor
+  rider
+  admin
+}
+
+enum ProductCategory {
+  otc
+  prescription
+  schedule_h
+}
+
+enum OrderStatus {
+  pending_verification
+  verified
+  rejected
+  awaiting_rider
+  rider_assigned
+  picked_up
+  relay_pending
+  relay_failed
+  on_the_way
+  delivered
+  cancelled
+  disputed
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum ReservationStatus {
+  held
+  committed
+  released
+}
+
+model User {
+  id           String   @id @default(uuid())
+  role         Role
+  name         String
+  phone        String   @unique
+  passwordHash String
+  address      String?
+  createdAt    DateTime @default(now())
+
+  // relations
+  pharmacy         Pharmacy?      @relation("VendorPharmacy")
+  ordersAsCustomer Order[]        @relation("CustomerOrders")
+  ordersAsRider    Order[]        @relation("PrimaryRiderOrders")
+  ordersAsRelayRider Order[]      @relation("RelayRiderOrders")
+  riderLocation    RiderLocation?
+
+  @@map("users")
+}
+
+
+model Pharmacy {
+  id      String  @id @default(uuid())
+  vendorUserId String @unique
+  vendor  User    @relation("VendorPharmacy", fields: [vendorUserId], references: [id])
+
+  name    String
+  address String
+  isOpen  Boolean @default(true)
+
+  // PostGIS geography(Point,4326) column — Prisma has no native geography
+  // type, so this is added via raw SQL migration (see note below) and
+  // marked Unsupported so Prisma leaves it alone and doesn't try to manage it.
+  // location Unsupported("geography(Point,4326)")?
+
+
+  //for temp
+  latitude Float?
+  longitude Float?
+
+  // compliance — required before a pharmacy can go live, see system design §6
+  drugLicenseNumber        String
+  pharmacistName            String
+  pharmacistLicenseNumber   String
+
+  products Product[]
+  orders               Order[] @relation("PrimaryPharmacyOrders")
+  relayOrders          Order[] @relation("RelayPharmacyOrders")
+
+  createdAt DateTime @default(now())
+
+  @@map("pharmacies")
+}
+
+model Product {
+  id          String          @id @default(uuid())
+  pharmacyId  String
+  pharmacy    Pharmacy        @relation(fields: [pharmacyId], references: [id])
+
+  name        String
+  genericName String
+  category    ProductCategory @default(otc)
+
+  price    Float
+  stock    Int
+  unit     String
+  isActive Boolean @default(true)
+
+  orderItems         OrderItem[]
+  stockReservations  StockReservation[]
+
+  // hot path for the matching engine — see system design §4
+  @@index([pharmacyId, genericName])
+  @@map("products")
+}
+
+
+model Order {
+  id        String @id @default(uuid())
+  orderCode String @unique
+
+  customerId String
+  customer   User   @relation("CustomerOrders", fields: [customerId], references: [id])
+
+  pharmacyId String
+  pharmacy   Pharmacy @relation("PrimaryPharmacyOrders", fields: [pharmacyId], references: [id])
+
+  status OrderStatus @default(pending_verification)
+
+  // prescription / OCR
+  requiresPrescription Boolean @default(false)
+  prescriptionPath     String?
+  ocrText              String?
+  ocrConfidence        Float?
+
+  // pricing
+  subtotal    Float
+  deliveryFee Float
+  total       Float
+
+  paymentStatus PaymentStatus @default(pending)
+  paymentRef    String?
+
+  // drop location
+  dropLat     Float
+  dropLng     Float
+  dropAddress String
+
+  // relay logistics
+  isRelay        Boolean   @default(false)
+  relayPharmacyId String?
+  relayPharmacy   Pharmacy? @relation("RelayPharmacyOrders", fields: [relayPharmacyId], references: [id])
+  relayNodeLat   Float?
+  relayNodeLng   Float?
+  relayStatus    String?   // e.g. "awaiting_handoff" | "handoff_confirmed"
+
+  riderId String?
+  rider   User?   @relation("PrimaryRiderOrders", fields: [riderId], references: [id])
+
+  relayRiderId String?
+  relayRider   User?   @relation("RelayRiderOrders", fields: [relayRiderId], references: [id])
+
+  cancelledReason String?
+  cancelledBy     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items      OrderItem[]
+  events     OrderEvent[]
+  reservations StockReservation[]
+
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  fromRelayPharmacy Boolean @default(false)
+  name              String   // snapshot at order time, in case product name changes later
+  qty               Int
+  price             Float    // snapshot at order time, in case price changes later
+
+  @@map("order_items")
+}
+
+
+model OrderEvent {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  status    OrderStatus
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("order_events")
+}
+
+
+model StockReservation {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  qty       Int
+  status    ReservationStatus @default(held)
+  expiresAt DateTime
+
+  @@map("stock_reservations")
+}
+
+
+model RiderLocation {
+  riderId   String   @id
+  rider     User     @relation(fields: [riderId], references: [id])
+  lat       Float
+  lng       Float
+  updatedAt DateTime @updatedAt
+
+  @@map("rider_locations")
+}
