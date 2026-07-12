@@ -1,13 +1,13 @@
-// Creates the application Prisma client using the PostgreSQL driver adapter.
-import { PrismaPg } from "@prisma/adapter-pg";
+// Creates the application Prisma client through Prisma Accelerate.
+import { withAccelerate } from "@prisma/extension-accelerate";
 import { PrismaClient } from "../generated/prisma/client";
 
-const connectionString = process.env.DATABASE_URL;
+const accelerateUrl = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL must be set.");
+if (!accelerateUrl) {
+  throw new Error("DATABASE_URL must be set to a Prisma Accelerate URL.");
 }
 
-export const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
-});
+export const prisma = new PrismaClient({ accelerateUrl }).$extends(
+  withAccelerate(),
+);

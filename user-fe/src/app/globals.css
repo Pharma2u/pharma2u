@@ -91,3 +91,10 @@ img {
     padding-right: 48px;
   }
 }
+button:disabled {
+  cursor: not-allowed;
+}
+
+input:focus, select:focus {
+  outline: none;
+}

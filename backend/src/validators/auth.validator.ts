@@ -1,17 +1,19 @@
 // Validates untrusted request bodies for authentication endpoints.
 export type RegisterInput = {
   phone: string;
+  email: string;
   password: string;
   name: string;
   address?: string;
 };
-export type LoginInput = { phone: string; password: string };
+export type LoginInput = { identifier: string; password: string };
 export type ChangePasswordInput = {
   currentPassword: string;
   newPassword: string;
 };
 export type ProvisionStaffInput = {
   phone: string;
+  email: string;
   name: string;
   role: "vendor" | "rider";
 };
@@ -20,10 +22,9 @@ export type ProvisionAdminInput = {
   name: string;
   currentPassword: string;
 };
-
 export class ValidationError extends Error {}
 const phonePattern = /^[6-9]\d{9}$/;
-
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function bodyObject(body: unknown): Record<string, unknown> {
   if (!body || typeof body !== "object" || Array.isArray(body))
     throw new ValidationError("Request body must be an object.");
@@ -48,7 +49,12 @@ function phone(body: Record<string, unknown>): string {
     );
   return value;
 }
-
+function email(body: Record<string, unknown>): string {
+  const value = requiredString(body, "email").toLowerCase();
+  if (!emailPattern.test(value))
+    throw new ValidationError("email must be a valid email address.");
+  return value;
+}
 export function validateRegister(body: unknown): RegisterInput {
   const data = bodyObject(body);
   const address = data.address;
@@ -56,6 +62,7 @@ export function validateRegister(body: unknown): RegisterInput {
     throw new ValidationError("address must be a string.");
   return {
     phone: phone(data),
+    email: email(data),
     password: password(data, "password"),
     name: requiredString(data, "name"),
     ...(typeof address === "string" && address.trim()
@@ -65,7 +72,10 @@ export function validateRegister(body: unknown): RegisterInput {
 }
 export function validateLogin(body: unknown): LoginInput {
   const data = bodyObject(body);
-  return { phone: phone(data), password: requiredString(data, "password") };
+  return {
+    identifier: requiredString(data, "identifier").toLowerCase(),
+    password: requiredString(data, "password"),
+  };
 }
 export function validateChangePassword(body: unknown): ChangePasswordInput {
   const data = bodyObject(body);
@@ -79,7 +89,12 @@ export function validateProvisionStaff(body: unknown): ProvisionStaffInput {
   const role = data.role;
   if (role !== "vendor" && role !== "rider")
     throw new ValidationError("role must be either vendor or rider.");
-  return { phone: phone(data), name: requiredString(data, "name"), role };
+  return {
+    phone: phone(data),
+    email: email(data),
+    name: requiredString(data, "name"),
+    role,
+  };
 }
 export function validateProvisionAdmin(body: unknown): ProvisionAdminInput {
   const data = bodyObject(body);
