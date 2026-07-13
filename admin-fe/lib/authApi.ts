@@ -1,8 +1,8 @@
-import type { AuthSession } from "@/store/authSlice";
+﻿import type { AuthSession } from "@/store/authSlice";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
-type ApiError = { message?: string };
+type ApiError = { error?: string; message?: string };
 export type ProvisionedAccount = {
   id: string;
   phone: string;
@@ -24,7 +24,9 @@ async function post<T>(
     body: JSON.stringify(body),
   });
   const data = (await response.json().catch(() => ({}))) as T & ApiError;
-  if (!response.ok) throw new Error(data.message ?? "Request failed.");
+  if (!response.ok) {
+    throw new Error(data.error ?? data.message ?? "Request failed.");
+  }
   return data;
 }
 
@@ -53,11 +55,12 @@ export function provisionStaff(
   token: string,
   name: string,
   phone: string,
+  email: string,
   role: "vendor" | "rider",
 ) {
   return post<ProvisionedAccount>(
     "/admin/provision-staff",
-    { name, phone, role },
+    { name, phone, email, role },
     token,
   );
 }

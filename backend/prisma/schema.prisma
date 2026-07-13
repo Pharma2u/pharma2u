@@ -57,6 +57,8 @@ model User {
   passwordHash       String
   address            String?
   mustChangePassword Boolean  @default(false)
+  applicationStatus  String?
+  rejectionReason    String?
   createdAt          DateTime @default(now())
 
   pharmacy           Pharmacy?      @relation("VendorPharmacy")
@@ -64,6 +66,7 @@ model User {
   ordersAsRider      Order[]        @relation("PrimaryRiderOrders")
   ordersAsRelayRider Order[]        @relation("RelayRiderOrders")
   riderLocation      RiderLocation?
+  riderKyc           RiderKyc?
 
   @@map("users")
 }
@@ -87,8 +90,7 @@ model Pharmacy {
   name                    String
   address                 String
   isOpen                  Boolean   @default(true)
-  latitude                Float?
-  longitude               Float?
+  location                Unsupported("geography(Point,4326)")?
   drugLicenseNumber       String
   pharmacistName          String
   pharmacistLicenseNumber String
@@ -111,6 +113,7 @@ model Product {
   stock             Int
   unit              String
   isActive          Boolean            @default(true)
+  createdAt         DateTime            @default(now())
   orderItems        OrderItem[]
   stockReservations StockReservation[]
 
@@ -207,3 +210,22 @@ model RiderLocation {
 
   @@map("rider_locations")
 }
+
+model RiderKyc {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id])
+  aadharNumber         String
+  aadharImagePath      String
+  panNumber            String
+  panImagePath         String
+  drivingLicenseNumber String
+  dlImagePath          String
+  vehicleType          String
+  vehicleNumber        String
+  submittedAt          DateTime @default(now())
+
+  @@map("rider_kyc")
+}
+
+

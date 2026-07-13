@@ -6,11 +6,15 @@ export type RegisterInput = {
   name: string;
   address?: string;
 };
+
+
 export type LoginInput = { identifier: string; password: string };
 export type ChangePasswordInput = {
   currentPassword: string;
   newPassword: string;
 };
+
+
 export type ProvisionStaffInput = {
   phone: string;
   email: string;
@@ -22,6 +26,8 @@ export type ProvisionAdminInput = {
   name: string;
   currentPassword: string;
 };
+
+
 export class ValidationError extends Error {}
 const phonePattern = /^[6-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -30,17 +36,23 @@ function bodyObject(body: unknown): Record<string, unknown> {
     throw new ValidationError("Request body must be an object.");
   return body as Record<string, unknown>;
 }
+
+
 function requiredString(body: Record<string, unknown>, field: string): string {
   if (typeof body[field] !== "string" || !body[field].trim())
     throw new ValidationError(`${field} is required.`);
   return body[field].trim();
 }
+
+
 function password(body: Record<string, unknown>, field: string): string {
   const value = requiredString(body, field);
   if (value.length < 8)
     throw new ValidationError(`${field} must be at least 8 characters.`);
   return value;
 }
+
+
 function phone(body: Record<string, unknown>): string {
   const value = requiredString(body, "phone");
   if (!phonePattern.test(value))
@@ -49,12 +61,16 @@ function phone(body: Record<string, unknown>): string {
     );
   return value;
 }
+
+
 function email(body: Record<string, unknown>): string {
   const value = requiredString(body, "email").toLowerCase();
   if (!emailPattern.test(value))
     throw new ValidationError("email must be a valid email address.");
   return value;
 }
+
+
 export function validateRegister(body: unknown): RegisterInput {
   const data = bodyObject(body);
   const address = data.address;
@@ -70,6 +86,8 @@ export function validateRegister(body: unknown): RegisterInput {
       : {}),
   };
 }
+
+
 export function validateLogin(body: unknown): LoginInput {
   const data = bodyObject(body);
   return {
@@ -77,6 +95,8 @@ export function validateLogin(body: unknown): LoginInput {
     password: requiredString(data, "password"),
   };
 }
+
+
 export function validateChangePassword(body: unknown): ChangePasswordInput {
   const data = bodyObject(body);
   return {
@@ -84,6 +104,8 @@ export function validateChangePassword(body: unknown): ChangePasswordInput {
     newPassword: password(data, "newPassword"),
   };
 }
+
+
 export function validateProvisionStaff(body: unknown): ProvisionStaffInput {
   const data = bodyObject(body);
   const role = data.role;
@@ -96,6 +118,8 @@ export function validateProvisionStaff(body: unknown): ProvisionStaffInput {
     role,
   };
 }
+
+
 export function validateProvisionAdmin(body: unknown): ProvisionAdminInput {
   const data = bodyObject(body);
   return {

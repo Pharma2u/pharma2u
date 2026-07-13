@@ -31,6 +31,7 @@ router.post(
   requirePasswordChanged,
   provisionStaff,
 );
+
 router.post(
   "/admin/provision-admin",
   authMiddleware("admin"),
