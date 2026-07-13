@@ -1,0 +1,153 @@
+﻿@import "tailwindcss";
+:root {
+  --ink: #12201d;
+  --muted: #64748b;
+  --line: #dbe7e3;
+  --brand: #16a77b;
+  --soft: #ecfbf5;
+  background: #f3f8f6;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+.shell {
+  max-width: 1050px;
+  margin: auto;
+  padding: 64px 24px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: end;
+  margin-bottom: 32px;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.05;
+  margin: 8px 0;
+}
+h2 {
+  font-size: 1.7rem;
+  margin: 8px 0 20px;
+}
+.brand,
+.eyebrow {
+  color: var(--brand);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-size: 0.75rem;
+}
+.muted {
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 620px;
+}
+.card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 16px 40px #0a2f2010;
+}
+.narrow {
+  max-width: 500px;
+}
+.tabs {
+  display: flex;
+  background: #e7f2ee;
+  padding: 4px;
+  border-radius: 14px;
+}
+.tabs button,
+.secondary {
+  border: 0;
+  background: transparent;
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.tabs .active {
+  background: white;
+  box-shadow: 0 2px 6px #0001;
+}
+.space-y,
+.grid-form {
+  display: grid;
+  gap: 16px;
+}
+label {
+  display: grid;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+input,
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  background: white;
+}
+.uppercase {
+  text-transform: uppercase;
+}
+.grid-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.grid-form button,
+.grid-form .alert {
+  grid-column: 1/-1;
+}
+.primary {
+  border: 0;
+  border-radius: 11px;
+  padding: 13px 18px;
+  background: var(--brand);
+  color: white;
+  font-weight: 800;
+}
+.secondary {
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  background: white;
+}
+.alert {
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+.error {
+  background: #fff0f0;
+  color: #b42318;
+}
+.success {
+  background: var(--soft);
+  color: #087856;
+}
+small {
+  color: var(--muted);
+  font-weight: 400;
+}
+@media (max-width: 640px) {
+  .shell {
+    padding: 35px 16px;
+  }
+  header {
+    align-items: start;
+    flex-direction: column;
+  }
+  .grid-form {
+    grid-template-columns: 1fr;
+  }
+  .card {
+    padding: 22px;
+  }
+}

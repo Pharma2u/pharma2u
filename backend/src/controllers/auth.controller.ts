@@ -88,6 +88,14 @@ export async function login(
       .json({ message: "Invalid email, phone, or password." });
     return;
   }
+  if (user.role === "rider" && user.applicationStatus !== "approved") {
+    const message =
+      user.applicationStatus === "rejected"
+        ? "Rider application was rejected."
+        : "Rider application is awaiting approval.";
+    response.status(403).json({ error: message });
+    return;
+  }
   response.json({
     token: createAuthToken(user.id, user.role),
     role: user.role,

@@ -1,36 +1,22 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+﻿import type { Metadata } from "next";
 import Header from "@/src/components/layout/Header";
 import AuthProvider from "@/src/components/auth/AuthProvider";
-
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: {
-    default: "GoCure",
-    template: "%s | GoCure",
-  },
-
+  title: { default: "Pharma2u", template: "%s | Pharma2u" },
   description:
-    "Search medicines from nearby pharmacies and get them delivered fast with GoCure.",
+    "Search medicines from nearby pharmacies and get them delivered fast.",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <AuthProvider>
           <Header />
-
           {children}
         </AuthProvider>
       </body>

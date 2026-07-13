@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { CustomerAuthForm } from "@/src/components/auth/CustomerAuthForm";
 import { setSession, type AuthSession } from "@/src/store/authStore";
 import { useRouter } from "next/navigation";
@@ -34,9 +34,12 @@ export default function CustomerAuthPage() {
     );
     const data = (await response.json().catch(() => ({}))) as AuthSession & {
       message?: string;
+      error?: string;
     };
     if (!response.ok) {
-      setError(data.message ?? "Unable to complete your request.");
+      setError(
+        data.error ?? data.message ?? "Unable to complete your request.",
+      );
       return;
     }
     if (data.role !== "customer") {
