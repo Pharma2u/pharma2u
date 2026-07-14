@@ -23,6 +23,9 @@ export interface OrderPharmacy {
   distance: number;
 }
 
+
+
+
 export interface OrderAddress {
   id: string;
   label: string;
