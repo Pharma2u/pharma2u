@@ -1,5 +1,5 @@
 export interface Product {
-  id: number;
+  id: string | number;
   name: string;
   manufacturer: string;
   packSize: string;

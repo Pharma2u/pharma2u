@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 import {
   Check,
@@ -43,6 +44,7 @@ export default function MedicineDetails({
    */
 
   const [justAdded, setJustAdded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   /*
    * SELECTED PHARMACY
@@ -190,13 +192,21 @@ export default function MedicineDetails({
               <Heart size={19} />
             </button>
 
-            <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-[#EAFAF5]">
-              <ImageIcon
-                size={44}
-                strokeWidth={1.4}
-                className="text-[#2EB68F]"
+            {product.image && !imageFailed ? (
+              <Image
+                src={product.image}
+                alt={product.name}
+                fill
+                unoptimized
+                sizes="(max-width: 768px) 100vw, 280px"
+                onError={() => setImageFailed(true)}
+                className="object-contain p-6"
               />
-            </div>
+            ) : (
+              <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-[#EAFAF5]">
+                <ImageIcon size={44} strokeWidth={1.4} className="text-[#2EB68F]" />
+              </div>
+            )}
 
           </div>
 

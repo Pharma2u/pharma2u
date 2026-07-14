@@ -1,5 +1,10 @@
 ﻿const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 type Failure = { error?: string; message?: string };
+export type PharmacyOnboardingInput = {
+  pharmacyName: string; address: string; lat: number; lng: number;
+  drugLicenseNumber: string; pharmacistName: string;
+  pharmacistLicenseNumber: string; vendorName: string; vendorPhone: string;
+};
 async function api<T>(path: string, token: string, init: RequestInit = {}) {
   const r = await fetch(base + path, {
     ...init,
@@ -14,6 +19,11 @@ async function api<T>(path: string, token: string, init: RequestInit = {}) {
   return d;
 }
 export const adminOperations = {
+  createPharmacy: (t: string, input: PharmacyOnboardingInput) =>
+    api<{ pharmacyId: string; vendorPhone: string; temporaryPassword: string }>(
+      "/admin/pharmacies", t,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
   pharmacies: (t: string) =>
     api<{
       items: {

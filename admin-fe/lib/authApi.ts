@@ -56,7 +56,7 @@ export function provisionStaff(
   name: string,
   phone: string,
   email: string,
-  role: "vendor" | "rider",
+  role: "rider",
 ) {
   return post<ProvisionedAccount>(
     "/admin/provision-staff",

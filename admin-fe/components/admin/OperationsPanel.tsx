@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminOperations } from "@/lib/operationsApi";
 
 type Pharmacy = {
@@ -29,7 +29,7 @@ export function OperationsPanel({ token }: { token: string }) {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -49,11 +49,14 @@ export function OperationsPanel({ token }: { token: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token]);
 
   useEffect(() => {
-    void loadDashboard();
-  }, []);
+    const timeout = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadDashboard]);
 
   async function approve(id: string) {
     try {
@@ -142,7 +145,7 @@ export function OperationsPanel({ token }: { token: string }) {
           <div className="mt-5 divide-y divide-slate-100">
             {loading && (
               <p className="py-6 text-sm text-slate-500">
-                Loading pharmacy network…
+                Loading pharmacy networkÃ¢â‚¬Â¦
               </p>
             )}
             {!loading && pharmacies.length === 0 && (
@@ -160,7 +163,7 @@ export function OperationsPanel({ token }: { token: string }) {
                     {pharmacy.name}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    {pharmacy.vendor.name} · {pharmacy.vendor.phone}
+                    {pharmacy.vendor.name} Ã‚Â· {pharmacy.vendor.phone}
                   </p>
                 </div>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -183,7 +186,7 @@ export function OperationsPanel({ token }: { token: string }) {
           <div className="mt-5 space-y-4">
             {loading && (
               <p className="py-6 text-sm text-slate-500">
-                Loading applications…
+                Loading applicationsÃ¢â‚¬Â¦
               </p>
             )}
             {!loading && riders.length === 0 && (
@@ -202,7 +205,7 @@ export function OperationsPanel({ token }: { token: string }) {
                       {rider.name}
                     </h3>
                     <p className="mt-1 text-sm text-slate-500">
-                      {rider.phone} ·{" "}
+                      {rider.phone} Ã‚Â·{" "}
                       {rider.kyc?.vehicleType ?? "Vehicle pending"}
                     </p>
                   </div>

@@ -8,7 +8,7 @@ type Props = {
     name: string,
     phone: string,
     email: string,
-    role: "vendor" | "rider",
+    role: "rider",
   ) => Promise<ProvisionedAccount>;
   onProvisionAdmin: (
     name: string,
@@ -21,9 +21,7 @@ export function ProvisioningPanel({
   onProvisionStaff,
   onProvisionAdmin,
 }: Props) {
-  const [accountType, setAccountType] = useState<"vendor" | "rider" | "admin">(
-    "vendor",
-  );
+  const [accountType, setAccountType] = useState<"rider" | "admin">("rider");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -69,11 +67,10 @@ export function ProvisioningPanel({
           <select
             value={accountType}
             onChange={(event) =>
-              setAccountType(event.target.value as "vendor" | "rider" | "admin")
+              setAccountType(event.target.value as "rider" | "admin")
             }
             className="mt-2 w-full rounded-xl border p-3"
           >
-            <option value="vendor">Vendor</option>
             <option value="rider">Rider</option>
             <option value="admin">Administrator</option>
           </select>

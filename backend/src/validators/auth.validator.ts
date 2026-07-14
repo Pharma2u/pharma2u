@@ -19,7 +19,7 @@ export type ProvisionStaffInput = {
   phone: string;
   email: string;
   name: string;
-  role: "vendor" | "rider";
+  role: "rider";
 };
 export type ProvisionAdminInput = {
   phone: string;
@@ -109,8 +109,10 @@ export function validateChangePassword(body: unknown): ChangePasswordInput {
 export function validateProvisionStaff(body: unknown): ProvisionStaffInput {
   const data = bodyObject(body);
   const role = data.role;
-  if (role !== "vendor" && role !== "rider")
-    throw new ValidationError("role must be either vendor or rider.");
+  if (role !== "rider")
+    throw new ValidationError(
+      "Vendor accounts must be created through Pharmacy Onboarding.",
+    );
   return {
     phone: phone(data),
     email: email(data),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSelector } from "react-redux";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,8 @@ import {
 
 import LocationModal from "@/src/components/location/LocationModal";
 
-import { generateOrderId } from "@/src/lib/order";
+import { createOrder } from "@/src/lib/ordersApi";
+import type { AuthRootState } from "@/src/store/authStore";
 
 import { useAddressStore } from "@/src/store/addressStore";
 import { useCartStore } from "@/src/store/cartStore";
@@ -39,6 +41,7 @@ type PaymentMethod = "upi" | "card" | "cod";
 
 export default function CheckoutContent() {
   const router = useRouter();
+  const session = useSelector((state: AuthRootState) => state.auth.session);
 
   /*
    * ORDER PROCESSING
@@ -46,6 +49,7 @@ export default function CheckoutContent() {
 
   const [isPlacingOrder, setIsPlacingOrder] =
     useState(false);
+  const [orderError, setOrderError] = useState("");
 
   /*
    * CART
@@ -177,123 +181,62 @@ export default function CheckoutContent() {
    * CREATE ORDER
    */
 
-  const handlePlaceOrder = () => {
-    if (isPlacingOrder) {
+  const handlePlaceOrder = async () => {
+    setOrderError("");
+    if (isPlacingOrder || !selectedAddress || !items.length || hasStockIssue || hasMissingPharmacy) return;
+    if (!session?.token) {
+      setOrderError("Please sign in before placing an order.");
+      router.push("/login");
+      return;
+    }
+    if (selectedAddress.latitude === undefined || selectedAddress.longitude === undefined) {
+      setOrderError("Select an address with a valid map location before placing the order.");
       return;
     }
 
-    if (!selectedAddress) {
-      return;
-    }
-
-    if (items.length === 0) {
-      return;
-    }
-
-    if (hasStockIssue) {
-      return;
-    }
-
-    if (hasMissingPharmacy) {
-      return;
-    }
-
-    setIsPlacingOrder(true);
-
-    const orderId = generateOrderId();
-
-    const orderItems = items.flatMap((item) => {
-      if (!item.pharmacy) {
-        return [];
-      }
-
-      return [
-        {
-          product: item.product,
-
-          quantity: item.quantity,
-
-          pharmacy: {
-            id: item.pharmacy.id,
-
-            name: item.pharmacy.name,
-
-            address: item.pharmacy.address,
-
-            deliveryTime:
-              item.pharmacy.deliveryTime,
-
-            distance: item.pharmacy.distance,
-          },
-
-          unitPrice: item.unitPrice,
-
-          availableStock: item.availableStock,
-        },
-      ];
-    });
-
-    const order: Order = {
-      id: orderId,
-
+    const orderItems = items.flatMap((item) => item.pharmacy ? [{
+      product: item.product,
+      quantity: item.quantity,
+      pharmacy: item.pharmacy,
+      unitPrice: item.unitPrice,
+      availableStock: item.availableStock,
+    }] : []);
+    const localOrder: Omit<Order, "id"> = {
       items: orderItems,
-
-      address: {
-        id: selectedAddress.id,
-
-        label: selectedAddress.label,
-
-        fullAddress: selectedAddress.fullAddress,
-
-        city: selectedAddress.city,
-
-        state: selectedAddress.state,
-
-        pincode: selectedAddress.pincode,
-      },
-
-      paymentMethod:
-        paymentMethod as OrderPaymentMethod,
-
+      address: { id: selectedAddress.id, label: selectedAddress.label, fullAddress: selectedAddress.fullAddress, city: selectedAddress.city, state: selectedAddress.state, pincode: selectedAddress.pincode },
+      paymentMethod: paymentMethod as OrderPaymentMethod,
       deliveryInstructions,
-
       subtotal,
-
       totalMRP,
-
       savings,
-
       deliveryFee,
-
       totalAmount,
-
-      estimatedDeliveryTime:
-        estimatedDeliveryTime ?? 15,
-
+      estimatedDeliveryTime: estimatedDeliveryTime ?? 15,
       status: "placed",
-
       createdAt: new Date().toISOString(),
     };
 
-    /*
-     * SAVE ORDER
-     */
-
-    addOrder(order);
-
-    /*
-     * CLEAR CART
-     */
-
-    clearCart();
-
-    /*
-     * REDIRECT
-     */
-
-    router.push(`/order-success/${orderId}`);
+    setIsPlacingOrder(true);
+    try {
+      const created = await createOrder(session.token, {
+        items: items.map((item) => ({ productId: String(item.product.id), qty: item.quantity })),
+        dropAddress: `${selectedAddress.fullAddress}, ${selectedAddress.city}${selectedAddress.state ? `, ${selectedAddress.state}` : ""}${selectedAddress.pincode ? ` - ${selectedAddress.pincode}` : ""}`,
+        dropLat: selectedAddress.latitude,
+        dropLng: selectedAddress.longitude,
+        paymentMethod,
+        deliveryInstructions: deliveryInstructions.trim() || undefined,
+        deliveryFee,
+        estimatedMinutes: estimatedDeliveryTime ?? 15,
+      });
+      addOrder({ ...localOrder, id: created.id });
+      clearCart();
+      router.push(`/order-success/${created.id}`);
+    } catch (caught) {
+      setOrderError(caught instanceof Error ? caught.message : "Unable to place your order. Please try again.");
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
-
   /*
    * EMPTY CART
    */
@@ -656,7 +599,7 @@ export default function CheckoutContent() {
                     </div>
 
                     <p className="shrink-0 text-sm font-bold text-[#17212B]">
-                      ₹{item.unitPrice * item.quantity}
+                      ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{item.unitPrice * item.quantity}
                     </p>
                   </div>
 
@@ -702,7 +645,7 @@ export default function CheckoutContent() {
                   </span>
 
                   <span className="font-semibold text-[#17212B]">
-                    ₹{totalMRP}
+                    ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{totalMRP}
                   </span>
                 </div>
 
@@ -712,7 +655,7 @@ export default function CheckoutContent() {
                   </span>
 
                   <span className="font-semibold text-[#2EB68F]">
-                    - ₹{savings}
+                    - ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{savings}
                   </span>
                 </div>
 
@@ -735,17 +678,22 @@ export default function CheckoutContent() {
                 </span>
 
                 <span className="text-2xl font-bold text-[#17212B]">
-                  ₹{totalAmount}
+                  ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{totalAmount}
                 </span>
               </div>
 
               {savings > 0 && (
                 <div className="mt-4 rounded-xl bg-[#EAFAF5] px-4 py-3 text-center text-xs font-bold text-[#2EB68F]">
-                  You save ₹{savings} on this order
+                  You save ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{savings} on this order
                 </div>
               )}
             </div>
 
+            {orderError && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">
+                <p className="text-[11px] leading-5 text-red-700">{orderError}</p>
+              </div>
+            )}
             {/* VALIDATION WARNINGS */}
 
             {hasStockIssue && (

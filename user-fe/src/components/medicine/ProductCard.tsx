@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import Image from "next/image";
 import Link from "next/link";
 
 import {
@@ -25,6 +26,7 @@ export default function ProductCard({
   const addItem = useCartStore((state) => state.addItem);
 
   const [justAdded, setJustAdded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const handleAddToCart = () => {
     addItem(product);
@@ -62,13 +64,21 @@ export default function ProductCard({
           <Heart size={17} />
         </button>
 
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#EAFAF5]">
-          <ImageIcon
-            size={30}
-            strokeWidth={1.5}
-            className="text-[#2EB68F]"
+        {product.image && !imageFailed ? (
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            unoptimized
+            sizes="(max-width: 640px) 50vw, 280px"
+            onError={() => setImageFailed(true)}
+            className="object-contain p-4"
           />
-        </div>
+        ) : (
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#EAFAF5]">
+            <ImageIcon size={30} strokeWidth={1.5} className="text-[#2EB68F]" />
+          </div>
+        )}
       </Link>
 
       {/* CONTENT */}

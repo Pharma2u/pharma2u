@@ -10,10 +10,11 @@ import {
 } from "lucide-react";
 
 import ProductCard from "@/src/components/medicine/ProductCard";
-import { products } from "@/src/data/products";
+import type { Product } from "@/src/data/products";
 
 interface SearchResultsProps {
   query: string;
+  products: Product[];
 }
 
 type SortOption =
@@ -24,6 +25,7 @@ type SortOption =
 
 export default function SearchResults({
   query,
+  products,
 }: SearchResultsProps) {
   const [prescriptionFilter, setPrescriptionFilter] = useState<
     "all" | "required" | "not-required"
@@ -108,6 +110,7 @@ export default function SearchResults({
     deliveryFilter,
     discountFilter,
     sortOption,
+    products,
   ]);
 
   const resetFilters = () => {
@@ -117,7 +120,7 @@ export default function SearchResults({
     setSortOption("recommended");
   };
 
-  const FilterContent = () => (
+  const filterContent = () => (
     <>
       {/* FILTER HEADER */}
 
@@ -351,7 +354,7 @@ export default function SearchResults({
         {/* DESKTOP FILTERS */}
 
         <aside className="sticky top-[100px] hidden overflow-hidden rounded-2xl border border-[#E5EAE8] bg-white md:block">
-          <FilterContent />
+          {filterContent()}
         </aside>
 
         {/* PRODUCTS */}
@@ -430,7 +433,7 @@ export default function SearchResults({
               </button>
             </div>
 
-            <FilterContent />
+            {filterContent()}
 
             <div className="sticky bottom-0 border-t border-[#EDF0EF] bg-white p-4">
               <button
