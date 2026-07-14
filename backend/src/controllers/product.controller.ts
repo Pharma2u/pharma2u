@@ -44,19 +44,17 @@ async function serialize(product: any) {
       where: { productId: product.id },
       orderBy: { sortOrder: "asc" },
     }));
-  const imageUrls = await Promise.all(
-    images.map(async (image: any) => ({
-      id: image.id,
-      url: await productImageUrl(image.path),
-      sortOrder: image.sortOrder,
-    })),
-  );
+  const imageUrls = images.map((image: any) => ({
+    id: image.id,
+    url: productImageUrl(image.path),
+    sortOrder: image.sortOrder,
+  }));
   return {
     ...product,
     imageUrls,
     imageUrl:
       imageUrls[0]?.url ??
-      (product.imagePath ? await productImageUrl(product.imagePath) : null),
+      (product.imagePath ? productImageUrl(product.imagePath) : null),
   };
 }
 
@@ -66,13 +64,15 @@ const pg = (q: unknown) => Math.max(1, Number(q) || 1),
 export async function createProduct(req: Request, res: Response) {
   const pid = await pharmacyId(req, res);
   if (!pid) return;
-  const input = validateProductCreate(req.body);
-  const paths = await Promise.all(files(req).map(uploadProductImage));
+  const { imageUrls, ...input } = validateProductCreate(req.body) as any;
+  const uploadedPaths = await Promise.all(files(req).map(uploadProductImage));
+  const paths = [...(imageUrls || []), ...uploadedPaths];
+  
   const product = await prisma.product.create({
     data: {
       ...input,
       pharmacyId: pid,
-      imagePath: paths[0],
+      imagePath: paths[0] || null,
       images: { create: paths.map((path, sortOrder) => ({ path, sortOrder })) },
     },
     include: { images: { orderBy: { sortOrder: "asc" } } },
@@ -148,8 +148,10 @@ export async function listProducts(req: Request, res: Response) {
 export async function updateProduct(req: Request, res: Response) {
   const hit = await owned(req, res);
   if (!hit) return;
-  const input = validateProductUpdate(req.body);
-  const paths = await Promise.all(files(req).map(uploadProductImage));
+  const { imageUrls, ...input } = validateProductUpdate(req.body) as any;
+  const uploadedPaths = await Promise.all(files(req).map(uploadProductImage));
+  const paths = [...(imageUrls || []), ...uploadedPaths];
+  
   const product = await prisma.product.update({
     where: { id: hit.product.id },
     data: {
@@ -194,3 +196,53 @@ export async function deleteProduct(req: Request, res: Response) {
 }
 
 
+
+export async function listProductAvailability(req: Request, res: Response) {
+  const selectedProduct = await prisma.product.findUnique({
+    where: { id: String(req.params.id) },
+    select: { id: true, name: true, genericName: true },
+  });
+  if (!selectedProduct) {
+    res.status(404).json({ error: "Product not found." });
+    return;
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      stock: { gt: 0 },
+      pharmacy: { isOpen: true },
+      OR: [
+        { genericName: selectedProduct.genericName },
+        { name: selectedProduct.name },
+      ],
+    },
+    include: {
+      pharmacy: {
+        select: { id: true, name: true, address: true, isOpen: true },
+      },
+    },
+    orderBy: [{ deliveryTime: "asc" }, { price: "asc" }],
+  });
+
+  res.json({
+    items: products.map((product) => ({
+      id: product.pharmacy.id,
+      name: product.pharmacy.name,
+      address: product.pharmacy.address,
+      isOpen: product.pharmacy.isOpen,
+      deliveryTime: product.deliveryTime ?? 30,
+      distance: null,
+      rating: null,
+      reviewCount: 0,
+      inventory: {
+        id: product.id,
+        productId: product.id,
+        stockQuantity: product.stock,
+        sellingPrice: product.price,
+        mrp: product.mrp ?? product.price,
+        discount: product.discount,
+      },
+    })),
+  });
+}

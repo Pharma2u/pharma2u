@@ -7,13 +7,14 @@ export function authMiddleware(...allowedRoles: Role[]) {
   return (request: Request, response: Response, next: NextFunction): void => {
     const authorization = request.header("authorization");
     const match = authorization?.match(/^Bearer ([^\s]+)$/);
-    if (!match) {
+    const token = match ? match[1] : request.cookies?.token;
+    
+    if (!token) {
       response.status(401).json({ message: "Authentication required." });
       return;
     }
     try {
-
-      const payload = verifyAuthToken(match[1]!);
+      const payload = verifyAuthToken(token);
 
       if (allowedRoles.length && !allowedRoles.includes(payload.role)) {
         response

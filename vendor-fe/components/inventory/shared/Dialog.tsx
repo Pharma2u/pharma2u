@@ -29,16 +29,18 @@ export function FormActions({
   label,
   destructive = false,
   action,
+  disabled = false,
 }: {
   onClose: () => void;
   label: string;
   destructive?: boolean;
   action?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="mt-6 flex justify-end gap-3">
       <button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
-      <button type={action ? "button" : "submit"} onClick={action} className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${destructive ? "bg-red-600 hover:bg-red-700" : "bg-teal-600 hover:bg-teal-700"}`}>{label}</button>
+      <button type={action ? "button" : "submit"} onClick={action} disabled={disabled} className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${destructive ? "bg-red-600 hover:bg-red-700" : "bg-teal-600 hover:bg-teal-700"}`}>{label}</button>
     </div>
   );
 }

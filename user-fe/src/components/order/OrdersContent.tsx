@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ChevronRight,
   Clock3,
-  ImageIcon,
   MapPin,
   Package,
   PackageCheck,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useOrderStore } from "@/src/store/orderStore";
+import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 
 import type {
   Order,
@@ -224,12 +224,7 @@ export default function OrdersContent() {
                         key={`${item.product.id}-${item.pharmacy.id}`}
                         className="flex items-center gap-4"
                       >
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#F7FAF9]">
-                          <ImageIcon
-                            size={22}
-                            className="text-[#2EB68F]"
-                          />
-                        </div>
+                        <ProductThumbnail src={item.product.image} alt={item.product.name} />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-bold text-[#17212B]">
@@ -242,7 +237,7 @@ export default function OrdersContent() {
                         </div>
 
                         <p className="shrink-0 text-sm font-bold text-[#17212B]">
-                          ₹
+                          â‚¹
                           {item.unitPrice *
                             item.quantity}
                         </p>
@@ -315,7 +310,7 @@ export default function OrdersContent() {
                       </p>
 
                       <p className="mt-1 text-xs font-bold text-[#17212B]">
-                        ₹{order.totalAmount}
+                        â‚¹{order.totalAmount}
                       </p>
                     </div>
                   </div>

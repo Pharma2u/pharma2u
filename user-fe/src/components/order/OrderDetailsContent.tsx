@@ -10,7 +10,6 @@ import {
   Clock3,
   CreditCard,
   Home,
-  ImageIcon,
   MapPin,
   Package,
   PackageCheck,
@@ -21,6 +20,7 @@ import {
 
 import OrderStatusControls from "@/src/components/order/OrderStatusControls";
 import { useOrderStore } from "@/src/store/orderStore";
+import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 
 import type { OrderStatus } from "@/src/types/order";
 
@@ -435,15 +435,7 @@ export default function OrderDetailsContent({
                   className="border-b border-[#EDF0EF] pb-5 last:border-b-0 last:pb-0"
                 >
                   <div className="flex gap-4">
-                    <Link
-                      href={`/medicine/${item.product.id}`}
-                      className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-[#F7FAF9]"
-                    >
-                      <ImageIcon
-                        size={27}
-                        className="text-[#2EB68F]"
-                      />
-                    </Link>
+                    <Link href={`/medicine/${item.product.id}`} className="block"><ProductThumbnail src={item.product.image} alt={item.product.name} className="h-20 w-20" /></Link>
 
                     <div className="min-w-0 flex-1">
                       <Link
@@ -471,7 +463,7 @@ export default function OrderDetailsContent({
                         </p>
 
                         <p className="text-sm font-bold text-[#17212B]">
-                          ₹{item.unitPrice * item.quantity}
+                          Ã¢â€šÂ¹{item.unitPrice * item.quantity}
                         </p>
                       </div>
                     </div>
@@ -617,7 +609,7 @@ export default function OrderDetailsContent({
                 </span>
 
                 <span className="text-xs font-semibold text-[#17212B]">
-                  ₹{order.totalMRP}
+                  Ã¢â€šÂ¹{order.totalMRP}
                 </span>
               </div>
 
@@ -627,7 +619,7 @@ export default function OrderDetailsContent({
                 </span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  - ₹{order.savings}
+                  - Ã¢â€šÂ¹{order.savings}
                 </span>
               </div>
 
@@ -639,7 +631,7 @@ export default function OrderDetailsContent({
                 <span className="text-xs font-semibold text-[#2EB68F]">
                   {order.deliveryFee === 0
                     ? "FREE"
-                    : `₹${order.deliveryFee}`}
+                    : `Ã¢â€šÂ¹${order.deliveryFee}`}
                 </span>
               </div>
 
@@ -650,7 +642,7 @@ export default function OrderDetailsContent({
                   </span>
 
                   <span className="text-xl font-bold text-[#17212B]">
-                    ₹{order.totalAmount}
+                    Ã¢â€šÂ¹{order.totalAmount}
                   </span>
                 </div>
               </div>

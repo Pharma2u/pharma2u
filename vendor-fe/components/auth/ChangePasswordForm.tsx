@@ -1,16 +1,27 @@
 "use client";
+
 import { FormEvent, useState } from "react";
+
 type Props = {
   onSubmit: (currentPassword: string, newPassword: string) => Promise<void>;
   error: string;
 };
+
 export function ChangePasswordForm({ onSubmit, error }: Props) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await onSubmit(currentPassword, newPassword);
+    setLoading(true);
+    try {
+      await onSubmit(currentPassword, newPassword);
+    } finally {
+      setLoading(false);
+    }
   }
+
   return (
     <main className="grid min-h-screen place-items-center bg-teal-50 p-5">
       <form
@@ -48,8 +59,11 @@ export function ChangePasswordForm({ onSubmit, error }: Props) {
           />
         </label>
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-        <button className="mt-6 w-full rounded-xl bg-teal-500 p-3 font-semibold text-slate-950">
-          Update password
+        <button
+          disabled={loading}
+          className="mt-6 w-full rounded-xl bg-teal-500 p-3 font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? "Updating..." : "Update password"}
         </button>
       </form>
     </main>

@@ -62,7 +62,7 @@ export function OperationsPanel({ token }: { token: string }) {
     try {
       const rider = await adminOperations.approve(token, id);
       setNotice(
-        `Rider approved for ${rider.phone}. Temporary password: ${rider.temporaryPassword}`,
+        `Rider ${rider.phone} approved. Temporary password: ${rider.temporaryPassword}`, 
       );
       await loadDashboard();
     } catch (caught) {
@@ -145,7 +145,7 @@ export function OperationsPanel({ token }: { token: string }) {
           <div className="mt-5 divide-y divide-slate-100">
             {loading && (
               <p className="py-6 text-sm text-slate-500">
-                Loading pharmacy networkÃ¢â‚¬Â¦
+                Loading pharmacy network...
               </p>
             )}
             {!loading && pharmacies.length === 0 && (
@@ -163,7 +163,7 @@ export function OperationsPanel({ token }: { token: string }) {
                     {pharmacy.name}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    {pharmacy.vendor.name} Ã‚Â· {pharmacy.vendor.phone}
+                     {pharmacy.vendor.name} - {pharmacy.vendor.phone}
                   </p>
                 </div>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -186,7 +186,7 @@ export function OperationsPanel({ token }: { token: string }) {
           <div className="mt-5 space-y-4">
             {loading && (
               <p className="py-6 text-sm text-slate-500">
-                Loading applicationsÃ¢â‚¬Â¦
+                Loading applications...
               </p>
             )}
             {!loading && riders.length === 0 && (
@@ -205,7 +205,7 @@ export function OperationsPanel({ token }: { token: string }) {
                       {rider.name}
                     </h3>
                     <p className="mt-1 text-sm text-slate-500">
-                      {rider.phone} Ã‚Â·{" "}
+                       {rider.phone} -{" "}
                       {rider.kyc?.vehicleType ?? "Vehicle pending"}
                     </p>
                   </div>

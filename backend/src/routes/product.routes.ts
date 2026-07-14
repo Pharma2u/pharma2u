@@ -4,6 +4,7 @@ import multer from "multer";
 import {
   createProduct,
   listPublicProducts,
+  listProductAvailability,
   deleteProduct,
   listProducts,
   updateProduct,
@@ -24,6 +25,7 @@ const imageUpload = multer({
 });
 
 router.get("/products", listPublicProducts);
+router.get("/products/:id/availability", listProductAvailability);
 
 router.use(authMiddleware("vendor"), requirePasswordChanged);
 router.post("/vendor/products", imageUpload.array("images", 10), createProduct);

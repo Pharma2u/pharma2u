@@ -61,8 +61,16 @@ export async function register(
     },
     select: publicUser,
   });
+  const token = createAuthToken(user.id, user.role);
+  response.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  });
+  
   response.status(201).json({
-    token: createAuthToken(user.id, user.role),
+    token,
     role: user.role,
     name: user.name,
     mustChangePassword: false,
@@ -96,8 +104,16 @@ export async function login(
     response.status(403).json({ error: message });
     return;
   }
+  const token = createAuthToken(user.id, user.role);
+  response.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: (user.role === "admin" ? 12 : 30 * 24) * 60 * 60 * 1000 // 12h or 30 days
+  });
+
   response.json({
-    token: createAuthToken(user.id, user.role),
+    token,
     role: user.role,
     name: user.name,
     mustChangePassword: user.mustChangePassword,

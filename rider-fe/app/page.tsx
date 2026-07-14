@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import { ApplicationForm } from "@/components/auth/ApplicationForm";
 import { RiderLoginForm } from "@/components/auth/RiderLoginForm";
 import { changePassword, loginRider } from "@/lib/api";
+import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedRiderSession } from "@/store/usePersistedSession";

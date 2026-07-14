@@ -2,6 +2,7 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import cookieParser from "cookie-parser";
 import multer from "multer";
 import authRoutes from "./routes/auth.routes";
 import pharmacyRoutes from "./routes/pharmacy.routes";
@@ -21,6 +22,7 @@ const allowedOrigins = (
 ).split(",");
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
+app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api", pharmacyRoutes);
 app.use("/api", riderRoutes);
@@ -43,9 +45,9 @@ app.use(
       error instanceof RiderValidationError ||
       error instanceof ProductValidationError ||
       (error instanceof Error &&
-        (error as Error & { status?: number }).status === 400)
+        [400, 409].includes((error as Error & { status?: number }).status ?? 500))
     ) {
-      res.status(400).json({ error: (error as Error).message });
+      res.status((error as Error & { status?: number }).status ?? 400).json({ error: (error as Error).message });
       return;
     }
     res.status(500).json({ error: "An unexpected error occurred." });

@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Clock3,
-  ImageIcon,
   MapPin,
   Minus,
   Plus,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { useCartStore } from "@/src/store/cartStore";
+import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 
 export default function CartContent() {
   const items = useCartStore((state) => state.items);
@@ -171,15 +171,7 @@ export default function CartContent() {
 
                   {/* PRODUCT IMAGE */}
 
-                  <Link
-                    href={`/medicine/${item.product.id}`}
-                    className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-[#F7FAF9] sm:h-28 sm:w-28"
-                  >
-                    <ImageIcon
-                      size={30}
-                      className="text-[#2EB68F]"
-                    />
-                  </Link>
+                  <Link href={`/medicine/${item.product.id}`} className="block"><ProductThumbnail src={item.product.image} alt={item.product.name} className="h-24 w-24 sm:h-28 sm:w-28" /></Link>
 
                   {/* PRODUCT INFORMATION */}
 
@@ -227,12 +219,12 @@ export default function CartContent() {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
 
                       <span className="text-sm font-bold text-[#17212B]">
-                        ₹{item.unitPrice}
+                        {"\u20B9"}{item.unitPrice}
                       </span>
 
                       {item.product.mrp > item.unitPrice && (
                         <span className="text-xs text-[#9CA3AF] line-through">
-                          ₹{item.product.mrp}
+                          {"\u20B9"}{item.product.mrp}
                         </span>
                       )}
 
@@ -308,12 +300,12 @@ export default function CartContent() {
                       <div className="text-right">
 
                         <p className="text-base font-bold text-[#17212B]">
-                          ₹{lineTotal}
+                          {"\u20B9"}{lineTotal}
                         </p>
 
                         {lineMRP > lineTotal && (
                           <p className="text-xs text-[#9CA3AF] line-through">
-                            ₹{lineMRP}
+                            {"\u20B9"}{lineMRP}
                           </p>
                         )}
 
@@ -444,7 +436,7 @@ export default function CartContent() {
               </span>
 
               <span className="font-semibold text-[#17212B]">
-                ₹{totalMRP}
+                {"\u20B9"}{totalMRP}
               </span>
 
             </div>
@@ -456,7 +448,7 @@ export default function CartContent() {
               </span>
 
               <span className="font-semibold text-[#2EB68F]">
-                - ₹{savings}
+                - {"\u20B9"}{savings}
               </span>
 
             </div>
@@ -486,7 +478,7 @@ export default function CartContent() {
             </span>
 
             <span className="text-2xl font-bold text-[#17212B]">
-              ₹{subtotal}
+              {"\u20B9"}{subtotal}
             </span>
 
           </div>
@@ -495,7 +487,7 @@ export default function CartContent() {
 
           {savings > 0 && (
             <div className="mt-4 rounded-xl bg-[#EAFAF5] px-4 py-3 text-center text-xs font-bold text-[#2EB68F]">
-              You save ₹{savings} on this order
+              You save {"\u20B9"}{savings} on this order
             </div>
           )}
 
