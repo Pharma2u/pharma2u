@@ -72,6 +72,8 @@ export function OperationsPanel({ token }: { token: string }) {
     }
   }
 
+
+  
   async function reject(id: string) {
     const reason = window.prompt("Enter the reason for rejection");
     if (!reason?.trim()) return;

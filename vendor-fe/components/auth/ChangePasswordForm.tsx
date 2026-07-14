@@ -7,6 +7,9 @@ type Props = {
   error: string;
 };
 
+
+
+
 export function ChangePasswordForm({ onSubmit, error }: Props) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -22,6 +25,8 @@ export function ChangePasswordForm({ onSubmit, error }: Props) {
     }
   }
 
+
+  
   return (
     <main className="grid min-h-screen place-items-center bg-teal-50 p-5">
       <form
