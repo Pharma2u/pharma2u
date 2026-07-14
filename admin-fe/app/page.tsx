@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AdminLoginForm } from "@/components/auth/AdminLoginForm";
 import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 import { OperationsPanel } from "@/components/admin/OperationsPanel";
+import { PharmacyOnboardingPanel } from "@/components/admin/PharmacyOnboardingPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
 import {
   changePassword,
@@ -23,7 +24,7 @@ export default function AdminPortal() {
   const dispatch = useAppDispatch();
   const { session, hydrated } = usePersistedAdminSession();
   const [error, setError] = useState("");
-  const [section, setSection] = useState<"overview" | "accounts">("overview");
+  const [section, setSection] = useState<"overview" | "pharmacy" | "accounts">("overview");
 
   async function signIn(phone: string, password: string) {
     setError("");
@@ -108,9 +109,14 @@ export default function AdminPortal() {
           >
             Account provisioning
           </button>
+          <button onClick={() => setSection("pharmacy")} className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "pharmacy" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}>
+            Pharmacy onboarding
+          </button>
         </aside>
         <section>
-          {section === "overview" ? (
+          {section === "pharmacy" ? (
+            <PharmacyOnboardingPanel token={session.token} />
+          ) : section === "overview" ? (
             <OperationsPanel token={session.token} />
           ) : (
             <ProvisioningPanel

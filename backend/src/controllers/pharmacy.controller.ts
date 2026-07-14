@@ -1,4 +1,4 @@
-﻿// Implements admin pharmacy onboarding and vendor pharmacy retrieval.
+// Implements admin pharmacy onboarding and vendor pharmacy retrieval.
 import bcrypt from "bcrypt";
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma/client";
@@ -105,7 +105,7 @@ export async function updatePharmacy(req: Request, res: Response) {
 }
 
 export async function myPharmacy(req: Request, res: Response) {
-  const pharmacy = await prisma.pharmacy.findUnique({
+  const pharmacy = await prisma.pharmacy.findFirst({
     where: { vendorUserId: req.user!.id },
   });
   if (!pharmacy) {

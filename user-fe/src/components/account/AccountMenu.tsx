@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -77,8 +77,9 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         }
       >
         <UserRound size={compact ? 20 : 19} />
-        <span className={compact ? "sr-only" : ""}>{session.name}</span>
-        {!compact && <span className="max-w-28 truncate">{session.name}</span>}
+        <span className={compact ? "sr-only" : "max-w-28 truncate"}>
+          {session.name}
+        </span>
       </button>
       {open && (
         <div

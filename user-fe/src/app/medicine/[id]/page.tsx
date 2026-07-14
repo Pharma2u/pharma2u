@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 
 import MedicineDetails from "@/src/components/medicine/MedicineDetails";
-import { products } from "@/src/data/products";
+import { getPublicProducts } from "@/src/lib/products";
 
 interface MedicinePageProps {
   params: Promise<{
@@ -17,11 +17,8 @@ export default async function MedicinePage({
 }: MedicinePageProps) {
   const { id } = await params;
 
-  const productId = Number(id);
-
-  const product = products.find(
-    (item) => item.id === productId
-  );
+  const products = await getPublicProducts();
+  const product = products.find((item) => String(item.id) === id);
 
   if (!product) {
     notFound();

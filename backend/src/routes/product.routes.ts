@@ -1,7 +1,9 @@
 // Registers vendor-scoped inventory endpoints.
 import { Router } from "express";
+import multer from "multer";
 import {
   createProduct,
+  listPublicProducts,
   deleteProduct,
   listProducts,
   updateProduct,
@@ -9,12 +11,28 @@ import {
 } from "../controllers/product.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requirePasswordChanged } from "../middleware/requirePasswordChanged.middleware";
+
 const router = Router();
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 10 },
+  fileFilter: (_req, file, callback) =>
+    callback(
+      null,
+      ["image/jpeg", "image/png", "image/webp"].includes(file.mimetype),
+    ),
+});
+
+router.get("/products", listPublicProducts);
 
 router.use(authMiddleware("vendor"), requirePasswordChanged);
-router.post("/vendor/products", createProduct);
+router.post("/vendor/products", imageUpload.array("images", 10), createProduct);
 router.get("/vendor/products", listProducts);
-router.patch("/vendor/products/:id", updateProduct);
+router.patch(
+  "/vendor/products/:id",
+  imageUpload.array("images", 10),
+  updateProduct,
+);
 router.patch("/vendor/products/:id/stock", updateStock);
 router.delete("/vendor/products/:id", deleteProduct);
 

@@ -1,4 +1,4 @@
-﻿import { pharmacies } from "@/src/data/pharmacies";
+import { pharmacies } from "@/src/data/pharmacies";
 import { pharmacyInventory } from "@/src/data/pharmacyInventory";
 
 export type Pharmacy = {
@@ -22,7 +22,7 @@ export type Pharmacy = {
 export type PharmacyInventoryItem = {
   id: string;
   pharmacyId: string;
-  productId: number;
+  productId: string | number;
   stockQuantity: number;
   sellingPrice: number;
   mrp: number;
@@ -35,7 +35,7 @@ export type PharmacyWithInventory = Pharmacy & {
 };
 
 export function getPharmaciesForProduct(
-  productId: number,
+  productId: string | number,
 ): PharmacyWithInventory[] {
   const availableInventory = pharmacyInventory.filter(
     (inventoryItem) =>

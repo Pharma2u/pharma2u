@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.routes";
 import pharmacyRoutes from "./routes/pharmacy.routes";
 import riderRoutes from "./routes/rider.routes";
 import productRoutes from "./routes/product.routes";
+import orderRoutes from "./routes/order.routes";
 import { assertJwtSecret } from "./utils/jwt";
 import { ValidationError } from "./validators/auth.validator";
 import { PharmacyValidationError } from "./validators/pharmacy.validator";
@@ -24,6 +25,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", pharmacyRoutes);
 app.use("/api", riderRoutes);
 app.use("/api", productRoutes);
+app.use("/api", orderRoutes);
 app.use(
   (
     error: unknown,

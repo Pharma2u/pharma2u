@@ -3,9 +3,10 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import ProductCard from "@/src/components/medicine/ProductCard";
-import { products } from "@/src/data/products";
+import { getPublicProducts } from "@/src/lib/products";
 
-export default function PopularProducts() {
+export default async function PopularProducts() {
+  const products = await getPublicProducts();
   return (
     <section className="bg-white py-12 sm:py-14 lg:py-16">
       <div className="container-custom">
@@ -50,7 +51,7 @@ export default function PopularProducts() {
 
         <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 
-          {products.map((product) => (
+          {products.slice(0, 5).map((product) => (
             <ProductCard
               key={product.id}
               product={product}

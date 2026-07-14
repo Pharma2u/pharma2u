@@ -17,7 +17,7 @@ import type {
 } from "@/src/lib/pharmacy";
 
 interface NearbyPharmaciesProps {
-  productId: number;
+  productId: string | number;
 
   onPharmacySelect: (
     pharmacy: PharmacyWithInventory | null
@@ -35,6 +35,7 @@ export default function NearbyPharmacies({
 
   useEffect(() => {
     if (pharmacies.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedPharmacyId(null);
       onPharmacySelect(null);
 

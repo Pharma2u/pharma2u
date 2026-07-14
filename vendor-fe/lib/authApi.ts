@@ -1,4 +1,4 @@
-﻿import type { Session } from "@/store/authSlice";
+import type { Session } from "@/store/authSlice";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
@@ -13,7 +13,9 @@ async function request<T>(
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.body && !(init.body instanceof FormData)
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init.headers,
     },
   });
@@ -52,6 +54,18 @@ export type Product = {
   stock: number;
   unit: string;
   isActive: boolean;
+  description?: string | null;
+  manufacturer?: string | null;
+  packSize?: string | null;
+  mrp?: number | null;
+  discount?: number;
+  saltComposition?: string | null;
+  storageInstructions?: string | null;
+  deliveryTime?: number | null;
+  expiryDate?: string | null;
+  batchNumber?: string | null;
+  imageUrls?: { id: string; url: string; sortOrder: number }[];
+  imageUrl?: string | null;
 };
 export type Pharmacy = {
   id: string;
@@ -97,37 +111,50 @@ export function listProducts(token: string, search = "", category = "") {
   );
 }
 
+export type ProductInput = Omit<Product, "id" | "isActive" | "imageUrls"> & {
+  images?: File[];
+};
 
-export function createProduct(
-  token: string,
-  data: Omit<Product, "id" | "isActive">,
-) {
-  return request<Product>("/vendor/products", token, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+function productFormData(data: Partial<ProductInput>) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(data)) {
+    if (
+      key === "images" ||
+      value === undefined ||
+      value === null ||
+      value === ""
+    )
+      continue;
+    form.set(key, String(value));
+  }
+  for (const image of data.images ?? []) form.append("images", image);
+  return form;
 }
 
+export function createProduct(token: string, data: ProductInput) {
+  return request<Product>("/vendor/products", token, {
+    method: "POST",
+    body: productFormData(data),
+  });
+}
 
 export function updateProduct(
   token: string,
   id: string,
-  data: Partial<Omit<Product, "id">>,
+  data: Partial<ProductInput>,
 ) {
+  const hasImages = Boolean(data.images?.length);
   return request<Product>(`/vendor/products/${id}`, token, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: hasImages ? productFormData(data) : JSON.stringify(data),
   });
 }
-
-
 export function updateStock(token: string, id: string, stock: number) {
   return request<Product>(`/vendor/products/${id}/stock`, token, {
     method: "PATCH",
     body: JSON.stringify({ stock }),
   });
 }
-
 
 export function deactivateProduct(token: string, id: string) {
   return request<void>(`/vendor/products/${id}`, token, { method: "DELETE" });
