@@ -42,3 +42,7 @@ export function uploadOrderPrescription(token: string, orderId: string, file: Fi
   body.append("prescription", file);
   return request<{ path: string }>(`/orders/${orderId}/prescription`, token, { method: "POST", body, headers: { Authorization: `Bearer ${token}` } });
 }
+
+export type CustomerOrder = { id: string; orderCode: string; status: string; total: number; createdAt: string; estimatedDeliveryTime: string | null; pharmacy: { name: string; address: string }; items: { id: string; name: string; qty: number; price: number }[] };
+export function listMyOrders(token: string) { return request<{ items: CustomerOrder[] }>("/orders/customer/mine", token); }
+export function getMyOrder(token: string, orderId: string) { return request<CustomerOrder>(`/orders/${orderId}`, token); }

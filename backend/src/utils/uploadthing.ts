@@ -47,9 +47,13 @@ export async function uploadProductImage(file: KycFile): Promise<string> {
   return result[0].data.key;
 }
 
-export async function productImageUrl(key: string): Promise<string> {
-  const result = await utapi.getFileUrls(key);
-  const url = result.data[0]?.url;
-  if (!url) throw new Error("Product image URL could not be created.");
-  return url;
+/**
+ * Constructs a public CDN URL for a product image key.
+ * Product images are uploaded as public-read so the URL is static — no API call needed.
+ * This avoids the Effect runtime version-mismatch spam from calling utapi.getFileUrls().
+ */
+export function productImageUrl(key: string): string {
+  // If it's already a full URL (e.g. passed via imageUrls in JSON body), return as-is
+  if (key.startsWith("http://") || key.startsWith("https://")) return key;
+  return `https://utfs.io/f/${key}`;
 }

@@ -1,11 +1,3 @@
-import OrdersContent from "@/src/components/order/OrdersContent";
+import LiveOrdersContent from "@/src/components/order/LiveOrdersContent";
 
-export default function OrdersPage() {
-  return (
-    <main className="min-h-screen bg-[#F8FAFA]">
-      <div className="container-custom py-8 sm:py-12">
-        <OrdersContent />
-      </div>
-    </main>
-  );
-}
+export default function OrdersPage() { return <LiveOrdersContent />; }

@@ -1,8 +1,13 @@
 import type { Product } from "@/lib/authApi";
 import { productCategoryLabels } from "./productConfig";
 
+function productImages(product: Product) {
+  const images = product.imageUrls?.map((image) => image.url) ?? [];
+  return images.length ? images : product.imageUrl ? [product.imageUrl] : [];
+}
+
 export function ProductImage({ product, large = false }: { product: Product; large?: boolean }) {
-  const image = product.imageUrls?.[0]?.url ?? product.imageUrl;
+  const image = productImages(product)[0];
   const size = large ? "h-14 w-14" : "h-12 w-12";
 
   if (image) {
@@ -12,6 +17,24 @@ export function ProductImage({ product, large = false }: { product: Product; lar
   return (
     <div className={`${size} grid shrink-0 place-items-center rounded-xl bg-teal-100 text-sm font-bold text-teal-700`} aria-hidden="true">
       {product.name.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
+export function ProductImageGallery({ product }: { product: Product }) {
+  const images = productImages(product);
+  if (!images.length) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2" aria-label={`${product.name} image gallery`}>
+      {images.map((image, index) => (
+        <img
+          key={`${image}-${index}`}
+          src={image}
+          alt={`${product.name} image ${index + 1}`}
+          className="h-16 w-16 rounded-xl border border-slate-200 bg-white object-cover"
+        />
+      ))}
     </div>
   );
 }

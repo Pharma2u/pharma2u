@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Image from "next/image";
 
 import {
@@ -104,18 +104,13 @@ export default function MedicineDetails({
    * PHARMACY SELECTION
    */
 
-  const handlePharmacySelect = (
-    pharmacy: PharmacyWithInventory | null
-  ) => {
-    setSelectedPharmacy(pharmacy);
-
-    /*
-     * Reset quantity whenever pharmacy changes
-     * because pharmacies may have different stock.
-     */
-
-    setQuantity(1);
-  };
+  const handlePharmacySelect = useCallback(
+    (pharmacy: PharmacyWithInventory | null) => {
+      setSelectedPharmacy(pharmacy);
+      setQuantity(1);
+    },
+    [],
+  );
 
   /*
    * ADD TO CART

@@ -193,6 +193,7 @@ model Order {
   relayNodeLat         Float?
   relayNodeLng         Float?
   relayStatus          RelayStatus?
+  relayPackedAt        DateTime?
   riderId              String?
   rider                User?              @relation("PrimaryRiderOrders", fields: [riderId], references: [id])
   relayRiderId         String?

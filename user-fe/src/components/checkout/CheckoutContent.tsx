@@ -13,7 +13,6 @@ import {
   Clock3,
   CreditCard,
   FileText,
-  ImageIcon,
   LoaderCircle,
   MapPin,
   Plus,
@@ -26,6 +25,7 @@ import {
 import LocationModal from "@/src/components/location/LocationModal";
 
 import { createOrder } from "@/src/lib/ordersApi";
+import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 import type { AuthRootState } from "@/src/store/authStore";
 
 import { useAddressStore } from "@/src/store/addressStore";
@@ -581,12 +581,7 @@ export default function CheckoutContent() {
                   className="border-b border-[#EDF0EF] pb-5 last:border-b-0 last:pb-0"
                 >
                   <div className="flex gap-3">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#F7FAF9]">
-                      <ImageIcon
-                        size={21}
-                        className="text-[#2EB68F]"
-                      />
-                    </div>
+                    <ProductThumbnail src={item.product.image} alt={item.product.name} />
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-[#17212B]">
@@ -599,7 +594,7 @@ export default function CheckoutContent() {
                     </div>
 
                     <p className="shrink-0 text-sm font-bold text-[#17212B]">
-                      ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{item.unitPrice * item.quantity}
+                      Rs. {item.unitPrice * item.quantity}
                     </p>
                   </div>
 
@@ -645,7 +640,7 @@ export default function CheckoutContent() {
                   </span>
 
                   <span className="font-semibold text-[#17212B]">
-                    ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{totalMRP}
+                    Rs. {totalMRP}
                   </span>
                 </div>
 
@@ -655,7 +650,7 @@ export default function CheckoutContent() {
                   </span>
 
                   <span className="font-semibold text-[#2EB68F]">
-                    - ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{savings}
+                    - Rs. {savings}
                   </span>
                 </div>
 
@@ -678,13 +673,13 @@ export default function CheckoutContent() {
                 </span>
 
                 <span className="text-2xl font-bold text-[#17212B]">
-                  ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{totalAmount}
+                  Rs. {totalAmount}
                 </span>
               </div>
 
               {savings > 0 && (
                 <div className="mt-4 rounded-xl bg-[#EAFAF5] px-4 py-3 text-center text-xs font-bold text-[#2EB68F]">
-                  You save ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹{savings} on this order
+                  You save Rs. {savings} on this order
                 </div>
               )}
             </div>

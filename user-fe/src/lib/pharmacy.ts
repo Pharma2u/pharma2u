@@ -1,6 +1,3 @@
-import { pharmacies } from "@/src/data/pharmacies";
-import { pharmacyInventory } from "@/src/data/pharmacyInventory";
-
 export type Pharmacy = {
   id: string;
   name: string;
@@ -19,6 +16,7 @@ export type Pharmacy = {
   deliveryTime: number;
   distance: number;
 };
+
 export type PharmacyInventoryItem = {
   id: string;
   pharmacyId: string;
@@ -30,39 +28,69 @@ export type PharmacyInventoryItem = {
   isAvailable: boolean;
   lastUpdated: string;
 };
+
 export type PharmacyWithInventory = Pharmacy & {
   inventory: PharmacyInventoryItem;
 };
 
-export function getPharmaciesForProduct(
-  productId: string | number,
-): PharmacyWithInventory[] {
-  const availableInventory = pharmacyInventory.filter(
-    (inventoryItem) =>
-      inventoryItem.productId === productId &&
-      inventoryItem.isAvailable &&
-      inventoryItem.stockQuantity > 0,
-  );
+type AvailabilityResponse = {
+  items: Array<{
+    id: string;
+    name: string;
+    address: string;
+    isOpen: boolean;
+    deliveryTime: number;
+    distance: number | null;
+    rating: number | null;
+    reviewCount: number;
+    inventory: {
+      id: string;
+      productId: string;
+      stockQuantity: number;
+      sellingPrice: number;
+      mrp: number;
+      discount: number;
+    };
+  }>;
+};
 
-  const availablePharmacies = availableInventory
-    .map((inventoryItem) => {
-      const pharmacy = pharmacies.find(
-        (item) => item.id === inventoryItem.pharmacyId,
-      );
+const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
-      if (!pharmacy) {
-        return null;
-      }
+/** Returns live, in-stock pharmacies for the selected product. */
+export async function getPharmaciesForProduct(productId: string | number): Promise<PharmacyWithInventory[]> {
+  const response = await fetch(`${apiBase}/products/${productId}/availability`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Unable to load pharmacy availability.");
+  }
 
-      return {
-        ...pharmacy,
-        inventory: inventoryItem,
-      };
-    })
-    .filter((pharmacy): pharmacy is PharmacyWithInventory => pharmacy !== null);
-
-  return availablePharmacies.sort(
-    (firstPharmacy, secondPharmacy) =>
-      firstPharmacy.deliveryTime - secondPharmacy.deliveryTime,
-  );
+  const data = (await response.json()) as AvailabilityResponse;
+  return data.items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    address: item.address,
+    city: "",
+    state: "",
+    pincode: "",
+    latitude: 0,
+    longitude: 0,
+    rating: item.rating ?? 0,
+    reviewCount: item.reviewCount,
+    isVerified: true,
+    isOpen: item.isOpen,
+    deliveryTime: item.deliveryTime,
+    distance: item.distance ?? 0,
+    inventory: {
+      id: item.inventory.id,
+      pharmacyId: item.id,
+      productId: item.inventory.productId,
+      stockQuantity: item.inventory.stockQuantity,
+      sellingPrice: item.inventory.sellingPrice,
+      mrp: item.inventory.mrp,
+      discount: item.inventory.discount,
+      isAvailable: item.isOpen && item.inventory.stockQuantity > 0,
+      lastUpdated: new Date().toISOString(),
+    },
+  }));
 }

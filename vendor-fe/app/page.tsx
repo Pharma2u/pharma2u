@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { VendorLoginForm } from "@/components/auth/VendorLoginForm";
 import { InventoryPanel } from "@/components/inventory/InventoryPanel";
+import { OrderQueue } from "@/components/orders/OrderQueue";
 import { changePassword, loginVendor } from "@/lib/authApi";
 import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
@@ -42,7 +43,7 @@ export default function VendorPortal() {
   if (!hydrated) {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
-        Restoring sessionÃ¯Â¿Â½
+        Restoring session...
       </main>
     );
   }
@@ -82,7 +83,7 @@ export default function VendorPortal() {
               onClick={() => dispatch(clearSession())}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
             >
-              <span aria-hidden="true">→</span>
+              <span aria-hidden="true">-&gt;</span>
               <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
@@ -97,14 +98,14 @@ export default function VendorPortal() {
           <nav className="space-y-1" aria-label="Vendor workspace">
             <NavItem
               active={workspace === "inventory"}
-              icon={<span className="text-base">▦</span>}
+              icon={<span className="text-base">[]</span>}
               label="Inventory"
               detail="Stock overview"
               onClick={() => setWorkspace("inventory")}
             />
             <NavItem
               active={viewingProducts}
-              icon={<span className="text-base">☷</span>}
+              icon={<span className="text-base">*</span>}
               label="Your products"
               detail="View and edit catalogue"
               onClick={() => setWorkspace("products")}

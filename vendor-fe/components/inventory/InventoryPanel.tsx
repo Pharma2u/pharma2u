@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ProductImage, ProductRow } from "./ProductDisplay";
+import { ChangeEvent, Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { ProductImage, ProductImageGallery, ProductRow } from "./ProductDisplay";
 import { productCategories as categories, productCategoryLabels as labels } from "./productConfig";
 import { Dialog, FormActions } from "./shared/Dialog";
 import { InputField, MetricCard } from "./shared/Fields";
@@ -35,11 +35,15 @@ export function InventoryPanel({
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(startAdding);
   const [adding, setAdding] = useState(false);
+  const [newProductImages, setNewProductImages] = useState<File[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [savingProduct, setSavingProduct] = useState(false);
+  const [editProductImages, setEditProductImages] = useState<File[]>([]);
+  const [savingStock, setSavingStock] = useState(false);
   const [stock, setStock] = useState("");
   const [removing, setRemoving] = useState<Product | null>(null);
+  const loadRequestId = useRef(0);
   const metrics = useMemo(
     () => ({
       active: products.filter((p) => p.isActive).length,
@@ -48,16 +52,22 @@ export function InventoryPanel({
     }),
     [products],
   );
+
+
+  
   async function load(query = search, filter = category) {
+    const requestId = ++loadRequestId.current;
     setLoading(true);
     try {
-      setProducts((await listProducts(token, query, filter)).items);
+      const result = await listProducts(token, query, filter);
+      if (requestId === loadRequestId.current) setProducts(result.items);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Unable to load inventory.",
-      );
+      if (requestId === loadRequestId.current)
+        setError(
+          caught instanceof Error ? caught.message : "Unable to load inventory.",
+        );
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestId.current) setLoading(false);
     }
   }
   useEffect(() => {
@@ -78,6 +88,32 @@ export function InventoryPanel({
     const timer = window.setTimeout(() => setNotice(""), 3500);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  function selectProductImages(
+    event: ChangeEvent<HTMLInputElement>,
+    setImages: Dispatch<SetStateAction<File[]>>,
+  ) {
+    const images = Array.from(event.currentTarget.files ?? []);
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    const invalid = images.find(
+      (image) => !allowedTypes.includes(image.type) || image.size > 5 * 1024 * 1024,
+    );
+    if (images.length > 10 || invalid) {
+      event.currentTarget.value = "";
+      setImages([]);
+      setError(
+        images.length > 10
+          ? "Choose up to 10 product images."
+          : "Each image must be a JPEG, PNG, or WebP file no larger than 5 MB.",
+      );
+      return;
+    }
+    setError("");
+    setImages(images);
+  }
+
+
+  
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -114,6 +150,7 @@ export function InventoryPanel({
             (value): value is File => value instanceof File && value.size > 0,
           ),
       });
+      setNewProductImages([]);
       setShowForm(false);
       setNotice("Product added to inventory.");
       await load();
@@ -125,6 +162,9 @@ export function InventoryPanel({
       setAdding(false);
     }
   }
+
+
+
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!productToEdit) return;
@@ -132,7 +172,9 @@ export function InventoryPanel({
     setSavingProduct(true);
     setError("");
     try {
-      await updateProduct(token, productToEdit.id, {
+      // Do not allow a list request that started before this save to overwrite it.
+      ++loadRequestId.current;
+      const updated = await updateProduct(token, productToEdit.id, {
         name: String(form.get("name")).trim(),
         genericName: String(form.get("genericName")).trim(),
         category: String(form.get("category")) as ProductCategory,
@@ -162,6 +204,11 @@ export function InventoryPanel({
             (value): value is File => value instanceof File && value.size > 0,
           ),
       });
+      setProducts((current) =>
+        current.map((product) =>
+          product.id === updated.id ? { ...product, ...updated } : product,
+        ),
+      );
       setProductToEdit(null);
       setNotice(`${productToEdit.name} updated.`);
       await load();
@@ -173,6 +220,9 @@ export function InventoryPanel({
       setSavingProduct(false);
     }
   }
+
+
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = Number(stock);
@@ -180,8 +230,18 @@ export function InventoryPanel({
       setError("Stock must be a non-negative whole number.");
       return;
     }
+    setSavingStock(true);
+    setError("");
     try {
-      await updateStock(token, editing.id, value);
+      // Stock is an absolute value. Show the confirmed API response immediately
+      // and invalidate any older list request that could contain stale stock.
+      ++loadRequestId.current;
+      const updated = await updateStock(token, editing.id, value);
+      setProducts((current) =>
+        current.map((product) =>
+          product.id === updated.id ? { ...product, ...updated } : product,
+        ),
+      );
       setNotice(`${editing.name} stock updated.`);
       setEditing(null);
       await load();
@@ -189,8 +249,12 @@ export function InventoryPanel({
       setError(
         caught instanceof Error ? caught.message : "Unable to update stock.",
       );
+    } finally {
+      setSavingStock(false);
     }
   }
+
+
   async function deactivate() {
     if (!removing) return;
     try {
@@ -206,6 +270,9 @@ export function InventoryPanel({
       );
     }
   }
+
+
+
   return (
     <section className="mt-6 space-y-5">
       {pharmacy && (
@@ -320,16 +387,23 @@ export function InventoryPanel({
             />
             <InputField name="unit" label="Unit" placeholder="Strip, bottle, box" />
             <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
-              Product image
+              Product images
               <input
                 name="images"
                 type="file"
-                accept="image/jpeg,image/png"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => selectProductImages(event, setNewProductImages)}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal"
               />
-              <span className="text-xs font-normal text-slate-500">
-                Up to 10 JPEG, PNG, or WebP images; 5 MB each
+              <span className="text-xs font-normal leading-5 text-slate-500">
+                Select up to 10 JPEG, PNG, or WebP images (5 MB each).
               </span>
+              {newProductImages.length > 0 && (
+                <span className="rounded-lg bg-teal-50 px-2.5 py-2 text-xs font-semibold leading-5 text-teal-800">
+                  {newProductImages.length} image{newProductImages.length === 1 ? "" : "s"} selected: {newProductImages.map((image) => image.name).join(", ")}
+                </span>
+              )}
             </label>
             <InputField
               name="manufacturer"
@@ -365,7 +439,7 @@ export function InventoryPanel({
             <InputField
               name="storageInstructions"
               label="Storage instructions"
-              placeholder="e.g. Store below 25ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°C"
+              placeholder="e.g. Store below 25 degrees C"
             />{" "}
             <InputField
               name="deliveryTime"
@@ -473,7 +547,7 @@ export function InventoryPanel({
                       setStock(String(product.stock));
                     }}
                     onRemove={() => setRemoving(product)}
-                    onEdit={() => setProductToEdit(product)}
+                    onEdit={() => { setEditProductImages([]); setProductToEdit(product); }}
                   />
                 ))}
               </div>
@@ -483,15 +557,16 @@ export function InventoryPanel({
         )}
       </div>
       {productToEdit && (
-        <Dialog title="Edit product" onClose={() => setProductToEdit(null)} wide>
+        <Dialog title="Edit product" onClose={() => { setEditProductImages([]); setProductToEdit(null); }} wide>
           <form onSubmit={saveProduct} className="grid gap-4">
             <div className="flex items-center gap-3 rounded-xl border border-teal-100 bg-teal-50/60 p-3">
               <ProductImage product={productToEdit} large />
               <div className="min-w-0">
                 <p className="truncate font-bold text-slate-900">{productToEdit.name}</p>
-                <p className="mt-0.5 text-sm text-slate-600">{productToEdit.genericName} · {labels[productToEdit.category]}</p>
+                <p className="mt-0.5 text-sm text-slate-600">{productToEdit.genericName} / {labels[productToEdit.category]}</p>
                 <p className="mt-1 text-xs font-semibold text-teal-700">Current stock: {productToEdit.stock} {productToEdit.unit}</p>
               </div>
+              <ProductImageGallery product={productToEdit} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
             <InputField
@@ -616,16 +691,22 @@ export function InventoryPanel({
                 type="file"
                 multiple
                 accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => selectProductImages(event, setEditProductImages)}
                 className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal"
               />
-              <span className="text-xs font-normal text-slate-500">
-                Leave empty to keep current images. Selecting images replaces
-                the full gallery.
+              <span className="text-xs font-normal leading-5 text-slate-500">
+                Leave empty to keep the current gallery. Choosing images replaces the full gallery.
               </span>
+              {editProductImages.length > 0 && (
+                <span className="rounded-lg bg-teal-50 px-2.5 py-2 text-xs font-semibold leading-5 text-teal-800">
+                  {editProductImages.length} replacement image{editProductImages.length === 1 ? "" : "s"} selected: {editProductImages.map((image) => image.name).join(", ")}
+                </span>
+              )}
             </label>
             <FormActions
-              onClose={() => setProductToEdit(null)}
+              onClose={() => { setEditProductImages([]); setProductToEdit(null); }}
               label={savingProduct ? "Saving..." : "Save product"}
+              disabled={savingProduct}
             />
           </form>
         </Dialog>
@@ -646,7 +727,11 @@ export function InventoryPanel({
               onChange={(event) => setStock(event.target.value)}
               className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5"
             />
-            <FormActions onClose={() => setEditing(null)} label="Save stock" />
+            <FormActions
+              onClose={() => setEditing(null)}
+              label={savingStock ? "Saving..." : "Save stock"}
+              disabled={savingStock}
+            />
           </form>
         </Dialog>
       )}

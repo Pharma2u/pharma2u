@@ -60,6 +60,11 @@ function details(o: Record<string, unknown>, required: boolean) {
       throw new ProductValidationError("expiryDate must be a valid date.");
     out.expiryDate = d;
   }
+  if (o.imageUrls !== undefined) {
+    if (!Array.isArray(o.imageUrls) || !o.imageUrls.every((u) => typeof u === "string"))
+      throw new ProductValidationError("imageUrls must be an array of strings.");
+    out.imageUrls = o.imageUrls;
+  }
   return out;
 }
 export function validateProductCreate(v: unknown) {
