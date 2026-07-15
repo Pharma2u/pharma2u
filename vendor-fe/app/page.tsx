@@ -10,7 +10,7 @@ import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedVendorSession } from "@/store/usePersistedSession";
 
-type Workspace = "inventory" | "products" | "add-product";
+type Workspace = "inventory" | "products" | "add-product" | "orders";
 
 export default function VendorPortal() {
   const dispatch = useAppDispatch();
@@ -53,6 +53,7 @@ export default function VendorPortal() {
 
   const addingProduct = workspace === "add-product";
   const viewingProducts = workspace === "products";
+  const viewingOrders = workspace === "orders";
 
   return (
     <main className="min-h-screen bg-[#f5f8f7] text-slate-900">
@@ -97,6 +98,13 @@ export default function VendorPortal() {
           </p>
           <nav className="space-y-1" aria-label="Vendor workspace">
             <NavItem
+              active={viewingOrders}
+              icon={<span className="text-base">#</span>}
+              label="Orders"
+              detail="Payments and fulfilment"
+              onClick={() => setWorkspace("orders")}
+            />
+            <NavItem
               active={workspace === "inventory"}
               icon={<span className="text-base">[]</span>}
               label="Inventory"
@@ -116,7 +124,8 @@ export default function VendorPortal() {
               label="Add product"
               detail="Add medicine or healthcare item"
               onClick={() => setWorkspace("add-product")}
-            />          </nav>
+            />{" "}
+          </nav>
           <div className="mt-4 rounded-2xl bg-teal-50 p-4">
             <p className="text-xs font-bold text-teal-800">Good practice</p>
             <p className="mt-1 text-xs leading-5 text-teal-700">
@@ -129,29 +138,41 @@ export default function VendorPortal() {
         <section className="min-w-0">
           <div className="overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-sm sm:px-8">
             <p className="text-xs font-bold tracking-[0.18em] text-teal-300">
-              {addingProduct || viewingProducts ? "CATALOGUE MANAGEMENT" : "INVENTORY OVERVIEW"}
+              {viewingOrders
+                ? "ORDER OPERATIONS"
+                : addingProduct || viewingProducts
+                  ? "CATALOGUE MANAGEMENT"
+                  : "INVENTORY OVERVIEW"}
             </p>
             <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-              {addingProduct
-                ? "Add a product to your catalogue"
-                : viewingProducts
-                  ? "Your product catalogue"
-                  : "Keep every product ready to sell."}
+              {viewingOrders
+                ? "Orders, payments, and refunds"
+                : addingProduct
+                  ? "Add a product to your catalogue"
+                  : viewingProducts
+                    ? "Your product catalogue"
+                    : "Keep every product ready to sell."}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              {addingProduct
-                ? "Add product information, regulatory details, and an image gallery in one organised form."
-                : viewingProducts
-                  ? "Review each product, see its image, and edit catalogue details from one place."
-                  : "Search your catalogue, review low stock, edit product information, or add a new item from the sidebar."}
+              {viewingOrders
+                ? "Review incoming orders, confirm prescriptions, track payment state, pack paid orders, and monitor refunds."
+                : addingProduct
+                  ? "Add product information, regulatory details, and an image gallery in one organised form."
+                  : viewingProducts
+                    ? "Review each product, see its image, and edit catalogue details from one place."
+                    : "Search your catalogue, review low stock, edit product information, or add a new item from the sidebar."}
             </p>
           </div>
-          <InventoryPanel
-            key={workspace}
-            token={session.token}
-            startAdding={addingProduct}
-            showCatalogue={!addingProduct}
-          />
+          {viewingOrders ? (
+            <OrderQueue token={session.token} />
+          ) : (
+            <InventoryPanel
+              key={workspace}
+              token={session.token}
+              startAdding={addingProduct}
+              showCatalogue={!addingProduct}
+            />
+          )}
         </section>
       </div>
     </main>
