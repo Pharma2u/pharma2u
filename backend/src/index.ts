@@ -9,6 +9,7 @@ import pharmacyRoutes from "./routes/pharmacy.routes";
 import riderRoutes from "./routes/rider.routes";
 import productRoutes from "./routes/product.routes";
 import orderRoutes from "./routes/order.routes";
+import { razorpayWebhook } from "./controllers/order.controller";
 import { assertJwtSecret } from "./utils/jwt";
 import { ValidationError } from "./validators/auth.validator";
 import { PharmacyValidationError } from "./validators/pharmacy.validator";
@@ -21,6 +22,12 @@ const allowedOrigins = (
   "http://localhost:3000,http://localhost:3001,http://localhost:3002"
 ).split(",");
 app.use(cors({ origin: allowedOrigins }));
+// Razorpay signs the exact request bytes, so this route must run before express.json().
+app.post(
+  "/api/payments/razorpay/webhook",
+  express.raw({ type: "application/json", limit: "1mb" }),
+  razorpayWebhook,
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use("/api/auth", authRoutes);
@@ -45,9 +52,13 @@ app.use(
       error instanceof RiderValidationError ||
       error instanceof ProductValidationError ||
       (error instanceof Error &&
-        [400, 409].includes((error as Error & { status?: number }).status ?? 500))
+        [400, 401, 404, 409, 502, 503].includes(
+          (error as Error & { status?: number }).status ?? 500,
+        ))
     ) {
-      res.status((error as Error & { status?: number }).status ?? 400).json({ error: (error as Error).message });
+      res
+        .status((error as Error & { status?: number }).status ?? 400)
+        .json({ error: (error as Error).message });
       return;
     }
     res.status(500).json({ error: "An unexpected error occurred." });

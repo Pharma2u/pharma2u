@@ -12,6 +12,7 @@ import {
 } from "@/src/store/authStore";
 
 const storageKey = "pharma2u_auth";
+const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 function restoreSession(): AuthSession | null {
   const stored = localStorage.getItem(storageKey);
@@ -25,12 +26,67 @@ function restoreSession(): AuthSession | null {
   }
 }
 
+function isCurrentStoredSession(token: string) {
+  return restoreSession()?.token === token;
+}
+
 export function SessionHydrator() {
   const dispatch = useDispatch();
 
   useEffect(() => {
     const session = restoreSession();
-    if (session?.role === "customer") dispatch(setSession(session));
+    if (!session) return;
+
+    let active = true;
+    fetch(`${apiBase}/auth/me`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          if ([401, 403].includes(response.status)) {
+            if (active && isCurrentStoredSession(session.token)) {
+              localStorage.removeItem(storageKey);
+              dispatch(clearSession());
+            }
+          }
+          return;
+        }
+        const user = (await response.json()) as {
+          role: string;
+          name: string;
+          mustChangePassword: boolean;
+        };
+        if (user.role !== "customer") {
+          if (active && isCurrentStoredSession(session.token)) {
+            localStorage.removeItem(storageKey);
+            dispatch(clearSession());
+          }
+          return;
+        }
+        if (!active || !isCurrentStoredSession(session.token)) return;
+        const refreshedSession: AuthSession = {
+          ...session,
+          role: user.role,
+          name: user.name,
+          mustChangePassword: user.mustChangePassword,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(refreshedSession));
+        dispatch(setSession(refreshedSession));
+      })
+      .catch(() => {
+        // Keep the saved session while the API is temporarily unreachable.
+        if (
+          active &&
+          session.role === "customer" &&
+          isCurrentStoredSession(session.token)
+        ) {
+          dispatch(setSession(session));
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [dispatch]);
 
   return null;

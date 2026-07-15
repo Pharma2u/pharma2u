@@ -15,66 +15,52 @@ import {
 import { useOrderStore } from "@/src/store/orderStore";
 import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 
-import type {
-  Order,
-  OrderStatus,
-} from "@/src/types/order";
+import type { OrderStatus } from "@/src/types/order";
 
 interface StatusDetails {
   label: string;
   className: string;
 }
 
-const statusDetails: Record<
-  OrderStatus,
-  StatusDetails
-> = {
+const statusDetails: Record<OrderStatus, StatusDetails> = {
   placed: {
     label: "Order placed",
-    className:
-      "bg-[#EAF7FF] text-[#1976A8]",
+    className: "bg-[#EAF7FF] text-[#1976A8]",
   },
 
   confirmed: {
     label: "Confirmed",
-    className:
-      "bg-[#EAFAF5] text-[#2EB68F]",
+    className: "bg-[#EAFAF5] text-[#2EB68F]",
   },
 
   preparing: {
     label: "Preparing",
-    className:
-      "bg-[#FFF5E6] text-[#B86B00]",
+    className: "bg-[#FFF5E6] text-[#B86B00]",
   },
 
   ready_for_pickup: {
     label: "Ready for pickup",
-    className:
-      "bg-[#F3EEFF] text-[#7455C5]",
+    className: "bg-[#F3EEFF] text-[#7455C5]",
   },
 
   picked_up: {
     label: "Picked up",
-    className:
-      "bg-[#EEF3FF] text-[#4C6EDB]",
+    className: "bg-[#EEF3FF] text-[#4C6EDB]",
   },
 
   out_for_delivery: {
     label: "Out for delivery",
-    className:
-      "bg-[#EAF7FF] text-[#1976A8]",
+    className: "bg-[#EAF7FF] text-[#1976A8]",
   },
 
   delivered: {
     label: "Delivered",
-    className:
-      "bg-[#EAFAF5] text-[#239C7B]",
+    className: "bg-[#EAFAF5] text-[#239C7B]",
   },
 
   cancelled: {
     label: "Cancelled",
-    className:
-      "bg-[#FFF0F0] text-[#DC2626]",
+    className: "bg-[#FFF0F0] text-[#DC2626]",
   },
 };
 
@@ -89,9 +75,7 @@ function formatOrderDate(date: string) {
 }
 
 export default function OrdersContent() {
-  const orders = useOrderStore(
-    (state) => state.orders
-  );
+  const orders = useOrderStore((state) => state.orders);
 
   /*
    * EMPTY ORDERS
@@ -101,11 +85,7 @@ export default function OrdersContent() {
     return (
       <div className="flex min-h-[560px] flex-col items-center justify-center px-5 text-center">
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#EAFAF5]">
-          <ShoppingBag
-            size={40}
-            strokeWidth={1.5}
-            className="text-[#2EB68F]"
-          />
+          <ShoppingBag size={40} strokeWidth={1.5} className="text-[#2EB68F]" />
         </div>
 
         <h1 className="mt-6 text-2xl font-bold text-[#17212B]">
@@ -113,8 +93,8 @@ export default function OrdersContent() {
         </h1>
 
         <p className="mt-2 max-w-md text-sm leading-6 text-[#64717D]">
-          You have not placed any orders yet. Browse medicines
-          and healthcare products to place your first order.
+          You have not placed any orders yet. Browse medicines and healthcare
+          products to place your first order.
         </p>
 
         <Link
@@ -147,10 +127,7 @@ export default function OrdersContent() {
         <Package size={17} />
 
         <span>
-          {orders.length}{" "}
-          {orders.length === 1
-            ? "order"
-            : "orders"}
+          {orders.length} {orders.length === 1 ? "order" : "orders"}
         </span>
       </div>
 
@@ -158,18 +135,14 @@ export default function OrdersContent() {
 
       <div className="mt-6 space-y-5">
         {orders.map((order) => {
-          const status =
-            statusDetails[order.status];
+          const status = statusDetails[order.status];
 
-          const firstPharmacy =
-            order.items[0]?.pharmacy;
+          const firstPharmacy = order.items[0]?.pharmacy;
 
-          const totalQuantity =
-            order.items.reduce(
-              (total, item) =>
-                total + item.quantity,
-              0
-            );
+          const totalQuantity = order.items.reduce(
+            (total, item) => total + item.quantity,
+            0,
+          );
 
           return (
             <article
@@ -195,9 +168,7 @@ export default function OrdersContent() {
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-[#8B949E]">
                     <Clock3 size={13} />
 
-                    {formatOrderDate(
-                      order.createdAt
-                    )}
+                    {formatOrderDate(order.createdAt)}
                   </div>
                 </div>
 
@@ -206,7 +177,6 @@ export default function OrdersContent() {
                   className="flex h-10 shrink-0 items-center justify-center gap-1 rounded-xl border border-[#DDE5E2] px-4 text-xs font-bold text-[#64717D] transition hover:border-[#45C9A5] hover:text-[#2EB68F]"
                 >
                   View details
-
                   <ChevronRight size={15} />
                 </Link>
               </div>
@@ -217,39 +187,37 @@ export default function OrdersContent() {
                 {/* PRODUCTS */}
 
                 <div className="space-y-4">
-                  {order.items
-                    .slice(0, 2)
-                    .map((item) => (
-                      <div
-                        key={`${item.product.id}-${item.pharmacy.id}`}
-                        className="flex items-center gap-4"
-                      >
-                        <ProductThumbnail src={item.product.image} alt={item.product.name} />
+                  {order.items.slice(0, 2).map((item) => (
+                    <div
+                      key={`${item.product.id}-${item.pharmacy.id}`}
+                      className="flex items-center gap-4"
+                    >
+                      <ProductThumbnail
+                        src={item.product.image}
+                        alt={item.product.name}
+                      />
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-[#17212B]">
-                            {item.product.name}
-                          </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-[#17212B]">
+                          {item.product.name}
+                        </p>
 
-                          <p className="mt-1 text-xs text-[#8B949E]">
-                            Qty: {item.quantity}
-                          </p>
-                        </div>
-
-                        <p className="shrink-0 text-sm font-bold text-[#17212B]">
-                          â‚¹
-                          {item.unitPrice *
-                            item.quantity}
+                        <p className="mt-1 text-xs text-[#8B949E]">
+                          Qty: {item.quantity}
                         </p>
                       </div>
-                    ))}
+
+                      <p className="shrink-0 text-sm font-bold text-[#17212B]">
+                        â‚¹
+                        {item.unitPrice * item.quantity}
+                      </p>
+                    </div>
+                  ))}
 
                   {order.items.length > 2 && (
                     <p className="pl-[72px] text-xs font-semibold text-[#2EB68F]">
                       + {order.items.length - 2} more{" "}
-                      {order.items.length - 2 === 1
-                        ? "product"
-                        : "products"}
+                      {order.items.length - 2 === 1 ? "product" : "products"}
                     </p>
                   )}
                 </div>
@@ -266,13 +234,10 @@ export default function OrdersContent() {
                     />
 
                     <div className="min-w-0">
-                      <p className="text-[11px] text-[#8B949E]">
-                        Pharmacy
-                      </p>
+                      <p className="text-[11px] text-[#8B949E]">Pharmacy</p>
 
                       <p className="mt-1 truncate text-xs font-bold text-[#17212B]">
-                        {firstPharmacy?.name ??
-                          "Pharmacy"}
+                        {firstPharmacy?.name ?? "Pharmacy"}
                       </p>
                     </div>
                   </div>
@@ -305,9 +270,7 @@ export default function OrdersContent() {
                     />
 
                     <div>
-                      <p className="text-[11px] text-[#8B949E]">
-                        Order total
-                      </p>
+                      <p className="text-[11px] text-[#8B949E]">Order total</p>
 
                       <p className="mt-1 text-xs font-bold text-[#17212B]">
                         â‚¹{order.totalAmount}
@@ -320,26 +283,18 @@ export default function OrdersContent() {
 
                 <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-[#F8FAFA] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-[#64717D]">
-                    {totalQuantity}{" "}
-                    {totalQuantity === 1
-                      ? "item"
-                      : "items"}{" "}
-                    in this order
+                    {totalQuantity} {totalQuantity === 1 ? "item" : "items"} in
+                    this order
                   </p>
 
-                  {order.status !==
-                    "delivered" &&
-                    order.status !==
-                      "cancelled" && (
+                  {order.status !== "delivered" &&
+                    order.status !== "cancelled" && (
                       <Link
                         href={`/orders/${order.id}`}
                         className="flex items-center gap-1 text-xs font-bold text-[#2EB68F]"
                       >
                         Track order
-
-                        <ChevronRight
-                          size={14}
-                        />
+                        <ChevronRight size={14} />
                       </Link>
                     )}
                 </div>

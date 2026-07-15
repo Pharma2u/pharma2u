@@ -160,10 +160,64 @@ export function deactivateProduct(token: string, id: string) {
   return request<void>(`/vendor/products/${id}`, token, { method: "DELETE" });
 }
 
-export type VendorOrder = { id: string; orderCode: string; status: "pending_verification" | "verified"; requiresPrescription: boolean; prescriptionPath: string | null; total: number; createdAt: string; customer: { name: string }; items: { id: string; name: string; qty: number; price: number }[] };
+export type VendorOrder = {
+  id: string;
+  orderCode: string;
+  status:
+    | "pending_verification"
+    | "verified"
+    | "rejected"
+    | "awaiting_rider"
+    | "rider_assigned"
+    | "picked_up"
+    | "relay_pending"
+    | "relay_failed"
+    | "on_the_way"
+    | "delivered"
+    | "cancelled"
+    | "disputed";
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
+  paymentMethod: "upi" | "card" | "cod";
+  requiresPrescription: boolean;
+  prescriptionPath: string | null;
+  total: number;
+  createdAt: string;
+  fulfilmentLeg: "primary" | "relay";
+  canPackRelay: boolean;
+  customer: { name: string };
+  items: { id: string; name: string; qty: number; price: number }[];
+  payment: {
+    provider: string;
+    providerPaymentId: string | null;
+    failureReason: string | null;
+  } | null;
+  refund: {
+    status: "pending" | "processing" | "completed" | "failed";
+    amount: number;
+    providerRef: string | null;
+    errorReason: string | null;
+  } | null;
+};
 
-export function listVendorOrders(token: string) { return request<{ items: VendorOrder[] }>("/orders/vendor/queue", token); }
+export function listVendorOrders(token: string) {
+  return request<{ items: VendorOrder[] }>("/orders/vendor/queue", token);
+}
 
-export function verifyVendorOrder(token: string, id: string, approved: boolean, reason?: string) { return request<{ id: string; status: string }>(`/orders/${id}/verify`, token, { method: "POST", body: JSON.stringify({ approved, reason }) }); }
+export function verifyVendorOrder(
+  token: string,
+  id: string,
+  approved: boolean,
+  reason?: string,
+) {
+  return request<{ id: string; status: string }>(
+    `/orders/${id}/verify`,
+    token,
+    { method: "POST", body: JSON.stringify({ approved, reason }) },
+  );
+}
 
-export function markVendorOrderPacked(token: string, id: string) { return request<{ id: string; status: string }>(`/orders/${id}/ready`, token, { method: "POST" }); }
+export function markVendorOrderPacked(token: string, id: string) {
+  return request<{ id: string; status: string }>(`/orders/${id}/ready`, token, {
+    method: "POST",
+  });
+}

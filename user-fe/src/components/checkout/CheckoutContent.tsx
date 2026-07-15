@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 
 import {
   AlertCircle,
@@ -24,7 +25,13 @@ import {
 
 import LocationModal from "@/src/components/location/LocationModal";
 
-import { createOrder } from "@/src/lib/ordersApi";
+import {
+  createOrder,
+  reportRazorpayPaymentFailed,
+  verifyRazorpayPayment,
+  type CreatedOrder,
+  type RazorpayPaymentResponse,
+} from "@/src/lib/ordersApi";
 import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 import type { AuthRootState } from "@/src/store/authStore";
 
@@ -32,12 +39,36 @@ import { useAddressStore } from "@/src/store/addressStore";
 import { useCartStore } from "@/src/store/cartStore";
 import { useOrderStore } from "@/src/store/orderStore";
 
-import type {
-  Order,
-  OrderPaymentMethod,
-} from "@/src/types/order";
+import type { Order, OrderPaymentMethod } from "@/src/types/order";
 
 type PaymentMethod = "upi" | "card" | "cod";
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description: string;
+  handler: (response: RazorpayPaymentResponse) => void;
+  modal: { ondismiss: () => void };
+  prefill: { name: string };
+  theme: { color: string };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void;
+      on: (
+        event: "payment.failed",
+        callback: (response: { error?: { description?: string } }) => void,
+      ) => void;
+    };
+  }
+}
+
+class CheckoutPaymentError extends Error {}
 
 export default function CheckoutContent() {
   const router = useRouter();
@@ -47,9 +78,9 @@ export default function CheckoutContent() {
    * ORDER PROCESSING
    */
 
-  const [isPlacingOrder, setIsPlacingOrder] =
-    useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [isRazorpayReady, setIsRazorpayReady] = useState(false);
 
   /*
    * CART
@@ -57,65 +88,52 @@ export default function CheckoutContent() {
 
   const items = useCartStore((state) => state.items);
 
-  const clearCart = useCartStore(
-    (state) => state.clearCart
-  );
+  const clearCart = useCartStore((state) => state.clearCart);
 
   /*
    * ORDER STORE
    */
 
-  const addOrder = useOrderStore(
-    (state) => state.addOrder
-  );
+  const addOrder = useOrderStore((state) => state.addOrder);
 
   /*
    * ADDRESS
    */
 
-  const [locationModalOpen, setLocationModalOpen] =
-    useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
 
-  const addresses = useAddressStore(
-    (state) => state.addresses
-  );
+  const addresses = useAddressStore((state) => state.addresses);
 
-  const selectedAddressId = useAddressStore(
-    (state) => state.selectedAddressId
-  );
+  const selectedAddressId = useAddressStore((state) => state.selectedAddressId);
 
   const selectedAddress = addresses.find(
-    (address) => address.id === selectedAddressId
+    (address) => address.id === selectedAddressId,
   );
 
   /*
    * PAYMENT
    */
 
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("upi");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
 
   /*
    * DELIVERY INSTRUCTIONS
    */
 
-  const [deliveryInstructions, setDeliveryInstructions] =
-    useState("");
+  const [deliveryInstructions, setDeliveryInstructions] = useState("");
 
   /*
    * ORDER CALCULATIONS
    */
 
   const subtotal = items.reduce(
-    (total, item) =>
-      total + item.unitPrice * item.quantity,
-    0
+    (total, item) => total + item.unitPrice * item.quantity,
+    0,
   );
 
   const totalMRP = items.reduce(
-    (total, item) =>
-      total + item.product.mrp * item.quantity,
-    0
+    (total, item) => total + item.product.mrp * item.quantity,
+    0,
   );
 
   const savings = Math.max(0, totalMRP - subtotal);
@@ -131,21 +149,18 @@ export default function CheckoutContent() {
   const deliveryTimes = items
     .map((item) => item.pharmacy?.deliveryTime)
     .filter(
-      (deliveryTime): deliveryTime is number =>
-        deliveryTime !== undefined
+      (deliveryTime): deliveryTime is number => deliveryTime !== undefined,
     );
 
   const estimatedDeliveryTime =
-    deliveryTimes.length > 0
-      ? Math.max(...deliveryTimes)
-      : null;
+    deliveryTimes.length > 0 ? Math.max(...deliveryTimes) : null;
 
   /*
    * PRESCRIPTION CHECK
    */
 
   const hasPrescriptionProducts = items.some(
-    (item) => item.product.prescriptionRequired
+    (item) => item.product.prescriptionRequired,
   );
 
   /*
@@ -154,17 +169,14 @@ export default function CheckoutContent() {
 
   const hasStockIssue = items.some(
     (item) =>
-      item.availableStock !== null &&
-      item.quantity > item.availableStock
+      item.availableStock !== null && item.quantity > item.availableStock,
   );
 
   /*
    * PHARMACY VALIDATION
    */
 
-  const hasMissingPharmacy = items.some(
-    (item) => !item.pharmacy
-  );
+  const hasMissingPharmacy = items.some((item) => !item.pharmacy);
 
   /*
    * PLACE ORDER VALIDATION
@@ -175,7 +187,51 @@ export default function CheckoutContent() {
     items.length > 0 &&
     !hasStockIssue &&
     !hasMissingPharmacy &&
-    !isPlacingOrder;
+    !isPlacingOrder &&
+    (paymentMethod === "cod" || isRazorpayReady);
+
+  function openRazorpayCheckout(created: CreatedOrder) {
+    return new Promise<RazorpayPaymentResponse>((resolve, reject) => {
+      if (!created.razorpay || !window.Razorpay) {
+        reject(
+          new Error(
+            "Secure payment checkout is still loading. Please try again.",
+          ),
+        );
+        return;
+      }
+      let settled = false;
+      const fail = (message: string) => {
+        if (settled) return;
+        settled = true;
+        reject(new CheckoutPaymentError(message));
+      };
+      const checkout = new window.Razorpay({
+        key: created.razorpay.keyId,
+        amount: created.razorpay.amount,
+        currency: created.razorpay.currency,
+        order_id: created.razorpay.orderId,
+        name: "Pharma2U",
+        description: `Order ${created.orderCode}`,
+        prefill: { name: session?.name ?? "" },
+        theme: { color: "#2EB68F" },
+        handler: (response) => {
+          if (settled) return;
+          settled = true;
+          resolve(response);
+        },
+        modal: {
+          ondismiss: () => fail("Payment was cancelled before completion."),
+        },
+      });
+      checkout.on("payment.failed", (response) =>
+        fail(
+          response.error?.description ?? "Payment failed. Please try again.",
+        ),
+      );
+      checkout.open();
+    });
+  }
 
   /*
    * CREATE ORDER
@@ -183,27 +239,42 @@ export default function CheckoutContent() {
 
   const handlePlaceOrder = async () => {
     setOrderError("");
-    if (isPlacingOrder || !selectedAddress || !items.length || hasStockIssue || hasMissingPharmacy) return;
+    if (
+      isPlacingOrder ||
+      !selectedAddress ||
+      !items.length ||
+      hasStockIssue ||
+      hasMissingPharmacy
+    )
+      return;
     if (!session?.token) {
       setOrderError("Please sign in before placing an order.");
       router.push("/login");
       return;
     }
-    if (selectedAddress.latitude === undefined || selectedAddress.longitude === undefined) {
-      setOrderError("Select an address with a valid map location before placing the order.");
-      return;
-    }
-
-    const orderItems = items.flatMap((item) => item.pharmacy ? [{
-      product: item.product,
-      quantity: item.quantity,
-      pharmacy: item.pharmacy,
-      unitPrice: item.unitPrice,
-      availableStock: item.availableStock,
-    }] : []);
+    const orderItems = items.flatMap((item) =>
+      item.pharmacy
+        ? [
+            {
+              product: item.product,
+              quantity: item.quantity,
+              pharmacy: item.pharmacy,
+              unitPrice: item.unitPrice,
+              availableStock: item.availableStock,
+            },
+          ]
+        : [],
+    );
     const localOrder: Omit<Order, "id"> = {
       items: orderItems,
-      address: { id: selectedAddress.id, label: selectedAddress.label, fullAddress: selectedAddress.fullAddress, city: selectedAddress.city, state: selectedAddress.state, pincode: selectedAddress.pincode },
+      address: {
+        id: selectedAddress.id,
+        label: selectedAddress.label,
+        fullAddress: selectedAddress.fullAddress,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        pincode: selectedAddress.pincode,
+      },
       paymentMethod: paymentMethod as OrderPaymentMethod,
       deliveryInstructions,
       subtotal,
@@ -219,20 +290,54 @@ export default function CheckoutContent() {
     setIsPlacingOrder(true);
     try {
       const created = await createOrder(session.token, {
-        items: items.map((item) => ({ productId: String(item.product.id), qty: item.quantity })),
+        items: items.map((item) => ({
+          productId: String(item.product.id),
+          qty: item.quantity,
+        })),
         dropAddress: `${selectedAddress.fullAddress}, ${selectedAddress.city}${selectedAddress.state ? `, ${selectedAddress.state}` : ""}${selectedAddress.pincode ? ` - ${selectedAddress.pincode}` : ""}`,
-        dropLat: selectedAddress.latitude,
-        dropLng: selectedAddress.longitude,
+        ...(selectedAddress.latitude === undefined
+          ? {}
+          : { dropLat: selectedAddress.latitude }),
+        ...(selectedAddress.longitude === undefined
+          ? {}
+          : { dropLng: selectedAddress.longitude }),
         paymentMethod,
         deliveryInstructions: deliveryInstructions.trim() || undefined,
         deliveryFee,
         estimatedMinutes: estimatedDeliveryTime ?? 15,
       });
+      if (paymentMethod !== "cod") {
+        try {
+          const payment = await openRazorpayCheckout(created);
+          try {
+            await verifyRazorpayPayment(session.token, created.id, payment);
+          } catch {
+            // The signed webhook remains authoritative if immediate verification is delayed.
+          }
+        } catch (caught) {
+          const message =
+            caught instanceof Error
+              ? caught.message
+              : "Payment was not completed.";
+          if (caught instanceof CheckoutPaymentError) {
+            await reportRazorpayPaymentFailed(
+              session.token,
+              created.id,
+              message,
+            ).catch(() => undefined);
+          }
+          throw caught;
+        }
+      }
       addOrder({ ...localOrder, id: created.id });
       clearCart();
       router.push(`/order-success/${created.id}`);
     } catch (caught) {
-      setOrderError(caught instanceof Error ? caught.message : "Unable to place your order. Please try again.");
+      setOrderError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to place your order. Please try again.",
+      );
     } finally {
       setIsPlacingOrder(false);
     }
@@ -245,11 +350,7 @@ export default function CheckoutContent() {
     return (
       <div className="flex min-h-[560px] flex-col items-center justify-center px-5 text-center">
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#EAFAF5]">
-          <Truck
-            size={40}
-            strokeWidth={1.5}
-            className="text-[#2EB68F]"
-          />
+          <Truck size={40} strokeWidth={1.5} className="text-[#2EB68F]" />
         </div>
 
         <h1 className="mt-6 text-2xl font-bold text-[#17212B]">
@@ -257,8 +358,7 @@ export default function CheckoutContent() {
         </h1>
 
         <p className="mt-2 max-w-md text-sm leading-6 text-[#64717D]">
-          Add medicines or healthcare products before proceeding
-          to checkout.
+          Add medicines or healthcare products before proceeding to checkout.
         </p>
 
         <Link
@@ -273,6 +373,18 @@ export default function CheckoutContent() {
 
   return (
     <>
+      <Script
+        id="razorpay-checkout"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onReady={() => setIsRazorpayReady(true)}
+        onError={() => {
+          setIsRazorpayReady(false);
+          setOrderError(
+            "Unable to load secure payment checkout. You can choose cash on delivery or retry.",
+          );
+        }}
+      />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
         {/* ================= LEFT CONTENT ================= */}
 
@@ -348,9 +460,7 @@ export default function CheckoutContent() {
                   <p className="mt-1 text-xs text-[#8B949E]">
                     {selectedAddress.city}
 
-                    {selectedAddress.state
-                      ? `, ${selectedAddress.state}`
-                      : ""}
+                    {selectedAddress.state ? `, ${selectedAddress.state}` : ""}
 
                     {selectedAddress.pincode
                       ? ` - ${selectedAddress.pincode}`
@@ -378,8 +488,8 @@ export default function CheckoutContent() {
                 </p>
 
                 <p className="mt-1 max-w-sm text-xs leading-5 text-[#8B949E]">
-                  Select your location so we can find nearby pharmacies
-                  and calculate delivery availability.
+                  Select your location so we can find nearby pharmacies and
+                  calculate delivery availability.
                 </p>
               </button>
             )}
@@ -394,9 +504,7 @@ export default function CheckoutContent() {
               </div>
 
               <div>
-                <h2 className="text-lg font-bold text-[#17212B]">
-                  Delivery
-                </h2>
+                <h2 className="text-lg font-bold text-[#17212B]">Delivery</h2>
 
                 <p className="mt-0.5 text-xs text-[#8B949E]">
                   Estimated delivery time
@@ -406,10 +514,7 @@ export default function CheckoutContent() {
 
             <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#45C9A5] bg-[#F4FCF9] p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <Truck
-                  size={21}
-                  className="shrink-0 text-[#2EB68F]"
-                />
+                <Truck size={21} className="shrink-0 text-[#2EB68F]" />
 
                 <div>
                   <p className="text-sm font-bold text-[#17212B]">
@@ -466,8 +571,8 @@ export default function CheckoutContent() {
 
                   <p className="mt-2 text-sm leading-6 text-[#7A6542]">
                     Your cart contains medicine that requires a valid
-                    prescription. Upload a prescription before placing
-                    your order.
+                    prescription. Upload a prescription before placing your
+                    order.
                   </p>
 
                   <button
@@ -484,9 +589,7 @@ export default function CheckoutContent() {
           {/* ================= PAYMENT ================= */}
 
           <section className="rounded-3xl border border-[#E5EAE8] bg-white p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-[#17212B]">
-              Payment method
-            </h2>
+            <h2 className="text-lg font-bold text-[#17212B]">Payment method</h2>
 
             <p className="mt-1 text-xs text-[#8B949E]">
               Choose how you want to pay
@@ -526,10 +629,7 @@ export default function CheckoutContent() {
                         : "border-[#E5EAE8] hover:border-[#C9D6D1]"
                     }`}
                   >
-                    <Icon
-                      size={21}
-                      className="shrink-0 text-[#2EB68F]"
-                    />
+                    <Icon size={21} className="shrink-0 text-[#2EB68F]" />
 
                     <div className="flex-1">
                       <p className="text-sm font-bold text-[#17212B]">
@@ -564,10 +664,7 @@ export default function CheckoutContent() {
                 Order summary
               </h2>
 
-              <Link
-                href="/cart"
-                className="text-xs font-bold text-[#2EB68F]"
-              >
+              <Link href="/cart" className="text-xs font-bold text-[#2EB68F]">
                 Edit cart
               </Link>
             </div>
@@ -581,7 +678,10 @@ export default function CheckoutContent() {
                   className="border-b border-[#EDF0EF] pb-5 last:border-b-0 last:pb-0"
                 >
                   <div className="flex gap-3">
-                    <ProductThumbnail src={item.product.image} alt={item.product.name} />
+                    <ProductThumbnail
+                      src={item.product.image}
+                      alt={item.product.name}
+                    />
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-[#17212B]">
@@ -613,13 +713,11 @@ export default function CheckoutContent() {
                         <div className="mt-1 flex flex-wrap items-center gap-3 text-[10px] text-[#8B949E]">
                           <span className="flex items-center gap-1">
                             <Clock3 size={11} />
-
                             {item.pharmacy.deliveryTime} mins
                           </span>
 
                           <span className="flex items-center gap-1">
                             <MapPin size={11} />
-
                             {item.pharmacy.distance} km
                           </span>
                         </div>
@@ -635,9 +733,7 @@ export default function CheckoutContent() {
             <div className="mt-6 border-t border-[#EDF0EF] pt-5">
               <div className="space-y-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64717D]">
-                    Total MRP
-                  </span>
+                  <span className="text-[#64717D]">Total MRP</span>
 
                   <span className="font-semibold text-[#17212B]">
                     Rs. {totalMRP}
@@ -645,9 +741,7 @@ export default function CheckoutContent() {
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64717D]">
-                    Product discount
-                  </span>
+                  <span className="text-[#64717D]">Product discount</span>
 
                   <span className="font-semibold text-[#2EB68F]">
                     - Rs. {savings}
@@ -655,22 +749,16 @@ export default function CheckoutContent() {
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64717D]">
-                    Delivery fee
-                  </span>
+                  <span className="text-[#64717D]">Delivery fee</span>
 
-                  <span className="font-semibold text-[#2EB68F]">
-                    FREE
-                  </span>
+                  <span className="font-semibold text-[#2EB68F]">FREE</span>
                 </div>
               </div>
 
               <div className="my-5 border-t border-[#EDF0EF]" />
 
               <div className="flex items-center justify-between">
-                <span className="font-bold text-[#17212B]">
-                  Amount payable
-                </span>
+                <span className="font-bold text-[#17212B]">Amount payable</span>
 
                 <span className="text-2xl font-bold text-[#17212B]">
                   Rs. {totalAmount}
@@ -685,8 +773,13 @@ export default function CheckoutContent() {
             </div>
 
             {orderError && (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">
-                <p className="text-[11px] leading-5 text-red-700">{orderError}</p>
+              <div
+                className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3"
+                role="alert"
+              >
+                <p className="text-[11px] leading-5 text-red-700">
+                  {orderError}
+                </p>
               </div>
             )}
             {/* VALIDATION WARNINGS */}
@@ -699,8 +792,8 @@ export default function CheckoutContent() {
                 />
 
                 <p className="text-[11px] leading-5 text-[#7A6542]">
-                  One or more products exceed the available pharmacy
-                  stock. Please update your cart.
+                  One or more products exceed the available pharmacy stock.
+                  Please update your cart.
                 </p>
               </div>
             )}
@@ -713,8 +806,8 @@ export default function CheckoutContent() {
                 />
 
                 <p className="text-[11px] leading-5 text-[#7A6542]">
-                  Pharmacy availability is missing for one or more
-                  products. Please update your cart.
+                  Pharmacy availability is missing for one or more products.
+                  Please update your cart.
                 </p>
               </div>
             )}
@@ -729,11 +822,7 @@ export default function CheckoutContent() {
             >
               {isPlacingOrder ? (
                 <>
-                  <LoaderCircle
-                    size={18}
-                    className="animate-spin"
-                  />
-
+                  <LoaderCircle size={18} className="animate-spin" />
                   Placing order...
                 </>
               ) : (
@@ -744,7 +833,11 @@ export default function CheckoutContent() {
                       ? "Update cart quantities"
                       : hasMissingPharmacy
                         ? "Update cart"
-                        : "Place order"}
+                        : paymentMethod !== "cod" && !isRazorpayReady
+                          ? "Loading secure payment..."
+                          : paymentMethod === "cod"
+                            ? "Place order"
+                            : "Pay securely"}
 
                   <ChevronRight size={18} />
                 </>
@@ -760,8 +853,7 @@ export default function CheckoutContent() {
               />
 
               <p className="text-[11px] leading-5 text-[#8B949E]">
-                Your payment and personal information are handled
-                securely.
+                Your payment and personal information are handled securely.
               </p>
             </div>
 
@@ -775,8 +867,8 @@ export default function CheckoutContent() {
                 />
 
                 <p className="text-[11px] leading-5 text-[#7A6542]">
-                  Prescription verification is required before this
-                  order can be processed.
+                  Prescription verification is required before this order can be
+                  processed.
                 </p>
               </div>
             )}

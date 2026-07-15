@@ -46,8 +46,8 @@ export default function CustomerAuthPage() {
       setError("Please use the portal assigned to your account role.");
       return;
     }
-    dispatch(setSession(data));
     localStorage.setItem("pharma2u_auth", JSON.stringify(data));
+    dispatch(setSession(data));
     router.replace("/");
   }
   return (

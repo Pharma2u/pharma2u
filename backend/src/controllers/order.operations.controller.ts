@@ -1,12 +1,28 @@
 import { randomUUID } from "crypto";
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
-import { matchOrderItems, type RequestedItem } from "../services/matching.service";
+import {
+  matchOrderItems,
+  type RequestedItem,
+} from "../services/matching.service";
+import {
+  amountToPaise,
+  failAndCancelOnlineOrder,
+  triggerOrderRefund,
+} from "../services/payment-lifecycle.service";
+import {
+  createRazorpayOrder,
+  razorpayKeyId,
+} from "../services/razorpay.service";
 
 type DeliveryStatus = "picked_up" | "on_the_way" | "delivered";
 type TaskLeg = "primary" | "relay";
 
-const DELIVERY_STATUSES: DeliveryStatus[] = ["picked_up", "on_the_way", "delivered"];
+const DELIVERY_STATUSES: DeliveryStatus[] = [
+  "picked_up",
+  "on_the_way",
+  "delivered",
+];
 const PAYMENT_METHODS = ["upi", "card", "cod"] as const;
 
 function httpError(message: string, status = 400) {
@@ -61,14 +77,17 @@ function taskLeg(value: unknown): TaskLeg {
 export async function placeMatchedOrder(req: Request, res: Response) {
   const input = requestBody(req.body);
   const dropAddress = requiredText(input.dropAddress, "dropAddress");
-  const dropLat = Number(input.dropLat);
-  const dropLng = Number(input.dropLng);
+  const parsedDropLat = Number(input.dropLat);
+  const parsedDropLng = Number(input.dropLng);
+  const hasDropCoordinates =
+    Number.isFinite(parsedDropLat) && Number.isFinite(parsedDropLng);
+  const dropLat = hasDropCoordinates ? parsedDropLat : null;
+  const dropLng = hasDropCoordinates ? parsedDropLng : null;
   const paymentMethod = input.paymentMethod as (typeof PAYMENT_METHODS)[number];
 
-  if (!Number.isFinite(dropLat) || !Number.isFinite(dropLng)) {
-    throw httpError("A valid delivery address and coordinates are required.");
-  }
-  if (!PAYMENT_METHODS.includes(paymentMethod as (typeof PAYMENT_METHODS)[number])) {
+  if (
+    !PAYMENT_METHODS.includes(paymentMethod as (typeof PAYMENT_METHODS)[number])
+  ) {
     throw httpError("Invalid payment method.");
   }
 
@@ -91,8 +110,14 @@ export async function placeMatchedOrder(req: Request, res: Response) {
     });
     const requiresPrescription = prescriptionProductCount > 0;
     // OTC + COD is immediately verified; prescription or online-payment orders await confirmation
-    const status = requiresPrescription || paymentMethod !== "cod" ? "pending_verification" : "verified";
-    const subtotal = match.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const status =
+      requiresPrescription || paymentMethod !== "cod"
+        ? "pending_verification"
+        : "verified";
+    const subtotal = match.items.reduce(
+      (sum, item) => sum + item.price * item.qty,
+      0,
+    );
     const deliveryFee = Math.max(0, Number(input.deliveryFee) || 0);
     const estimatedMinutes = Math.max(1, Number(input.estimatedMinutes) || 30);
 
@@ -147,7 +172,40 @@ export async function placeMatchedOrder(req: Request, res: Response) {
     });
   });
 
-  res.status(201).json(order);
+  if (paymentMethod === "cod") {
+    res.status(201).json(order);
+    return;
+  }
+
+  try {
+    const providerOrder = await createRazorpayOrder({
+      amount: amountToPaise(order.total),
+      receipt: order.orderCode,
+      notes: { orderId: order.id, customerId: req.user!.id },
+    });
+    await prisma.payment.update({
+      where: { orderId: order.id },
+      data: {
+        providerOrderId: providerOrder.id,
+        rawPayload: providerOrder as never,
+      },
+    });
+    res.status(201).json({
+      ...order,
+      razorpay: {
+        keyId: razorpayKeyId(),
+        orderId: providerOrder.id,
+        amount: providerOrder.amount,
+        currency: providerOrder.currency,
+      },
+    });
+  } catch (error) {
+    await failAndCancelOnlineOrder(
+      order.id,
+      "Payment could not be started. The order was cancelled.",
+    );
+    throw error;
+  }
 }
 
 export async function vendorOrderQueue(req: Request, res: Response) {
@@ -155,15 +213,8 @@ export async function vendorOrderQueue(req: Request, res: Response) {
   const orders = await prisma.order.findMany({
     where: {
       OR: [
-        {
-          pharmacy: { vendorUserId: vendorId },
-          status: { in: ["pending_verification", "verified"] },
-        },
-        {
-          relayPharmacy: { vendorUserId: vendorId },
-          relayPackedAt: null,
-          status: { in: ["verified", "awaiting_rider"] },
-        },
+        { pharmacy: { vendorUserId: vendorId } },
+        { relayPharmacy: { vendorUserId: vendorId } },
       ],
     },
     include: {
@@ -171,8 +222,11 @@ export async function vendorOrderQueue(req: Request, res: Response) {
       customer: { select: { name: true } },
       pharmacy: { select: { name: true } },
       relayPharmacy: { select: { vendorUserId: true } },
+      payment: true,
+      refund: true,
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
+    take: 100,
   });
 
   res.json({
@@ -181,8 +235,10 @@ export async function vendorOrderQueue(req: Request, res: Response) {
       return {
         ...order,
         fulfilmentLeg: isRelayPharmacy ? "relay" : "primary",
-        // Relay packing remains actionable even after the primary pharmacy packs.
-        status: isRelayPharmacy ? "verified" : order.status,
+        canPackRelay:
+          isRelayPharmacy &&
+          !order.relayPackedAt &&
+          ["verified", "awaiting_rider"].includes(order.status),
       };
     }),
   });
@@ -193,21 +249,33 @@ export async function verifyVendorOrder(req: Request, res: Response) {
   const approved = input.approved;
   const reason = optionalText(input.reason);
 
-  if (typeof approved !== "boolean") throw httpError("approved must be a boolean.");
+  if (typeof approved !== "boolean")
+    throw httpError("approved must be a boolean.");
   if (!approved && !reason) throw httpError("A rejection reason is required.");
 
   const order = await prisma.order.findFirst({
-    where: { id: String(req.params.id), pharmacy: { vendorUserId: req.user!.id } },
+    where: {
+      id: String(req.params.id),
+      pharmacy: { vendorUserId: req.user!.id },
+    },
   });
   if (!order) return void res.status(404).json({ error: "Order not found." });
   if (order.status !== "pending_verification") {
-    return void res.status(409).json({ error: "This order is not awaiting verification." });
+    return void res
+      .status(409)
+      .json({ error: "This order is not awaiting verification." });
   }
   if (order.paymentMethod !== "cod" && order.paymentStatus !== "paid") {
-    return void res.status(409).json({ error: "Payment must be confirmed before approving this order." });
+    return void res
+      .status(409)
+      .json({
+        error: "Payment must be confirmed before approving this order.",
+      });
   }
   if (order.requiresPrescription && !order.prescriptionPath) {
-    return void res.status(409).json({ error: "The customer has not uploaded a prescription." });
+    return void res
+      .status(409)
+      .json({ error: "The customer has not uploaded a prescription." });
   }
 
   if (approved) {
@@ -215,7 +283,12 @@ export async function verifyVendorOrder(req: Request, res: Response) {
       where: { id: order.id },
       data: {
         status: "verified",
-        events: { create: { status: "verified", note: "Prescription approved by pharmacy." } },
+        events: {
+          create: {
+            status: "verified",
+            note: "Prescription approved by pharmacy.",
+          },
+        },
       },
     });
   } else {
@@ -224,7 +297,15 @@ export async function verifyVendorOrder(req: Request, res: Response) {
         where: { id: order.id },
         data: {
           status: "rejected",
-          events: { create: { status: "rejected", note: `Prescription rejected: ${reason}` } },
+          cancelledAt: new Date(),
+          cancelledBy: req.user!.id,
+          cancelledReason: reason,
+          events: {
+            create: {
+              status: "rejected",
+              note: `Prescription rejected: ${reason}`,
+            },
+          },
         },
       });
       const items = await tx.orderItem.findMany({
@@ -243,6 +324,17 @@ export async function verifyVendorOrder(req: Request, res: Response) {
         });
       }
     });
+  }
+
+  if (!approved && order.paymentStatus === "paid") {
+    try {
+      await triggerOrderRefund(order.id);
+    } catch (error) {
+      console.error(
+        "Razorpay refund initiation failed after vendor rejection",
+        error,
+      );
+    }
   }
 
   res.json({ id: order.id, status: approved ? "verified" : "rejected" });
@@ -265,31 +357,50 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
     return void res.status(404).json({ error: "Order not found." });
   }
   if (order.paymentMethod !== "cod" && order.paymentStatus !== "paid") {
-    return void res.status(409).json({ error: "Payment must be confirmed before packing this order." });
+    return void res
+      .status(409)
+      .json({ error: "Payment must be confirmed before packing this order." });
   }
 
   if (isRelayPharmacy && !isPrimaryPharmacy) {
-    if (!["verified", "awaiting_rider"].includes(order.status) || order.relayPackedAt) {
-      return void res.status(409).json({ error: "This relay order is not awaiting packing." });
+    if (
+      !["verified", "awaiting_rider"].includes(order.status) ||
+      order.relayPackedAt
+    ) {
+      return void res
+        .status(409)
+        .json({ error: "This relay order is not awaiting packing." });
     }
     await prisma.order.update({
       where: { id: order.id },
       data: {
         relayPackedAt: new Date(),
-        events: { create: { status: order.status, note: "Relay pharmacy packed its items." } },
+        events: {
+          create: {
+            status: order.status,
+            note: "Relay pharmacy packed its items.",
+          },
+        },
       },
     });
     return void res.json({ id: order.id, status: "relay_packed" });
   }
 
   if (order.status !== "verified") {
-    return void res.status(409).json({ error: "Only verified orders can be marked packed." });
+    return void res
+      .status(409)
+      .json({ error: "Only verified orders can be marked packed." });
   }
   await prisma.order.update({
     where: { id: order.id },
     data: {
       status: "awaiting_rider",
-      events: { create: { status: "awaiting_rider", note: "Primary pharmacy packed its items." } },
+      events: {
+        create: {
+          status: "awaiting_rider",
+          note: "Primary pharmacy packed its items.",
+        },
+      },
     },
   });
   res.json({ id: order.id, status: "awaiting_rider" });
@@ -300,14 +411,30 @@ export async function riderAvailableTasks(_req: Request, res: Response) {
       where: {
         status: "awaiting_rider",
         riderId: null,
-        OR: [{ relayPharmacyId: null }, { relayPackedAt: { not: null } }],
+        OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
+        AND: [
+          { OR: [{ relayPharmacyId: null }, { relayPackedAt: { not: null } }] },
+        ],
       },
-      include: { pharmacy: { select: { name: true, address: true } }, relayPharmacy: { select: { name: true, address: true } }, items: true },
+      include: {
+        pharmacy: { select: { name: true, address: true } },
+        relayPharmacy: { select: { name: true, address: true } },
+        items: true,
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.order.findMany({
-      where: { isRelay: true, status: "rider_assigned", relayRiderId: null },
-      include: { pharmacy: { select: { name: true, address: true } }, relayPharmacy: { select: { name: true, address: true } }, items: true },
+      where: {
+        isRelay: true,
+        status: "rider_assigned",
+        relayRiderId: null,
+        OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
+      },
+      include: {
+        pharmacy: { select: { name: true, address: true } },
+        relayPharmacy: { select: { name: true, address: true } },
+        items: true,
+      },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -324,7 +451,9 @@ export async function riderMyTasks(req: Request, res: Response) {
   const items = await prisma.order.findMany({
     where: {
       OR: [{ riderId: req.user!.id }, { relayRiderId: req.user!.id }],
-      status: { in: ["rider_assigned", "picked_up", "relay_pending", "on_the_way"] },
+      status: {
+        in: ["rider_assigned", "picked_up", "relay_pending", "on_the_way"],
+      },
     },
     include: {
       pharmacy: { select: { name: true, address: true } },
@@ -351,19 +480,47 @@ export async function acceptRiderTask(req: Request, res: Response) {
         id,
         status: "awaiting_rider",
         riderId: null,
-        OR: [{ relayPharmacyId: null }, { relayPackedAt: { not: null } }],
+        OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
+        AND: [
+          { OR: [{ relayPharmacyId: null }, { relayPackedAt: { not: null } }] },
+        ],
       },
       data: { status: "rider_assigned", riderId: req.user!.id },
     });
-    if (claimed.count === 0) return void res.status(409).json({ error: "This delivery task is no longer available." });
-    await prisma.orderEvent.create({ data: { orderId: id, status: "rider_assigned", note: "Primary rider accepted delivery task." } });
+    if (claimed.count === 0)
+      return void res
+        .status(409)
+        .json({ error: "This delivery task is no longer available." });
+    await prisma.orderEvent.create({
+      data: {
+        orderId: id,
+        status: "rider_assigned",
+        note: "Primary rider accepted delivery task.",
+      },
+    });
   } else {
     const claimed = await prisma.order.updateMany({
-      where: { id, isRelay: true, status: "rider_assigned", relayRiderId: null, riderId: { not: req.user!.id } },
+      where: {
+        id,
+        isRelay: true,
+        status: "rider_assigned",
+        relayRiderId: null,
+        riderId: { not: req.user!.id },
+        OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
+      },
       data: { relayRiderId: req.user!.id },
     });
-    if (claimed.count === 0) return void res.status(409).json({ error: "This relay task is no longer available." });
-    await prisma.orderEvent.create({ data: { orderId: id, status: "rider_assigned", note: "Relay rider accepted handoff task." } });
+    if (claimed.count === 0)
+      return void res
+        .status(409)
+        .json({ error: "This relay task is no longer available." });
+    await prisma.orderEvent.create({
+      data: {
+        orderId: id,
+        status: "rider_assigned",
+        note: "Relay rider accepted handoff task.",
+      },
+    });
   }
 
   res.json({ id, leg, status: "rider_assigned" });
@@ -372,11 +529,19 @@ export async function acceptRiderTask(req: Request, res: Response) {
 export async function updateRiderDelivery(req: Request, res: Response) {
   const input = requestBody(req.body);
   const status = input.status;
-  if (!DELIVERY_STATUSES.includes(status as DeliveryStatus)) throw httpError("Unsupported delivery status.");
+  if (!DELIVERY_STATUSES.includes(status as DeliveryStatus))
+    throw httpError("Unsupported delivery status.");
 
-  const order = await prisma.order.findFirst({ where: { id: String(req.params.id) } });
+  const order = await prisma.order.findFirst({
+    where: { id: String(req.params.id) },
+  });
   if (!order) return void res.status(404).json({ error: "Order not found." });
-  if (order.riderId !== req.user!.id) return void res.status(403).json({ error: "Only the assigned primary rider can update delivery status." });
+  if (order.riderId !== req.user!.id)
+    return void res
+      .status(403)
+      .json({
+        error: "Only the assigned primary rider can update delivery status.",
+      });
 
   const nextStatus = status as DeliveryStatus;
   const isValidTransition =
@@ -384,34 +549,81 @@ export async function updateRiderDelivery(req: Request, res: Response) {
     (order.status === "picked_up" && nextStatus === "on_the_way") ||
     (order.status === "relay_pending" && nextStatus === "on_the_way") ||
     (order.status === "on_the_way" && nextStatus === "delivered");
-  if (!isValidTransition) return void res.status(409).json({ error: "This delivery transition is not allowed." });
-  if (nextStatus === "on_the_way" && order.isRelay && order.relayStatus !== "handoff_done") {
-    return void res.status(409).json({ error: "Relay handoff must be completed before delivery can begin." });
+  if (!isValidTransition)
+    return void res
+      .status(409)
+      .json({ error: "This delivery transition is not allowed." });
+  if (
+    nextStatus === "on_the_way" &&
+    order.isRelay &&
+    order.relayStatus !== "handoff_done"
+  ) {
+    return void res
+      .status(409)
+      .json({
+        error: "Relay handoff must be completed before delivery can begin.",
+      });
   }
 
-  const orderStatus = nextStatus === "picked_up" && order.isRelay ? "relay_pending" : nextStatus;
+  const orderStatus =
+    nextStatus === "picked_up" && order.isRelay ? "relay_pending" : nextStatus;
   await prisma.order.update({
     where: { id: order.id },
     data: {
       status: orderStatus,
       deliveredAt: nextStatus === "delivered" ? new Date() : undefined,
-      events: { create: { status: orderStatus, note: nextStatus === "picked_up" ? "Primary rider reached the relay handoff point." : nextStatus === "on_the_way" ? "Order is on the way to the customer." : "Order delivered." } },
+      events: {
+        create: {
+          status: orderStatus,
+          note:
+            nextStatus === "picked_up"
+              ? "Primary rider reached the relay handoff point."
+              : nextStatus === "on_the_way"
+                ? "Order is on the way to the customer."
+                : "Order delivered.",
+        },
+      },
     },
   });
+  if (nextStatus === "delivered" && order.paymentMethod === "cod") {
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { orderId: order.id },
+        data: { status: "paid", paidAt: new Date() },
+      }),
+      prisma.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "paid" },
+      }),
+    ]);
+  }
   res.json({ id: order.id, status: orderStatus });
 }
 
 export async function completeRelayHandoff(req: Request, res: Response) {
   const order = await prisma.order.findFirst({
-    where: { id: String(req.params.id), relayRiderId: req.user!.id, status: "relay_pending", relayStatus: "pending" },
+    where: {
+      id: String(req.params.id),
+      relayRiderId: req.user!.id,
+      status: "relay_pending",
+      relayStatus: "pending",
+    },
   });
-  if (!order) return void res.status(409).json({ error: "No pending relay handoff is assigned to you." });
+  if (!order)
+    return void res
+      .status(409)
+      .json({ error: "No pending relay handoff is assigned to you." });
 
   await prisma.order.update({
     where: { id: order.id },
     data: {
       relayStatus: "handoff_done",
-      events: { create: { status: "relay_pending", note: "Relay rider confirmed handoff at the relay node." } },
+      events: {
+        create: {
+          status: "relay_pending",
+          note: "Relay rider confirmed handoff at the relay node.",
+        },
+      },
     },
   });
   res.json({ id: order.id, relayStatus: "handoff_done" });

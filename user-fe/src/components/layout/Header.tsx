@@ -14,7 +14,6 @@ import {
   Package,
   Search,
   ShoppingCart,
-  UserRound,
 } from "lucide-react";
 
 import { useCartStore } from "@/src/store/cartStore";
@@ -32,7 +31,7 @@ export default function Header() {
   );
 
   const locationText =
-    selectedAddress?.label || selectedAddress?.city || "{locationText}";
+    selectedAddress?.label || selectedAddress?.city || "Select location";
 
   const router = useRouter();
 
@@ -98,7 +97,7 @@ export default function Header() {
 
               <div className="flex items-center gap-1">
                 <span className="truncate text-sm font-semibold text-[#17212B]">
-                  Select location
+                  {locationText}
                 </span>
 
                 <ChevronDown size={14} />
@@ -209,7 +208,7 @@ export default function Header() {
 
                   <div className="flex items-center gap-0.5">
                     <span className="max-w-[85px] truncate text-xs font-semibold text-[#17212B]">
-                      Select location
+                      {locationText}
                     </span>
 
                     <ChevronDown size={12} className="shrink-0" />

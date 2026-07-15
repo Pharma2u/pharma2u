@@ -11,9 +11,21 @@ import {
 type OrderAction = () => Promise<unknown>;
 
 function statusLabel(status: VendorOrder["status"]) {
-  return status === "pending_verification"
-    ? "Prescription review"
-    : "Ready to pack";
+  const labels: Record<VendorOrder["status"], string> = {
+    pending_verification: "Prescription review",
+    verified: "Ready to pack",
+    rejected: "Rejected",
+    awaiting_rider: "Awaiting rider",
+    rider_assigned: "Rider assigned",
+    picked_up: "Picked up",
+    relay_pending: "Relay handoff",
+    relay_failed: "Relay failed",
+    on_the_way: "On the way",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+    disputed: "Disputed",
+  };
+  return labels[status];
 }
 
 function orderItemsLabel(order: VendorOrder) {
@@ -33,14 +45,33 @@ export function OrderQueue({ token }: { token: string }) {
       const response = await listVendorOrders(token);
       setOrders(response.items);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to load orders.");
+      setError(
+        caught instanceof Error ? caught.message : "Unable to load orders.",
+      );
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    void loadOrders();
+    let active = true;
+    listVendorOrders(token)
+      .then((response) => {
+        if (active) setOrders(response.items);
+      })
+      .catch((caught) => {
+        if (active) {
+          setError(
+            caught instanceof Error ? caught.message : "Unable to load orders.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [token]);
 
   async function runOrderAction(orderId: string, action: OrderAction) {
@@ -50,7 +81,9 @@ export function OrderQueue({ token }: { token: string }) {
       await action();
       await loadOrders();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Order action failed.");
+      setError(
+        caught instanceof Error ? caught.message : "Order action failed.",
+      );
     } finally {
       setBusyOrderId(null);
     }
@@ -85,24 +118,32 @@ export function OrderQueue({ token }: { token: string }) {
       </div>
 
       {error && (
-        <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p
+          className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
       <div className="mt-5 space-y-3">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-slate-500">Loading order queue...</p>
+          <p className="py-8 text-center text-sm text-slate-500">
+            Loading order queue...
+          </p>
         ) : orders.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">
-            No orders currently need action.
+            No orders have been received yet.
           </p>
         ) : (
           orders.map((order) => {
             const isBusy = busyOrderId === order.id;
 
             return (
-              <article key={order.id} className="rounded-2xl border border-slate-200 p-4">
+              <article
+                key={order.id}
+                className="rounded-2xl border border-slate-200 p-4"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-bold">{order.orderCode}</p>
@@ -110,6 +151,35 @@ export function OrderQueue({ token }: { token: string }) {
                       {order.customer.name} - INR {order.total}
                     </p>
                     <p className="mt-2 text-sm">{orderItemsLabel(order)}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                      <span
+                        className={`rounded-full px-2.5 py-1 ${order.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-700" : order.paymentStatus === "failed" ? "bg-red-50 text-red-700" : order.paymentStatus === "refunded" ? "bg-violet-50 text-violet-700" : "bg-amber-50 text-amber-700"}`}
+                      >
+                        {order.paymentMethod.toUpperCase()} ·{" "}
+                        {order.paymentStatus}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
+                        {order.fulfilmentLeg} fulfilment
+                      </span>
+                      {order.refund && (
+                        <span
+                          className={`rounded-full px-2.5 py-1 ${order.refund.status === "completed" ? "bg-violet-50 text-violet-700" : order.refund.status === "failed" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}
+                        >
+                          Refund {order.refund.status} · INR{" "}
+                          {order.refund.amount}
+                        </span>
+                      )}
+                    </div>
+                    {order.payment?.failureReason && (
+                      <p className="mt-2 text-xs text-red-600">
+                        {order.payment.failureReason}
+                      </p>
+                    )}
+                    {order.refund?.errorReason && (
+                      <p className="mt-2 text-xs text-red-600">
+                        Refund: {order.refund.errorReason}
+                      </p>
+                    )}
                   </div>
                   <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">
                     {statusLabel(order.status)}
@@ -117,44 +187,48 @@ export function OrderQueue({ token }: { token: string }) {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {order.status === "pending_verification" && (
-                    <>
+                  {order.status === "pending_verification" &&
+                    (order.paymentMethod === "cod" ||
+                      order.paymentStatus === "paid") && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            void runOrderAction(order.id, () =>
+                              verifyVendorOrder(token, order.id, true),
+                            )
+                          }
+                          className="rounded-xl bg-teal-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => rejectOrder(order)}
+                          className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  {(order.status === "verified" || order.canPackRelay) &&
+                    (order.paymentMethod === "cod" ||
+                      order.paymentStatus === "paid") && (
                       <button
                         type="button"
                         disabled={isBusy}
                         onClick={() =>
                           void runOrderAction(order.id, () =>
-                            verifyVendorOrder(token, order.id, true),
+                            markVendorOrderPacked(token, order.id),
                           )
                         }
                         className="rounded-xl bg-teal-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
                       >
-                        Approve
+                        Mark packed
                       </button>
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => rejectOrder(order)}
-                        className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  {order.status === "verified" && (
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() =>
-                        void runOrderAction(order.id, () =>
-                          markVendorOrderPacked(token, order.id),
-                        )
-                      }
-                      className="rounded-xl bg-teal-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      Mark packed
-                    </button>
-                  )}
+                    )}
                 </div>
               </article>
             );
