@@ -84,6 +84,7 @@ export async function loginVendor(
   const session = await authPost<Session>("/login", {
     identifier: phone,
     password,
+    expectedRole: "vendor",
   });
   if (session.role !== "vendor")
     throw new Error("This account is not a vendor account.");
@@ -184,6 +185,7 @@ export type VendorOrder = {
   createdAt: string;
   fulfilmentLeg: "primary" | "relay";
   canPackRelay: boolean;
+  relayPackedAt: string | null;
   customer: { name: string };
   items: { id: string; name: string; qty: number; price: number }[];
   payment: {

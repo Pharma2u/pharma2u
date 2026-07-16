@@ -5,6 +5,7 @@ import { requirePasswordChanged } from "../middleware/requirePasswordChanged.mid
 import {
   listMyOrders,
   getMyOrder,
+  getVendorPrescriptionUrl,
   cancelMyOrder,
   markRazorpayPaymentFailed,
   uploadPrescription,
@@ -37,7 +38,11 @@ const upload = multer({
 router.post("/orders", authMiddleware("customer"), placeMatchedOrder);
 
 // Static sub-paths MUST come before /:id to avoid route shadowing
-router.get("/orders/customer/mine", authMiddleware("customer"), listMyOrders);
+router.get(
+  "/orders/customer/mine",
+  authMiddleware("customer", "admin"),
+  listMyOrders,
+);
 router.get(
   "/orders/vendor/queue",
   authMiddleware("vendor"),
@@ -58,23 +63,27 @@ router.get(
 );
 
 // Wildcard route — must be after all static GET routes
-router.get("/orders", authMiddleware("customer"), listMyOrders);
-router.get("/orders/:id", authMiddleware("customer"), getMyOrder);
+router.get("/orders", authMiddleware("customer", "admin"), listMyOrders);
+router.get("/orders/:id", authMiddleware("customer", "admin"), getMyOrder);
 
-router.post("/orders/:id/cancel", authMiddleware("customer"), cancelMyOrder);
+router.post(
+  "/orders/:id/cancel",
+  authMiddleware("customer", "admin"),
+  cancelMyOrder,
+);
 router.post(
   "/orders/:id/payments/razorpay/verify",
-  authMiddleware("customer"),
+  authMiddleware("customer", "admin"),
   verifyRazorpayPayment,
 );
 router.post(
   "/orders/:id/payments/razorpay/failed",
-  authMiddleware("customer"),
+  authMiddleware("customer", "admin"),
   markRazorpayPaymentFailed,
 );
 router.post(
   "/orders/:id/prescription",
-  authMiddleware("customer"),
+  authMiddleware("customer", "admin"),
   upload.single("prescription"),
   uploadPrescription,
 );

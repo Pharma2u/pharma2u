@@ -7,9 +7,12 @@ import {
   validateStock,
 } from "../validators/product.validator";
 import { productImageUrl, uploadProductImage } from "../utils/uploadthing";
+
 type UploadedImage = Express.Multer.File;
+
 const files = (req: Request) =>
   (Array.isArray(req.files) ? req.files : []) as UploadedImage[];
+
 async function pharmacyId(req: Request, res: Response) {
   const p = await prisma.pharmacy.findFirst({
     where: { vendorUserId: req.user!.id },
@@ -21,7 +24,6 @@ async function pharmacyId(req: Request, res: Response) {
   }
   return p.id;
 }
-
 
 async function owned(req: Request, res: Response) {
   const pid = await pharmacyId(req, res);
@@ -35,7 +37,6 @@ async function owned(req: Request, res: Response) {
   }
   return { pid, product };
 }
-
 
 async function serialize(product: any) {
   const images =
@@ -58,16 +59,20 @@ async function serialize(product: any) {
   };
 }
 
-
 const pg = (q: unknown) => Math.max(1, Number(q) || 1),
   lim = (q: unknown) => Math.min(100, Math.max(1, Number(q) || 20));
+
 export async function createProduct(req: Request, res: Response) {
   const pid = await pharmacyId(req, res);
+
   if (!pid) return;
+
   const { imageUrls, ...input } = validateProductCreate(req.body) as any;
+
   const uploadedPaths = await Promise.all(files(req).map(uploadProductImage));
+
   const paths = [...(imageUrls || []), ...uploadedPaths];
-  
+
   const product = await prisma.product.create({
     data: {
       ...input,
@@ -77,19 +82,24 @@ export async function createProduct(req: Request, res: Response) {
     },
     include: { images: { orderBy: { sortOrder: "asc" } } },
   });
+
   res.status(201).json(await serialize(product));
 }
 
-
 export async function listPublicProducts(_req: Request, res: Response) {
   const products = await prisma.product.findMany({
-    where: { isActive: true, stock: { gt: 0 } },
+    where: {
+      isActive: true,
+      stock: { gt: 0 },
+      OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+    },
     orderBy: { createdAt: "desc" },
     include: {
       pharmacy: { select: { name: true } },
       images: { orderBy: { sortOrder: "asc" }, take: 1 },
     },
   });
+
   res.json({
     items: await Promise.all(
       products.map(async (p) => ({
@@ -101,9 +111,9 @@ export async function listPublicProducts(_req: Request, res: Response) {
   });
 }
 
-
 export async function listProducts(req: Request, res: Response) {
   const pid = await pharmacyId(req, res);
+
   if (!pid) return;
   const take = lim(req.query.limit),
     search =
@@ -114,6 +124,7 @@ export async function listProducts(req: Request, res: Response) {
     res.status(400).json({ error: "Invalid category." });
     return;
   }
+
   const where = {
     pharmacyId: pid,
     ...(category ? { category: category as "otc" } : {}),
@@ -126,6 +137,7 @@ export async function listProducts(req: Request, res: Response) {
         }
       : {}),
   };
+
   const [items, total] = await prisma.$transaction([
     prisma.product.findMany({
       where,
@@ -136,6 +148,7 @@ export async function listProducts(req: Request, res: Response) {
     }),
     prisma.product.count({ where }),
   ]);
+
   res.json({
     items: await Promise.all(items.map(serialize)),
     total,
@@ -144,14 +157,13 @@ export async function listProducts(req: Request, res: Response) {
   });
 }
 
-
 export async function updateProduct(req: Request, res: Response) {
   const hit = await owned(req, res);
   if (!hit) return;
   const { imageUrls, ...input } = validateProductUpdate(req.body) as any;
   const uploadedPaths = await Promise.all(files(req).map(uploadProductImage));
   const paths = [...(imageUrls || []), ...uploadedPaths];
-  
+
   const product = await prisma.product.update({
     where: { id: hit.product.id },
     data: {
@@ -168,9 +180,9 @@ export async function updateProduct(req: Request, res: Response) {
     },
     include: { images: { orderBy: { sortOrder: "asc" } } },
   });
+
   res.json(await serialize(product));
 }
-
 
 export async function updateStock(req: Request, res: Response) {
   const hit = await owned(req, res);
@@ -183,8 +195,6 @@ export async function updateStock(req: Request, res: Response) {
   );
 }
 
-
-
 export async function deleteProduct(req: Request, res: Response) {
   const hit = await owned(req, res);
   if (!hit) return;
@@ -194,8 +204,6 @@ export async function deleteProduct(req: Request, res: Response) {
   });
   res.status(204).send();
 }
-
-
 
 export async function listProductAvailability(req: Request, res: Response) {
   const selectedProduct = await prisma.product.findUnique({

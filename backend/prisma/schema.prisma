@@ -425,3 +425,26 @@ model Prescription {
   @@index([customerId, createdAt])
   @@map("prescriptions")
 }
+model PharmacyApplication {
+  id                      String   @id @default(uuid())
+  ownerName               String
+  ownerPhone              String   @unique
+  pharmacyName            String
+  address                 String
+  lat                     Float
+  lng                     Float
+  drugLicenseNumber       String   @unique
+  drugLicensePath         String
+  pharmacistName          String
+  pharmacistLicenseNumber String
+  pharmacistLicensePath   String
+  status                  String   @default("pending")
+  rejectionReason         String?
+  reviewedAt              DateTime?
+  reviewedBy              String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("pharmacy_applications")
+}

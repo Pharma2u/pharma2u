@@ -182,7 +182,9 @@ export function OrderQueue({ token }: { token: string }) {
                     )}
                   </div>
                   <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">
-                    {statusLabel(order.status)}
+                    {order.fulfilmentLeg === "relay" && order.relayPackedAt
+                      ? "Relay items packed"
+                      : statusLabel(order.status)}
                   </span>
                 </div>
 

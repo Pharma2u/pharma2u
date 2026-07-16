@@ -2,7 +2,12 @@ import { Prisma, type PrismaClient } from "../generated/prisma/client";
 
 type Database = PrismaClient | Prisma.TransactionClient;
 type Coordinates = { id: string; lat: number | null; lng: number | null };
-type ProductChoice = { id: string; name: string; price: number; pharmacyId: string };
+type ProductChoice = {
+  id: string;
+  name: string;
+  price: number;
+  pharmacyId: string;
+};
 
 export type RequestedItem = {
   productId: string;
@@ -30,7 +35,12 @@ function matchingError(message: string, status: number) {
 }
 
 function kilometresBetween(left: Coordinates, right: Coordinates) {
-  if (left.lat === null || left.lng === null || right.lat === null || right.lng === null) {
+  if (
+    left.lat === null ||
+    left.lng === null ||
+    right.lat === null ||
+    right.lng === null
+  ) {
     return 0;
   }
 
@@ -40,9 +50,15 @@ function kilometresBetween(left: Coordinates, right: Coordinates) {
   const deltaLng = radians(right.lng - left.lng);
   const haversine =
     Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(radians(left.lat)) * Math.cos(radians(right.lat)) * Math.sin(deltaLng / 2) ** 2;
+    Math.cos(radians(left.lat)) *
+      Math.cos(radians(right.lat)) *
+      Math.sin(deltaLng / 2) ** 2;
 
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  return (
+    earthRadiusKm *
+    2 *
+    Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+  );
 }
 
 async function pharmacyCoordinates(db: Database, pharmacyIds: string[]) {
@@ -60,7 +76,9 @@ function closestPharmacyId(
   primaryPharmacyId: string,
   locations: Coordinates[],
 ) {
-  const primary = locations.find((location) => location.id === primaryPharmacyId);
+  const primary = locations.find(
+    (location) => location.id === primaryPharmacyId,
+  );
 
   return [...pharmacyIds].sort((leftId, rightId) => {
     const left = locations.find((location) => location.id === leftId);
@@ -71,9 +89,18 @@ function closestPharmacyId(
   })[0]!;
 }
 
-function relayNodeFor(primary: Coordinates | undefined, relay: Coordinates | undefined) {
+function relayNodeFor(
+  primary: Coordinates | undefined,
+  relay: Coordinates | undefined,
+) {
   if (!primary || !relay || kilometresBetween(primary, relay) <= 2) return null;
-  if (primary.lat === null || primary.lng === null || relay.lat === null || relay.lng === null) return null;
+  if (
+    primary.lat === null ||
+    primary.lng === null ||
+    relay.lat === null ||
+    relay.lng === null
+  )
+    return null;
 
   return {
     lat: (primary.lat + relay.lat) / 2,
@@ -91,14 +118,20 @@ export async function matchOrderItems(
   }
 
   const sourceProducts = await db.product.findMany({
-    where: { id: { in: requestedIds }, isActive: true },
+    where: {
+      id: { in: requestedIds },
+      isActive: true,
+      OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+    },
     include: { pharmacy: { select: { id: true, isOpen: true } } },
   });
   if (sourceProducts.length !== requestedItems.length) {
     throw matchingError("One or more products are unavailable.", 400);
   }
 
-  const productsById = new Map(sourceProducts.map((product) => [product.id, product]));
+  const productsById = new Map(
+    sourceProducts.map((product) => [product.id, product]),
+  );
   const primaryProduct = productsById.get(requestedItems[0]!.productId)!;
   const primaryPharmacyId = primaryProduct.pharmacyId;
   if (!primaryProduct.pharmacy.isOpen) {
@@ -108,7 +141,8 @@ export async function matchOrderItems(
   const matchedProducts = new Map<string, ProductChoice>();
   const missingItems = requestedItems.filter((item) => {
     const product = productsById.get(item.productId)!;
-    const availableAtPrimary = product.pharmacyId === primaryPharmacyId && product.stock >= item.qty;
+    const availableAtPrimary =
+      product.pharmacyId === primaryPharmacyId && product.stock >= item.qty;
     if (availableAtPrimary) matchedProducts.set(item.productId, product);
     return !availableAtPrimary;
   });
@@ -132,14 +166,30 @@ export async function matchOrderItems(
     );
 
     const commonPharmacyIds = alternatives
-      .map((entry) => new Set(entry.candidates.map((candidate) => candidate.pharmacyId)))
-      .reduce((common, candidateIds) => new Set([...common].filter((id) => candidateIds.has(id))));
+      .map(
+        (entry) =>
+          new Set(entry.candidates.map((candidate) => candidate.pharmacyId)),
+      )
+      .reduce(
+        (common, candidateIds) =>
+          new Set([...common].filter((id) => candidateIds.has(id))),
+      );
     if (commonPharmacyIds.size === 0) {
-      throw matchingError("The requested quantity is not available from a single nearby pharmacy.", 409);
+      throw matchingError(
+        "The requested quantity is not available from a single nearby pharmacy.",
+        409,
+      );
     }
 
-    const locations = await pharmacyCoordinates(db, [primaryPharmacyId, ...commonPharmacyIds]);
-    relayPharmacyId = closestPharmacyId(commonPharmacyIds, primaryPharmacyId, locations);
+    const locations = await pharmacyCoordinates(db, [
+      primaryPharmacyId,
+      ...commonPharmacyIds,
+    ]);
+    relayPharmacyId = closestPharmacyId(
+      commonPharmacyIds,
+      primaryPharmacyId,
+      locations,
+    );
 
     for (const alternative of alternatives) {
       const product = alternative.candidates.find(
@@ -152,8 +202,12 @@ export async function matchOrderItems(
   const locations = relayPharmacyId
     ? await pharmacyCoordinates(db, [primaryPharmacyId, relayPharmacyId])
     : [];
-  const primaryLocation = locations.find((location) => location.id === primaryPharmacyId);
-  const relayLocation = locations.find((location) => location.id === relayPharmacyId);
+  const primaryLocation = locations.find(
+    (location) => location.id === primaryPharmacyId,
+  );
+  const relayLocation = locations.find(
+    (location) => location.id === relayPharmacyId,
+  );
 
   return {
     primaryPharmacyId,

@@ -153,7 +153,7 @@ export default function CheckoutContent() {
     );
 
   const estimatedDeliveryTime =
-    deliveryTimes.length > 0 ? Math.max(...deliveryTimes) : null;
+    deliveryTimes.length > 0 ? Math.max(...deliveryTimes) : 30;
 
   /*
    * PRESCRIPTION CHECK
@@ -176,7 +176,8 @@ export default function CheckoutContent() {
    * PHARMACY VALIDATION
    */
 
-  const hasMissingPharmacy = items.some((item) => !item.pharmacy);
+  // Pharmacy selection is verified and matched atomically by the backend at checkout.
+  const hasMissingPharmacy = false;
 
   /*
    * PLACE ORDER VALIDATION
@@ -282,7 +283,7 @@ export default function CheckoutContent() {
       savings,
       deliveryFee,
       totalAmount,
-      estimatedDeliveryTime: estimatedDeliveryTime ?? 15,
+      estimatedDeliveryTime: estimatedDeliveryTime,
       status: "placed",
       createdAt: new Date().toISOString(),
     };
@@ -304,7 +305,7 @@ export default function CheckoutContent() {
         paymentMethod,
         deliveryInstructions: deliveryInstructions.trim() || undefined,
         deliveryFee,
-        estimatedMinutes: estimatedDeliveryTime ?? 15,
+        estimatedMinutes: estimatedDeliveryTime,
       });
       if (paymentMethod !== "cod") {
         try {
@@ -528,9 +529,7 @@ export default function CheckoutContent() {
               </div>
 
               <span className="shrink-0 text-sm font-bold text-[#2EB68F]">
-                {estimatedDeliveryTime !== null
-                  ? `Within ${estimatedDeliveryTime} mins`
-                  : "Calculating"}
+                `Within ${estimatedDeliveryTime} mins`
               </span>
             </div>
 

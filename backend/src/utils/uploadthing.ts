@@ -1,10 +1,17 @@
 // Centralizes UploadThing private-document uploads and short-lived access URLs.
 import { UTApi, UTFile } from "uploadthing/server";
 import { randomUUID } from "crypto";
+
+
 if (!process.env.UPLOADTHING_TOKEN)
   throw new Error("UPLOADTHING_TOKEN must be set.");
+
+
 const utapi = new UTApi();
+
+
 export type KycFile = { buffer: Buffer; mimetype: string };
+
 export async function uploadPrivateDocument(
   file: KycFile,
   documentType: string,
@@ -25,9 +32,12 @@ export async function uploadPrivateDocument(
   await utapi.updateACL(result[0].data.key, "private");
   return result[0].data.key;
 }
+
+
 export async function signedDocumentUrl(key: string): Promise<string> {
   return (await utapi.generateSignedURL(key, { expiresIn: "15m" })).ufsUrl;
 }
+
 
 export async function uploadProductImage(file: KycFile): Promise<string> {
   const ext =

@@ -37,6 +37,7 @@ export async function loginAdmin(
   const session = await post<AuthSession>("/login", {
     identifier: phone,
     password,
+    expectedRole: "admin",
   });
   if (session.role !== "admin")
     throw new Error("This account is not an administrator.");

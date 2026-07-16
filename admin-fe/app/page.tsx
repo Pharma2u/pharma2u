@@ -1,10 +1,12 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { AdminLoginForm } from "@/components/auth/AdminLoginForm";
 import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 import { OperationsPanel } from "@/components/admin/OperationsPanel";
 import { PharmacyOnboardingPanel } from "@/components/admin/PharmacyOnboardingPanel";
+import { PharmacyApplicationsPanel } from "@/components/admin/PharmacyApplicationsPanel";
+import { RiderApplicationsPanel } from "@/components/admin/RiderApplicationsPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
 import {
   changePassword,
@@ -24,7 +26,9 @@ export default function AdminPortal() {
   const dispatch = useAppDispatch();
   const { session, hydrated } = usePersistedAdminSession();
   const [error, setError] = useState("");
-  const [section, setSection] = useState<"overview" | "pharmacy" | "accounts">("overview");
+  const [section, setSection] = useState<
+    "overview" | "pharmacy" | "applications" | "riders" | "accounts"
+  >("overview");
 
   async function signIn(phone: string, password: string) {
     setError("");
@@ -109,12 +113,31 @@ export default function AdminPortal() {
           >
             Account provisioning
           </button>
-          <button onClick={() => setSection("pharmacy")} className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "pharmacy" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}>
+          <button
+            onClick={() => setSection("applications")}
+            className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "applications" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+          >
+            Pharmacy applications
+          </button>
+          <button
+            onClick={() => setSection("riders")}
+            className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "riders" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+          >
+            Rider applications
+          </button>{" "}
+          <button
+            onClick={() => setSection("pharmacy")}
+            className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "pharmacy" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+          >
             Pharmacy onboarding
           </button>
         </aside>
         <section>
-          {section === "pharmacy" ? (
+          {section === "riders" ? (
+            <OperationsPanel token={session.token} />
+          ) : section === "applications" ? (
+            <PharmacyApplicationsPanel token={session.token} />
+          ) : section === "pharmacy" ? (
             <PharmacyOnboardingPanel token={session.token} />
           ) : section === "overview" ? (
             <OperationsPanel token={session.token} />

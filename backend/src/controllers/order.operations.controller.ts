@@ -77,6 +77,8 @@ function taskLeg(value: unknown): TaskLeg {
 export async function placeMatchedOrder(req: Request, res: Response) {
   const input = requestBody(req.body);
   const dropAddress = requiredText(input.dropAddress, "dropAddress");
+  if (dropAddress.length > 500)
+    throw httpError("dropAddress must be at most 500 characters.");
   const parsedDropLat = Number(input.dropLat);
   const parsedDropLng = Number(input.dropLng);
   const hasDropCoordinates =
@@ -141,7 +143,15 @@ export async function placeMatchedOrder(req: Request, res: Response) {
         dropAddress,
         dropLat,
         dropLng,
-        deliveryInstructions: optionalText(input.deliveryInstructions),
+        deliveryInstructions: (() => {
+          const instructions = optionalText(input.deliveryInstructions);
+          if (instructions && instructions.length > 300) {
+            throw httpError(
+              "deliveryInstructions must be at most 300 characters.",
+            );
+          }
+          return instructions;
+        })(),
         estimatedDeliveryTime: new Date(Date.now() + estimatedMinutes * 60_000),
         items: {
           create: match.items.map((item) => ({
@@ -266,11 +276,9 @@ export async function verifyVendorOrder(req: Request, res: Response) {
       .json({ error: "This order is not awaiting verification." });
   }
   if (order.paymentMethod !== "cod" && order.paymentStatus !== "paid") {
-    return void res
-      .status(409)
-      .json({
-        error: "Payment must be confirmed before approving this order.",
-      });
+    return void res.status(409).json({
+      error: "Payment must be confirmed before approving this order.",
+    });
   }
   if (order.requiresPrescription && !order.prescriptionPath) {
     return void res
@@ -342,6 +350,7 @@ export async function verifyVendorOrder(req: Request, res: Response) {
 
 export async function markVendorOrderPacked(req: Request, res: Response) {
   const vendorId = req.user!.id;
+
   const order = await prisma.order.findFirst({
     where: { id: String(req.params.id) },
     include: {
@@ -349,6 +358,7 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
       relayPharmacy: { select: { vendorUserId: true } },
     },
   });
+
   if (!order) return void res.status(404).json({ error: "Order not found." });
 
   const isPrimaryPharmacy = order.pharmacy.vendorUserId === vendorId;
@@ -356,6 +366,7 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
   if (!isPrimaryPharmacy && !isRelayPharmacy) {
     return void res.status(404).json({ error: "Order not found." });
   }
+
   if (order.paymentMethod !== "cod" && order.paymentStatus !== "paid") {
     return void res
       .status(409)
@@ -391,6 +402,7 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
       .status(409)
       .json({ error: "Only verified orders can be marked packed." });
   }
+
   await prisma.order.update({
     where: { id: order.id },
     data: {
@@ -403,8 +415,10 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
       },
     },
   });
+
   res.json({ id: order.id, status: "awaiting_rider" });
 }
+
 export async function riderAvailableTasks(_req: Request, res: Response) {
   const [primaryTasks, relayTasks] = await Promise.all([
     prisma.order.findMany({
@@ -441,8 +455,30 @@ export async function riderAvailableTasks(_req: Request, res: Response) {
 
   res.json({
     items: [
-      ...primaryTasks.map((order) => ({ ...order, leg: "primary" as const })),
-      ...relayTasks.map((order) => ({ ...order, leg: "relay" as const })),
+      ...primaryTasks.map(
+        ({
+          dropAddress: _dropAddress,
+          dropLat: _dropLat,
+          dropLng: _dropLng,
+          deliveryInstructions: _deliveryInstructions,
+          ...order
+        }) => ({
+          ...order,
+          leg: "primary" as const,
+        }),
+      ),
+      ...relayTasks.map(
+        ({
+          dropAddress: _dropAddress,
+          dropLat: _dropLat,
+          dropLng: _dropLng,
+          deliveryInstructions: _deliveryInstructions,
+          ...order
+        }) => ({
+          ...order,
+          leg: "relay" as const,
+        }),
+      ),
     ],
   });
 }
@@ -470,6 +506,7 @@ export async function riderMyTasks(req: Request, res: Response) {
     })),
   });
 }
+
 export async function acceptRiderTask(req: Request, res: Response) {
   const leg = taskLeg(req.body ? requestBody(req.body).leg : undefined);
   const id = String(req.params.id);
@@ -537,11 +574,9 @@ export async function updateRiderDelivery(req: Request, res: Response) {
   });
   if (!order) return void res.status(404).json({ error: "Order not found." });
   if (order.riderId !== req.user!.id)
-    return void res
-      .status(403)
-      .json({
-        error: "Only the assigned primary rider can update delivery status.",
-      });
+    return void res.status(403).json({
+      error: "Only the assigned primary rider can update delivery status.",
+    });
 
   const nextStatus = status as DeliveryStatus;
   const isValidTransition =
@@ -558,11 +593,9 @@ export async function updateRiderDelivery(req: Request, res: Response) {
     order.isRelay &&
     order.relayStatus !== "handoff_done"
   ) {
-    return void res
-      .status(409)
-      .json({
-        error: "Relay handoff must be completed before delivery can begin.",
-      });
+    return void res.status(409).json({
+      error: "Relay handoff must be completed before delivery can begin.",
+    });
   }
 
   const orderStatus =
@@ -597,6 +630,7 @@ export async function updateRiderDelivery(req: Request, res: Response) {
       }),
     ]);
   }
+
   res.json({ id: order.id, status: orderStatus });
 }
 
@@ -626,5 +660,6 @@ export async function completeRelayHandoff(req: Request, res: Response) {
       },
     },
   });
+
   res.json({ id: order.id, relayStatus: "handoff_done" });
 }

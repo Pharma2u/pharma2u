@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 import { Check, Crosshair, Home, Plus, Trash2, X } from "lucide-react";
 
+import { MapLocationPicker } from "@/src/components/location/MapLocationPicker";
 import { Address, useAddressStore } from "@/src/store/addressStore";
 
 interface LocationModalProps {
@@ -29,6 +30,10 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState("");
   const [pincode, setPincode] = useState("");
+  const [coordinates, setCoordinates] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   if (!open) {
     return null;
@@ -40,6 +45,7 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
     setCity("");
     setStateName("");
     setPincode("");
+    setCoordinates(null);
   };
 
   const handleAddAddress = (event: FormEvent<HTMLFormElement>) => {
@@ -62,6 +68,7 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
       city: city.trim(),
       state: stateName.trim(),
       pincode: pincode.trim(),
+      ...(coordinates ?? {}),
     };
 
     addAddress(newAddress);
@@ -295,6 +302,19 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
                     placeholder="Flat, building, street, area"
                     rows={3}
                     className="mt-2 w-full resize-none rounded-xl border border-[#DDE5E2] p-4 text-sm outline-none transition focus:border-[#45C9A5] focus:ring-4 focus:ring-[#45C9A5]/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#17212B]">
+                    Pin delivery location
+                  </label>
+                  <p className="mt-1 text-xs text-[#8B949E]">
+                    Tap the map or drag the pin to refine delivery location.
+                  </p>
+                  <MapLocationPicker
+                    value={coordinates}
+                    onChange={setCoordinates}
                   />
                 </div>
 

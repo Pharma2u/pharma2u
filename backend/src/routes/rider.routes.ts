@@ -7,6 +7,7 @@ import {
   approve,
   pending,
   reject,
+  updateMyLocation,
 } from "../controllers/rider.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requirePasswordChanged } from "../middleware/requirePasswordChanged.middleware";
@@ -38,6 +39,8 @@ router.post(
   apply,
 );
 
+router.post("/riders/location", authMiddleware("rider"), requirePasswordChanged, updateMyLocation);
+
 router.get(
   "/admin/riders/pending",
   authMiddleware("admin"),
@@ -55,6 +58,7 @@ router.post(
   authMiddleware("admin"),
   requirePasswordChanged,
   reject,
+  updateMyLocation,
 );
 
 export default router;

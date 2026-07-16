@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import {
   ArrowLeft,
@@ -18,7 +19,9 @@ import {
   Truck,
 } from "lucide-react";
 
-import OrderStatusControls from "@/src/components/order/OrderStatusControls";
+import { useSelector } from "react-redux";
+import { getMyOrder } from "@/src/lib/ordersApi";
+import type { AuthRootState } from "@/src/store/authStore";
 import { useOrderStore } from "@/src/store/orderStore";
 import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 
@@ -51,26 +54,22 @@ const trackingSteps: {
   {
     status: "ready_for_pickup",
     label: "Ready for pickup",
-    description:
-      "Your order is ready for the delivery partner.",
+    description: "Your order is ready for the delivery partner.",
   },
   {
     status: "picked_up",
     label: "Order picked up",
-    description:
-      "The delivery partner has collected your order.",
+    description: "The delivery partner has collected your order.",
   },
   {
     status: "out_for_delivery",
     label: "Out for delivery",
-    description:
-      "Your order is on the way to your location.",
+    description: "Your order is on the way to your location.",
   },
   {
     status: "delivered",
     label: "Delivered",
-    description:
-      "Your order has been successfully delivered.",
+    description: "Your order has been successfully delivered.",
   },
 ];
 
@@ -123,6 +122,26 @@ function formatPaymentMethod(paymentMethod: string) {
   }
 }
 
+function toTrackingStatus(status: string): OrderStatus {
+  switch (status) {
+    case "verified":
+      return "confirmed";
+    case "awaiting_rider":
+    case "rider_assigned":
+      return "ready_for_pickup";
+    case "picked_up":
+    case "relay_pending":
+      return "picked_up";
+    case "on_the_way":
+      return "out_for_delivery";
+    case "delivered":
+    case "cancelled":
+      return status;
+    default:
+      return "placed";
+  }
+}
+
 /*
  * PROPS
  */
@@ -138,13 +157,37 @@ interface OrderDetailsContentProps {
 export default function OrderDetailsContent({
   orderId,
 }: OrderDetailsContentProps) {
+  const session = useSelector((state: AuthRootState) => state.auth.session);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+
   /*
    * GET ORDER
    */
 
   const order = useOrderStore((state) =>
-    state.orders.find((item) => item.id === orderId)
+    state.orders.find((item) => item.id === orderId),
   );
+
+  useEffect(() => {
+    if (!session?.token) return;
+
+    let active = true;
+    const refreshStatus = async () => {
+      try {
+        const liveOrder = await getMyOrder(session.token, orderId);
+        if (active) setLiveStatus(liveOrder.status);
+      } catch {
+        // Keep the last known status while a refresh is temporarily unavailable.
+      }
+    };
+
+    void refreshStatus();
+    const intervalId = window.setInterval(refreshStatus, 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [orderId, session?.token]);
 
   /*
    * ORDER NOT FOUND
@@ -154,11 +197,7 @@ export default function OrderDetailsContent({
     return (
       <div className="flex min-h-[560px] flex-col items-center justify-center px-5 text-center">
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#FFF5E6]">
-          <ReceiptText
-            size={40}
-            strokeWidth={1.5}
-            className="text-[#B86B00]"
-          />
+          <ReceiptText size={40} strokeWidth={1.5} className="text-[#B86B00]" />
         </div>
 
         <h1 className="mt-6 text-2xl font-bold text-[#17212B]">
@@ -180,16 +219,18 @@ export default function OrderDetailsContent({
     );
   }
 
+  const currentStatus = liveStatus
+    ? toTrackingStatus(liveStatus)
+    : order.status;
+
   /*
    * CURRENT TRACKING POSITION
    */
 
   const currentStepIndex =
-    order.status === "cancelled"
+    currentStatus === "cancelled"
       ? -1
-      : trackingSteps.findIndex(
-          (step) => step.status === order.status
-        );
+      : trackingSteps.findIndex((step) => step.status === currentStatus);
 
   /*
    * ORDER INFORMATION
@@ -199,7 +240,7 @@ export default function OrderDetailsContent({
 
   const totalQuantity = order.items.reduce(
     (total, item) => total + item.quantity,
-    0
+    0,
   );
 
   return (
@@ -225,20 +266,18 @@ export default function OrderDetailsContent({
 
             <span
               className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${
-                order.status === "cancelled"
+                currentStatus === "cancelled"
                   ? "bg-[#FFF0F0] text-[#DC2626]"
-                  : order.status === "delivered"
+                  : currentStatus === "delivered"
                     ? "bg-[#EAFAF5] text-[#239C7B]"
                     : "bg-[#EAF7FF] text-[#1976A8]"
               }`}
             >
-              {statusLabels[order.status]}
+              {statusLabels[currentStatus]}
             </span>
           </div>
 
-          <p className="mt-2 text-sm text-[#64717D]">
-            Order #{order.id}
-          </p>
+          <p className="mt-2 text-sm text-[#64717D]">Order #{order.id}</p>
 
           <div className="mt-2 flex items-center gap-1.5 text-xs text-[#8B949E]">
             <Clock3 size={13} />
@@ -247,25 +286,19 @@ export default function OrderDetailsContent({
           </div>
         </div>
 
-        {order.status !== "delivered" &&
-          order.status !== "cancelled" && (
-            <div className="flex items-center gap-2 rounded-xl bg-[#EAFAF5] px-4 py-3">
-              <Truck
-                size={18}
-                className="text-[#2EB68F]"
-              />
+        {currentStatus !== "delivered" && currentStatus !== "cancelled" && (
+          <div className="flex items-center gap-2 rounded-xl bg-[#EAFAF5] px-4 py-3">
+            <Truck size={18} className="text-[#2EB68F]" />
 
-              <div>
-                <p className="text-[10px] text-[#64717D]">
-                  Estimated delivery
-                </p>
+            <div>
+              <p className="text-[10px] text-[#64717D]">Estimated delivery</p>
 
-                <p className="text-sm font-bold text-[#17212B]">
-                  Within {order.estimatedDeliveryTime} mins
-                </p>
-              </div>
+              <p className="text-sm font-bold text-[#17212B]">
+                Within {order.estimatedDeliveryTime} mins
+              </p>
             </div>
-          )}
+          </div>
+        )}
       </div>
 
       {/* ================= MAIN GRID ================= */}
@@ -274,13 +307,6 @@ export default function OrderDetailsContent({
         {/* ================= LEFT ================= */}
 
         <div className="space-y-6">
-          {/* ================= DEVELOPMENT STATUS CONTROL ================= */}
-
-          <OrderStatusControls
-            orderId={order.id}
-            currentStatus={order.status}
-          />
-
           {/* ================= TRACKING ================= */}
 
           <section className="rounded-3xl border border-[#E5EAE8] bg-white p-5 sm:p-6">
@@ -300,11 +326,9 @@ export default function OrderDetailsContent({
               </div>
             </div>
 
-            {order.status === "cancelled" ? (
+            {currentStatus === "cancelled" ? (
               <div className="mt-6 rounded-2xl bg-[#FFF0F0] p-5">
-                <p className="font-bold text-[#DC2626]">
-                  Order cancelled
-                </p>
+                <p className="font-bold text-[#DC2626]">Order cancelled</p>
 
                 <p className="mt-2 text-sm leading-6 text-[#7F1D1D]">
                   This order has been cancelled.
@@ -313,23 +337,16 @@ export default function OrderDetailsContent({
             ) : (
               <div className="mt-8">
                 {trackingSteps.map((step, index) => {
-                  const isCompleted =
-                    index < currentStepIndex;
+                  const isCompleted = index < currentStepIndex;
 
-                  const isCurrent =
-                    index === currentStepIndex;
+                  const isCurrent = index === currentStepIndex;
 
-                  const isActive =
-                    index <= currentStepIndex;
+                  const isActive = index <= currentStepIndex;
 
-                  const isLast =
-                    index === trackingSteps.length - 1;
+                  const isLast = index === trackingSteps.length - 1;
 
                   return (
-                    <div
-                      key={step.status}
-                      className="relative flex gap-4"
-                    >
+                    <div key={step.status} className="relative flex gap-4">
                       {/* LINE */}
 
                       {!isLast && (
@@ -358,26 +375,19 @@ export default function OrderDetailsContent({
                         ) : isCurrent ? (
                           <Package size={17} />
                         ) : (
-                          <Circle
-                            size={11}
-                            fill="currentColor"
-                          />
+                          <Circle size={11} fill="currentColor" />
                         )}
                       </div>
 
                       {/* INFORMATION */}
 
                       <div
-                        className={`min-w-0 flex-1 ${
-                          isLast ? "pb-0" : "pb-8"
-                        }`}
+                        className={`min-w-0 flex-1 ${isLast ? "pb-0" : "pb-8"}`}
                       >
                         <div className="flex flex-wrap items-center gap-2">
                           <p
                             className={`text-sm font-bold ${
-                              isActive
-                                ? "text-[#17212B]"
-                                : "text-[#9CA3AF]"
+                              isActive ? "text-[#17212B]" : "text-[#9CA3AF]"
                             }`}
                           >
                             {step.label}
@@ -392,9 +402,7 @@ export default function OrderDetailsContent({
 
                         <p
                           className={`mt-1 text-xs leading-5 ${
-                            isActive
-                              ? "text-[#64717D]"
-                              : "text-[#B8C0C7]"
+                            isActive ? "text-[#64717D]" : "text-[#B8C0C7]"
                           }`}
                         >
                           {step.description}
@@ -417,15 +425,11 @@ export default function OrderDetailsContent({
                 </h2>
 
                 <p className="mt-1 text-xs text-[#8B949E]">
-                  {totalQuantity}{" "}
-                  {totalQuantity === 1 ? "item" : "items"}
+                  {totalQuantity} {totalQuantity === 1 ? "item" : "items"}
                 </p>
               </div>
 
-              <Package
-                size={21}
-                className="text-[#2EB68F]"
-              />
+              <Package size={21} className="text-[#2EB68F]" />
             </div>
 
             <div className="mt-6 space-y-5">
@@ -435,12 +439,19 @@ export default function OrderDetailsContent({
                   className="border-b border-[#EDF0EF] pb-5 last:border-b-0 last:pb-0"
                 >
                   <div className="flex gap-4">
-                    <Link href={`/medicine/${item.product.id}`} className="block"><ProductThumbnail src={item.product.image} alt={item.product.name} className="h-20 w-20" /></Link>
+                    <Link
+                      href={`/medicine/${item.product.id}`}
+                      className="block"
+                    >
+                      <ProductThumbnail
+                        src={item.product.image}
+                        alt={item.product.name}
+                        className="h-20 w-20"
+                      />
+                    </Link>
 
                     <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/medicine/${item.product.id}`}
-                      >
+                      <Link href={`/medicine/${item.product.id}`}>
                         <h3 className="text-sm font-bold text-[#17212B] transition hover:text-[#2EB68F]">
                           {item.product.name}
                         </h3>
@@ -463,7 +474,7 @@ export default function OrderDetailsContent({
                         </p>
 
                         <p className="text-sm font-bold text-[#17212B]">
-                          Ã¢â€šÂ¹{item.unitPrice * item.quantity}
+                          ₹{item.unitPrice * item.quantity}
                         </p>
                       </div>
                     </div>
@@ -498,14 +509,9 @@ export default function OrderDetailsContent({
 
           <section className="rounded-3xl border border-[#E5EAE8] bg-white p-5">
             <div className="flex items-center gap-3">
-              <MapPin
-                size={19}
-                className="text-[#2EB68F]"
-              />
+              <MapPin size={19} className="text-[#2EB68F]" />
 
-              <h2 className="font-bold text-[#17212B]">
-                Delivery address
-              </h2>
+              <h2 className="font-bold text-[#17212B]">Delivery address</h2>
             </div>
 
             <div className="mt-5">
@@ -520,13 +526,9 @@ export default function OrderDetailsContent({
               <p className="mt-2 text-xs text-[#8B949E]">
                 {order.address.city}
 
-                {order.address.state
-                  ? `, ${order.address.state}`
-                  : ""}
+                {order.address.state ? `, ${order.address.state}` : ""}
 
-                {order.address.pincode
-                  ? ` - ${order.address.pincode}`
-                  : ""}
+                {order.address.pincode ? ` - ${order.address.pincode}` : ""}
               </p>
             </div>
           </section>
@@ -536,14 +538,9 @@ export default function OrderDetailsContent({
           {firstPharmacy && (
             <section className="rounded-3xl border border-[#E5EAE8] bg-white p-5">
               <div className="flex items-center gap-3">
-                <Store
-                  size={19}
-                  className="text-[#2EB68F]"
-                />
+                <Store size={19} className="text-[#2EB68F]" />
 
-                <h2 className="font-bold text-[#17212B]">
-                  Pharmacy
-                </h2>
+                <h2 className="font-bold text-[#17212B]">Pharmacy</h2>
               </div>
 
               <div className="mt-5">
@@ -557,20 +554,12 @@ export default function OrderDetailsContent({
 
                 <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#64717D]">
                   <span className="flex items-center gap-1.5">
-                    <Clock3
-                      size={13}
-                      className="text-[#2EB68F]"
-                    />
-
+                    <Clock3 size={13} className="text-[#2EB68F]" />
                     {firstPharmacy.deliveryTime} mins
                   </span>
 
                   <span className="flex items-center gap-1.5">
-                    <MapPin
-                      size={13}
-                      className="text-[#2EB68F]"
-                    />
-
+                    <MapPin size={13} className="text-[#2EB68F]" />
                     {firstPharmacy.distance} km
                   </span>
                 </div>
@@ -582,21 +571,14 @@ export default function OrderDetailsContent({
 
           <section className="rounded-3xl border border-[#E5EAE8] bg-white p-5">
             <div className="flex items-center gap-3">
-              <CreditCard
-                size={19}
-                className="text-[#2EB68F]"
-              />
+              <CreditCard size={19} className="text-[#2EB68F]" />
 
-              <h2 className="font-bold text-[#17212B]">
-                Payment details
-              </h2>
+              <h2 className="font-bold text-[#17212B]">Payment details</h2>
             </div>
 
             <div className="mt-5 space-y-4">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-xs text-[#64717D]">
-                  Payment method
-                </span>
+                <span className="text-xs text-[#64717D]">Payment method</span>
 
                 <span className="text-xs font-bold text-[#17212B]">
                   {formatPaymentMethod(order.paymentMethod)}
@@ -604,45 +586,35 @@ export default function OrderDetailsContent({
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[#64717D]">
-                  Total MRP
-                </span>
+                <span className="text-xs text-[#64717D]">Total MRP</span>
 
                 <span className="text-xs font-semibold text-[#17212B]">
-                  Ã¢â€šÂ¹{order.totalMRP}
+                  ₹{order.totalMRP}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[#64717D]">
-                  Product discount
-                </span>
+                <span className="text-xs text-[#64717D]">Product discount</span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  - Ã¢â€šÂ¹{order.savings}
+                  - ₹{order.savings}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[#64717D]">
-                  Delivery fee
-                </span>
+                <span className="text-xs text-[#64717D]">Delivery fee</span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  {order.deliveryFee === 0
-                    ? "FREE"
-                    : `Ã¢â€šÂ¹${order.deliveryFee}`}
+                  {order.deliveryFee === 0 ? "FREE" : `₹${order.deliveryFee}`}
                 </span>
               </div>
 
               <div className="border-t border-[#EDF0EF] pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#17212B]">
-                    Total amount
-                  </span>
+                  <span className="font-bold text-[#17212B]">Total amount</span>
 
                   <span className="text-xl font-bold text-[#17212B]">
-                    Ã¢â€šÂ¹{order.totalAmount}
+                    ₹{order.totalAmount}
                   </span>
                 </div>
               </div>
