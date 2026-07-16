@@ -208,8 +208,7 @@ export default function OrdersContent() {
                       </div>
 
                       <p className="shrink-0 text-sm font-bold text-[#17212B]">
-                        â‚¹
-                        {item.unitPrice * item.quantity}
+                        ₹{item.unitPrice * item.quantity}
                       </p>
                     </div>
                   ))}
@@ -273,7 +272,7 @@ export default function OrdersContent() {
                       <p className="text-[11px] text-[#8B949E]">Order total</p>
 
                       <p className="mt-1 text-xs font-bold text-[#17212B]">
-                        â‚¹{order.totalAmount}
+                        ₹{order.totalAmount}
                       </p>
                     </div>
                   </div>

@@ -8,7 +8,11 @@ export type RegisterInput = {
 };
 
 
-export type LoginInput = { identifier: string; password: string };
+export type LoginInput = {
+  identifier: string;
+  password: string;
+  expectedRole: "customer" | "vendor" | "rider" | "admin";
+};
 export type ChangePasswordInput = {
   currentPassword: string;
   newPassword: string;
@@ -90,9 +94,21 @@ export function validateRegister(body: unknown): RegisterInput {
 
 export function validateLogin(body: unknown): LoginInput {
   const data = bodyObject(body);
+  const expectedRole = data.expectedRole;
+  if (
+    expectedRole !== "customer" &&
+    expectedRole !== "vendor" &&
+    expectedRole !== "rider" &&
+    expectedRole !== "admin"
+  ) {
+    throw new ValidationError(
+      "expectedRole must be customer, vendor, rider, or admin.",
+    );
+  }
   return {
     identifier: requiredString(data, "identifier").toLowerCase(),
     password: requiredString(data, "password"),
+    expectedRole,
   };
 }
 

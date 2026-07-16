@@ -31,14 +31,12 @@ async function request<T>(
     },
   });
   const data = (await response.json().catch(() => ({}))) as T & ApiFailure;
-  if (response.status === 403) {
+  if (response.status === 401) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("pharma2u_auth");
       window.setTimeout(() => window.location.assign("/login"), 0);
     }
-    throw new Error(
-      "Your session is no longer valid for customer orders. Please sign in again.",
-    );
+    throw new Error("Your session has expired. Please sign in again.");
   }
   if (!response.ok)
     throw new Error(

@@ -27,7 +27,11 @@ export default function CustomerAuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           mode === "login"
-            ? { identifier: values.phone, password: values.password }
+            ? {
+                identifier: values.phone,
+                password: values.password,
+                expectedRole: "customer",
+              }
             : values,
         ),
       },

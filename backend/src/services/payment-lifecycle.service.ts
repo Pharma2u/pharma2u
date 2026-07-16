@@ -25,6 +25,7 @@ export async function markOrderPaymentPaid(input: {
     where: { providerOrderId: input.providerOrderId },
     include: { order: true },
   });
+
   if (!payment) return null;
 
   if (
@@ -39,6 +40,26 @@ export async function markOrderPaymentPaid(input: {
     );
   }
 
+  if (
+    payment.status === "paid" &&
+    payment.providerPaymentId === input.providerPaymentId
+  ) {
+    return {
+      order: payment.order,
+      wasCancelled: payment.order.status === "cancelled",
+    };
+  }
+
+  if (
+    payment.providerPaymentId &&
+    payment.providerPaymentId !== input.providerPaymentId
+  ) {
+    throw Object.assign(
+      new Error("A different payment is already recorded for this order."),
+      { status: 409 },
+    );
+  }
+
   return prisma.$transaction(async (tx) => {
     await tx.payment.update({
       where: { id: payment.id },
@@ -50,6 +71,7 @@ export async function markOrderPaymentPaid(input: {
         rawPayload: input.rawPayload as never,
       },
     });
+
     const shouldAutoVerify =
       !payment.order.requiresPrescription &&
       payment.order.status === "pending_verification";
@@ -71,6 +93,7 @@ export async function markOrderPaymentPaid(input: {
           : {}),
       },
     });
+
     return { order, wasCancelled: payment.order.status === "cancelled" };
   });
 }
@@ -127,6 +150,7 @@ export async function failAndCancelOnlineOrder(
         data: { paymentStatus: "failed" },
       });
     }
+
     return order;
   });
 }
@@ -151,10 +175,12 @@ export async function triggerOrderRefund(orderId: string) {
     create: { orderId, amount: order.total, reason },
     update: {},
   });
+
   const claimed = await prisma.refund.updateMany({
     where: { id: refund.id, status: { in: ["pending", "failed"] } },
     data: { status: "processing", errorReason: null },
   });
+
   if (claimed.count === 0) return refund;
 
   try {
@@ -176,6 +202,7 @@ export async function triggerOrderRefund(orderId: string) {
         rawPayload: providerRefund as never,
       },
     });
+
     if (completed) {
       await prisma.$transaction([
         prisma.payment.update({

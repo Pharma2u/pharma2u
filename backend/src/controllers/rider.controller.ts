@@ -1,4 +1,4 @@
-﻿// Handles rider application submission and protected admin review actions.
+// Handles rider application submission and protected admin review actions.
 import bcrypt from "bcrypt";
 import { randomBytes } from "crypto";
 import type { Request, Response } from "express";
@@ -188,4 +188,20 @@ export async function reject(req: Request, res: Response) {
     data: { applicationStatus: "rejected", rejectionReason: reason },
   });
   res.json({ id: req.params.id, status: "rejected" });
+}
+
+export async function updateMyLocation(req: Request, res: Response) {
+  const input = req.body as { lat?: unknown; lng?: unknown; isOnline?: unknown };
+  const lat = Number(input?.lat);
+  const lng = Number(input?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    res.status(400).json({ error: "Valid lat and lng coordinates are required." });
+    return;
+  }
+  const location = await prisma.riderLocation.upsert({
+    where: { riderId: req.user!.id },
+    create: { riderId: req.user!.id, lat, lng, isOnline: input.isOnline !== false },
+    update: { lat, lng, isOnline: input.isOnline !== false },
+  });
+  res.json(location);
 }

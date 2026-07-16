@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "../config/prisma";
-import { uploadPrivateDocument } from "../utils/uploadthing";
+import { signedDocumentUrl, uploadPrivateDocument } from "../utils/uploadthing";
 import {
   failAndCancelOnlineOrder,
   markOrderPaymentPaid,
@@ -131,12 +131,10 @@ export async function uploadPrescription(req: Request, res: Response) {
     return;
   }
   if (order.status !== "pending_verification") {
-    res
-      .status(409)
-      .json({
-        error:
-          "Prescriptions can only be uploaded for orders awaiting verification.",
-      });
+    res.status(409).json({
+      error:
+        "Prescriptions can only be uploaded for orders awaiting verification.",
+    });
     return;
   }
   if (!req.file)
@@ -171,8 +169,10 @@ function safeSignatureMatch(expected: string, received: string) {
 export async function verifyRazorpayPayment(req: Request, res: Response) {
   const input = body(req.body);
   const orderId = String(req.params.id);
+
   const providerOrderId =
     typeof input.razorpay_order_id === "string" ? input.razorpay_order_id : "";
+
   const providerPaymentId =
     typeof input.razorpay_payment_id === "string"
       ? input.razorpay_payment_id
@@ -181,31 +181,39 @@ export async function verifyRazorpayPayment(req: Request, res: Response) {
     typeof input.razorpay_signature === "string"
       ? input.razorpay_signature
       : "";
+
   if (!providerOrderId || !providerPaymentId || !signature) {
     res.status(400).json({ error: "Razorpay payment details are incomplete." });
     return;
   }
+
   const payment = await prisma.payment.findFirst({
     where: { orderId, providerOrderId, order: { customerId: req.user!.id } },
   });
+
   if (!payment) {
     res.status(404).json({ error: "Payment order not found." });
     return;
   }
+
   const secret = (
     process.env.RAZORPAY_KEY_SECRET ?? process.env.RAZORPAY_SECRET
   )?.trim();
+
   if (!secret) {
     res.status(503).json({ error: "Razorpay is not configured." });
     return;
   }
+
   const expected = createHmac("sha256", secret)
     .update(`${payment.providerOrderId}|${providerPaymentId}`)
     .digest("hex");
+
   if (!safeSignatureMatch(expected, signature)) {
     res.status(401).json({ error: "Payment signature verification failed." });
     return;
   }
+
   const providerPayment = await fetchRazorpayPayment(providerPaymentId);
   if (
     providerPayment.order_id !== payment.providerOrderId ||
@@ -214,6 +222,7 @@ export async function verifyRazorpayPayment(req: Request, res: Response) {
     res.status(409).json({ error: "Payment has not been captured yet." });
     return;
   }
+
   const result = await markOrderPaymentPaid({
     providerOrderId,
     providerPaymentId,
@@ -221,6 +230,7 @@ export async function verifyRazorpayPayment(req: Request, res: Response) {
     currency: providerPayment.currency,
     rawPayload: providerPayment,
   });
+
   if (result?.wasCancelled) {
     try {
       await triggerOrderRefund(orderId);
@@ -231,6 +241,7 @@ export async function verifyRazorpayPayment(req: Request, res: Response) {
       );
     }
   }
+
   res.json({
     id: orderId,
     paymentStatus: "paid",
@@ -244,15 +255,18 @@ export async function markRazorpayPaymentFailed(req: Request, res: Response) {
   const order = await prisma.order.findFirst({
     where: { id: orderId, customerId: req.user!.id },
   });
+
   if (!order) {
     res.status(404).json({ error: "Order not found." });
     return;
   }
+
   const reason =
     typeof input.reason === "string" && input.reason.trim()
       ? input.reason.trim().slice(0, 500)
       : "Online payment was not completed.";
   await failAndCancelOnlineOrder(orderId, reason, input);
+
   res.json({ id: orderId, status: "cancelled", paymentStatus: "failed" });
 }
 
@@ -260,21 +274,28 @@ type WebhookEntity = Record<string, unknown>;
 
 export async function razorpayWebhook(req: Request, res: Response) {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
   if (!secret) {
     res.status(503).json({ error: "Payment webhook is not configured." });
     return;
   }
+
   const signature = req.header("x-razorpay-signature");
+
   if (!Buffer.isBuffer(req.body)) {
     res.status(400).json({ error: "Webhook body must be raw bytes." });
     return;
   }
+
   const rawBody = req.body as Buffer;
+
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+
   if (!signature || !safeSignatureMatch(expected, signature)) {
     res.status(401).json({ error: "Invalid payment webhook signature." });
     return;
   }
+
   const webhook = JSON.parse(rawBody.toString("utf8")) as {
     event?: string;
     payload?: {
@@ -282,10 +303,13 @@ export async function razorpayWebhook(req: Request, res: Response) {
       refund?: { entity?: WebhookEntity };
     };
   };
+
   const eventType = webhook.event ?? "unknown";
+
   const eventId =
     req.header("x-razorpay-event-id") ??
     createHash("sha256").update(rawBody).digest("hex");
+
   const savedEvent = await prisma.paymentWebhookEvent.upsert({
     where: { eventId },
     create: {
@@ -296,12 +320,14 @@ export async function razorpayWebhook(req: Request, res: Response) {
     },
     update: {},
   });
+
   if (savedEvent.processedAt) {
     res.status(200).json({ ok: true, duplicate: true });
     return;
   }
 
   const payment = webhook.payload?.payment?.entity;
+
   const providerOrderId =
     typeof payment?.order_id === "string" ? payment.order_id : null;
   if (
@@ -398,9 +424,30 @@ export async function razorpayWebhook(req: Request, res: Response) {
       }
     }
   }
+
   await prisma.paymentWebhookEvent.update({
     where: { id: savedEvent.id },
     data: { processedAt: new Date() },
   });
+
   res.status(200).json({ ok: true });
+}
+
+export async function getVendorPrescriptionUrl(req: Request, res: Response) {
+  const order = await prisma.order.findFirst({
+    where: {
+      id: String(req.params.id),
+      requiresPrescription: true,
+      prescriptionPath: { not: null },
+      pharmacy: { vendorUserId: req.user!.id },
+    },
+    select: { prescriptionPath: true },
+  });
+
+  if (!order?.prescriptionPath) {
+    res.status(404).json({ error: "Prescription not found." });
+    return;
+  }
+
+  res.json({ url: await signedDocumentUrl(order.prescriptionPath) });
 }

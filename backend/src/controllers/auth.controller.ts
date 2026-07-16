@@ -96,6 +96,12 @@ export async function login(
       .json({ message: "Invalid email, phone, or password." });
     return;
   }
+  if (user.role !== input.expectedRole) {
+    response.status(403).json({
+      message: "This account belongs to a different portal.",
+    });
+    return;
+  }
   if (user.role === "rider" && user.applicationStatus !== "approved") {
     const message =
       user.applicationStatus === "rejected"
