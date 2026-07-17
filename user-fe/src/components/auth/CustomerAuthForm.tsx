@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 type Mode = "login" | "register";
 type Props = {
   onSubmit: (
@@ -89,13 +90,13 @@ export function CustomerAuthForm({ onSubmit, error }: Props) {
         </label>
         <label className="block text-sm font-medium">
           Password
-          <input
+          <PasswordInput
             required
             minLength={8}
-            type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3"
           />
         </label>
         {error && <p className="text-sm text-red-600">{error}</p>}

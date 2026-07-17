@@ -11,7 +11,6 @@ async function request<T>(path: string, init: RequestInit = {}) {
   return data;
 }
 
-
 export async function loginRider(
   phone: string,
   password: string,
@@ -30,7 +29,6 @@ export async function loginRider(
   return data;
 }
 
-
 export function changePassword(
   token: string,
   currentPassword: string,
@@ -46,7 +44,6 @@ export function changePassword(
   });
 }
 
-
 export function applyForRider(form: FormData) {
   return request<{ applicationId: string; status: "pending"; message: string }>(
     "/riders/apply",
@@ -59,7 +56,12 @@ export type RiderTask = {
   orderCode: string;
   status: string;
   total: number;
+  paymentMethod: "upi" | "card" | "cod";
+  paymentStatus: string;
   dropAddress?: string;
+  dropLat?: number | null;
+  dropLng?: number | null;
+  deliveryInstructions?: string | null;
   isRelay: boolean;
   leg?: "primary" | "relay";
   pharmacy: { name: string; address: string };
@@ -67,13 +69,11 @@ export type RiderTask = {
   items: { id: string; name: string; qty: number }[];
 };
 
-
 export function listRiderTasks(token: string) {
   return request<{ items: RiderTask[] }>("/orders/rider/available", {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
-
 
 export function acceptRiderTask(
   token: string,
@@ -90,13 +90,11 @@ export function acceptRiderTask(
   });
 }
 
-
 export function listMyRiderTasks(token: string) {
   return request<{ items: RiderTask[] }>("/orders/rider/mine", {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
-
 
 export function completeRelayHandoff(token: string, id: string) {
   return request<{ id: string; relayStatus: string }>(
@@ -104,7 +102,6 @@ export function completeRelayHandoff(token: string, id: string) {
     { method: "POST", headers: { Authorization: `Bearer ${token}` } },
   );
 }
-
 
 export function updateDeliveryStatus(
   token: string,
@@ -121,10 +118,19 @@ export function updateDeliveryStatus(
   });
 }
 
-export function updateMyLocation(token: string, lat: number, lng: number) {
-  return request<{ lat: number; lng: number; updatedAt: string }>("/riders/location", {
+export function updateMyLocation(
+  token: string,
+  lat: number,
+  lng: number,
+  recordedAt: number,
+  isOnline = true,
+) {
+  return request<{ accepted: boolean; reason?: string }>("/riders/location", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-    body: JSON.stringify({ lat, lng, isOnline: true }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token,
+    },
+    body: JSON.stringify({ lat, lng, isOnline, recordedAt }),
   });
 }

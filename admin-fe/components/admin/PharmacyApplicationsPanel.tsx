@@ -15,7 +15,7 @@ export function PharmacyApplicationsPanel({ token }: { token: string }) {
     }
   }, [token]);
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(load);
   }, [load]);
   async function approve(id: string) {
     setBusy(id);

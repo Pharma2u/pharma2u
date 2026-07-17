@@ -1,74 +1,79 @@
 "use client";
+
 import { useState } from "react";
 import { ApplicationForm } from "@/components/auth/ApplicationForm";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 import { RiderLoginForm } from "@/components/auth/RiderLoginForm";
-import { changePassword, loginRider } from "@/lib/api";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
+import { changePassword, loginRider } from "@/lib/api";
 import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedRiderSession } from "@/store/usePersistedSession";
+
 export default function RiderPortal() {
   const dispatch = useAppDispatch();
   const { session, hydrated } = usePersistedRiderSession();
   const [mode, setMode] = useState<"login" | "apply">("login");
   const [error, setError] = useState("");
-  const [current, setCurrent] = useState(""),
-    [next, setNext] = useState("");
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+
   async function signIn(phone: string, password: string) {
     setError("");
     try {
       dispatch(setSession(await loginRider(phone, password)));
-    } catch (c) {
-      setError(c instanceof Error ? c.message : "Unable to sign in.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to sign in.");
     }
   }
-  async function replacePassword(e: React.FormEvent) {
-    e.preventDefault();
+
+  async function replacePassword(event: React.FormEvent) {
+    event.preventDefault();
     setError("");
     try {
       await changePassword(session!.token, current, next);
       dispatch(passwordChanged());
-    } catch (c) {
-      setError(c instanceof Error ? c.message : "Unable to update password.");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Unable to update password.",
+      );
     }
   }
+
   if (!hydrated)
     return (
       <main className="shell">
-        <p className="muted">Restoring session…</p>
+        <p className="muted">Restoring session...</p>
       </main>
     );
-  if (!hydrated)
+
+  if (session?.mustChangePassword) {
     return (
-      <main className="shell">
-        <p className="muted">Restoring session…</p>
-      </main>
-    );
-  if (session?.mustChangePassword)
-    return (
-      <main className="shell">
+      <main className="shell auth-shell">
         <section className="card narrow">
           <p className="eyebrow">SECURITY REQUIRED</p>
           <h1>Create your password</h1>
-          <p className="muted">Set a password before accessing rider tools.</p>
+          <p className="muted">
+            Set a private password before accessing rider tools.
+          </p>
           <form onSubmit={replacePassword} className="space-y">
             <label>
               Temporary password
-              <input
+              <PasswordInput
                 required
-                type="password"
+                autoComplete="current-password"
                 value={current}
-                onChange={(e) => setCurrent(e.target.value)}
+                onChange={(event) => setCurrent(event.target.value)}
               />
             </label>
             <label>
               New password
-              <input
+              <PasswordInput
                 required
                 minLength={8}
-                type="password"
+                autoComplete="new-password"
                 value={next}
-                onChange={(e) => setNext(e.target.value)}
+                onChange={(event) => setNext(event.target.value)}
               />
             </label>
             {error && <p className="alert error">{error}</p>}
@@ -77,27 +82,57 @@ export default function RiderPortal() {
         </section>
       </main>
     );
-  if (session)
+  }
+
+  if (session) {
+    const initials = session.name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
     return (
-      <main className="shell">
-        <section className="card narrow">
-          <p className="eyebrow">PHARMA2U RIDER</p>
-          <h1>Welcome, {session.name}</h1>
-          <p className="muted">
-            Your rider account is active. Delivery assignment tools will appear
-            here as they are enabled.
-          </p>
-          <button
-            onClick={() => dispatch(clearSession())}
-            className="secondary"
-          >
-            Sign out
-          </button>
+      <main className="shell dashboard-shell">
+        <nav className="dashboard-topbar" aria-label="Rider account">
+          <div className="dashboard-brandmark">
+            <span>P2U</span>
+            <div>
+              <strong>Pharma2u</strong>
+              <small>Rider operations</small>
+            </div>
+          </div>
+          <div className="rider-account">
+            <span className="rider-avatar">{initials}</span>
+            <div>
+              <strong>{session.name}</strong>
+              <small>Delivery partner</small>
+            </div>
+            <button onClick={() => dispatch(clearSession())}>Sign out</button>
+          </div>
+        </nav>
+
+        <section className="dashboard-intro">
+          <div>
+            <p className="eyebrow">TODAY&apos;S OPERATIONS</p>
+            <h1>Welcome back, {session.name.split(" ")[0]}</h1>
+            <p>
+              Stay online, accept nearby deliveries, and keep every customer
+              updated.
+            </p>
+          </div>
+          <span className="dashboard-date">
+            <small>RIDER PORTAL</small>
+            <strong>Ready for duty</strong>
+          </span>
         </section>
+        <TaskBoard token={session.token} />
       </main>
     );
+  }
+
   return (
-    <main className="shell">
+    <main className="shell auth-shell">
       <header>
         <div>
           <p className="brand">PHARMA2U</p>
@@ -106,16 +141,22 @@ export default function RiderPortal() {
             Apply to join our rider network or sign in to your approved account.
           </p>
         </div>
-        <div className="tabs">
+        <div className="tabs" aria-label="Rider account options">
           <button
             className={mode === "login" ? "active" : ""}
-            onClick={() => setMode("login")}
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
           >
             Sign in
           </button>
           <button
             className={mode === "apply" ? "active" : ""}
-            onClick={() => setMode("apply")}
+            onClick={() => {
+              setMode("apply");
+              setError("");
+            }}
           >
             Apply
           </button>

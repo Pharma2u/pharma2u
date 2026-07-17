@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "../config/prisma";
-import { signedDocumentUrl, uploadPrivateDocument } from "../utils/uploadthing";
+import {
+  deleteUploadedFiles,
+  signedDocumentUrl,
+  uploadPrivateDocument,
+} from "../utils/uploadthing";
 import {
   failAndCancelOnlineOrder,
   markOrderPaymentPaid,
@@ -142,21 +146,28 @@ export async function uploadPrescription(req: Request, res: Response) {
       status: 400,
     });
   const path = await uploadPrivateDocument(req.file, "prescription");
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      prescriptionPath: path,
-      events: {
-        create: {
-          status: "pending_verification",
-          note: "Prescription uploaded.",
+  try {
+    await prisma.$transaction([
+      prisma.order.update({
+        where: { id: order.id },
+        data: {
+          prescriptionPath: path,
+          events: {
+            create: {
+              status: "pending_verification",
+              note: "Prescription uploaded.",
+            },
+          },
         },
-      },
-    },
-  });
-  await prisma.prescription.create({
-    data: { customerId: req.user!.id, path },
-  });
+      }),
+      prisma.prescription.create({
+        data: { customerId: req.user!.id, path },
+      }),
+    ]);
+  } catch (error) {
+    await deleteUploadedFiles([path], "prescription");
+    throw error;
+  }
   res.status(201).json({ path });
 }
 

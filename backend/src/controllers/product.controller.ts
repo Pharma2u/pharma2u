@@ -6,12 +6,31 @@ import {
   validateProductUpdate,
   validateStock,
 } from "../validators/product.validator";
-import { productImageUrl, uploadProductImage } from "../utils/uploadthing";
+import {
+  deleteProductImages,
+  productImageUrl,
+  uploadProductImage,
+} from "../utils/uploadthing";
 
 type UploadedImage = Express.Multer.File;
 
 const files = (req: Request) =>
   (Array.isArray(req.files) ? req.files : []) as UploadedImage[];
+
+async function uploadImages(req: Request) {
+  const results = await Promise.allSettled(files(req).map(uploadProductImage));
+  const uploadedPaths = results.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  const failedUpload = results.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (failedUpload) {
+    await deleteProductImages(uploadedPaths);
+    throw failedUpload.reason;
+  }
+  return uploadedPaths;
+}
 
 async function pharmacyId(req: Request, res: Response) {
   const p = await prisma.pharmacy.findFirst({
@@ -69,19 +88,29 @@ export async function createProduct(req: Request, res: Response) {
 
   const { imageUrls, ...input } = validateProductCreate(req.body) as any;
 
-  const uploadedPaths = await Promise.all(files(req).map(uploadProductImage));
+  const uploadedPaths = await uploadImages(req);
 
   const paths = [...(imageUrls || []), ...uploadedPaths];
 
-  const product = await prisma.product.create({
-    data: {
-      ...input,
-      pharmacyId: pid,
-      imagePath: paths[0] || null,
-      images: { create: paths.map((path, sortOrder) => ({ path, sortOrder })) },
-    },
-    include: { images: { orderBy: { sortOrder: "asc" } } },
-  });
+  let product;
+  try {
+    product = await prisma.product.create({
+      data: {
+        ...input,
+        pharmacyId: pid,
+        imagePath: paths[0] || null,
+        images: {
+          create: paths.map((path, sortOrder) => ({ path, sortOrder })),
+        },
+      },
+      include: { images: { orderBy: { sortOrder: "asc" } } },
+    });
+  } catch (error) {
+    // UploadThing cannot participate in Prisma's transaction. Remove only files
+    // uploaded for this request; externally supplied imageUrls must be preserved.
+    await deleteProductImages(uploadedPaths);
+    throw error;
+  }
 
   res.status(201).json(await serialize(product));
 }
@@ -161,25 +190,31 @@ export async function updateProduct(req: Request, res: Response) {
   const hit = await owned(req, res);
   if (!hit) return;
   const { imageUrls, ...input } = validateProductUpdate(req.body) as any;
-  const uploadedPaths = await Promise.all(files(req).map(uploadProductImage));
+  const uploadedPaths = await uploadImages(req);
   const paths = [...(imageUrls || []), ...uploadedPaths];
 
-  const product = await prisma.product.update({
-    where: { id: hit.product.id },
-    data: {
-      ...input,
-      ...(paths.length
-        ? {
-            imagePath: paths[0],
-            images: {
-              deleteMany: {},
-              create: paths.map((path, sortOrder) => ({ path, sortOrder })),
-            },
-          }
-        : {}),
-    },
-    include: { images: { orderBy: { sortOrder: "asc" } } },
-  });
+  let product;
+  try {
+    product = await prisma.product.update({
+      where: { id: hit.product.id },
+      data: {
+        ...input,
+        ...(paths.length
+          ? {
+              imagePath: paths[0],
+              images: {
+                deleteMany: {},
+                create: paths.map((path, sortOrder) => ({ path, sortOrder })),
+              },
+            }
+          : {}),
+      },
+      include: { images: { orderBy: { sortOrder: "asc" } } },
+    });
+  } catch (error) {
+    await deleteProductImages(uploadedPaths);
+    throw error;
+  }
 
   res.json(await serialize(product));
 }

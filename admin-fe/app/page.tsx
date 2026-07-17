@@ -6,7 +6,6 @@ import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 import { OperationsPanel } from "@/components/admin/OperationsPanel";
 import { PharmacyOnboardingPanel } from "@/components/admin/PharmacyOnboardingPanel";
 import { PharmacyApplicationsPanel } from "@/components/admin/PharmacyApplicationsPanel";
-import { RiderApplicationsPanel } from "@/components/admin/RiderApplicationsPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
 import {
   changePassword,

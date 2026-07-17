@@ -1,5 +1,6 @@
 ﻿"use client";
 import { FormEvent, useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 export function RiderLoginForm({
   onSubmit,
   error,
@@ -34,9 +35,9 @@ export function RiderLoginForm({
       </label>
       <label>
         Password
-        <input
+        <PasswordInput
           required
-          type="password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Your password"
