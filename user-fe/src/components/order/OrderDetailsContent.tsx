@@ -24,6 +24,7 @@ import { getMyOrder } from "@/src/lib/ordersApi";
 import type { AuthRootState } from "@/src/store/authStore";
 import { useOrderStore } from "@/src/store/orderStore";
 import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
+import { LiveRiderMap } from "@/src/components/order/LiveRiderMap";
 
 import type { OrderStatus } from "@/src/types/order";
 
@@ -159,6 +160,10 @@ export default function OrderDetailsContent({
 }: OrderDetailsContentProps) {
   const session = useSelector((state: AuthRootState) => state.auth.session);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveDestination, setLiveDestination] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   /*
    * GET ORDER
@@ -175,7 +180,17 @@ export default function OrderDetailsContent({
     const refreshStatus = async () => {
       try {
         const liveOrder = await getMyOrder(session.token, orderId);
-        if (active) setLiveStatus(liveOrder.status);
+        if (!active) return;
+        setLiveStatus(liveOrder.status);
+        if (
+          Number.isFinite(liveOrder.dropLat) &&
+          Number.isFinite(liveOrder.dropLng)
+        ) {
+          setLiveDestination({
+            lat: liveOrder.dropLat as number,
+            lng: liveOrder.dropLng as number,
+          });
+        }
       } catch {
         // Keep the last known status while a refresh is temporarily unavailable.
       }
@@ -222,6 +237,13 @@ export default function OrderDetailsContent({
   const currentStatus = liveStatus
     ? toTrackingStatus(liveStatus)
     : order.status;
+
+  const isLiveTrackingActive = [
+    "rider_assigned",
+    "picked_up",
+    "relay_pending",
+    "on_the_way",
+  ].includes(liveStatus ?? "");
 
   /*
    * CURRENT TRACKING POSITION
@@ -300,6 +322,16 @@ export default function OrderDetailsContent({
           </div>
         )}
       </div>
+
+      {session?.token && isLiveTrackingActive && (
+        <div className="mt-8">
+          <LiveRiderMap
+            orderId={orderId}
+            token={session.token}
+            destination={liveDestination}
+          />
+        </div>
+      )}
 
       {/* ================= MAIN GRID ================= */}
 

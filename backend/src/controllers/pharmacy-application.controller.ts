@@ -3,7 +3,11 @@ import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../config/prisma";
 import { generateTempPassword } from "../utils/generateTempPassword";
-import { signedDocumentUrl, uploadPrivateDocument } from "../utils/uploadthing";
+import {
+  deleteUploadedFiles,
+  signedDocumentUrl,
+  uploadPrivateDocument,
+} from "../utils/uploadthing";
 
 const text = (body: Record<string, unknown>, key: string) => {
   const value = typeof body[key] === "string" ? body[key].trim() : "";
@@ -11,7 +15,6 @@ const text = (body: Record<string, unknown>, key: string) => {
     throw Object.assign(new Error(`${key} is required.`), { status: 400 });
   return value;
 };
-
 
 const body = (value: unknown) => {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -28,7 +31,7 @@ export async function applyForPharmacy(req: Request, res: Response) {
     lng = Number(input.lng);
 
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-  
+
   if (
     !/^[6-9]\d{9}$/.test(phone) ||
     !Number.isFinite(lat) ||
@@ -56,27 +59,46 @@ export async function applyForPharmacy(req: Request, res: Response) {
       .status(409)
       .json({ error: "An account already uses this phone number." });
 
-  const [drugLicensePath, pharmacistLicensePath] = await Promise.all([
+  const uploadResults = await Promise.allSettled([
     uploadPrivateDocument(drug, "drug-license"),
     uploadPrivateDocument(pharmacist, "pharmacist-license"),
   ]);
+  const uploadedPaths = uploadResults.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  const failedUpload = uploadResults.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (failedUpload) {
+    await deleteUploadedFiles(uploadedPaths, "pharmacy licence documents");
+    throw failedUpload.reason;
+  }
+  const [drugLicensePath, pharmacistLicensePath] = uploadedPaths as [
+    string,
+    string,
+  ];
 
-  const application = await prisma.pharmacyApplication.create({
-    data: {
-      ownerName: text(input, "ownerName"),
-      ownerPhone: phone,
-      pharmacyName: text(input, "pharmacyName"),
-      address: text(input, "address"),
-      lat,
-      lng,
-      drugLicenseNumber,
-      drugLicensePath,
-      pharmacistName: text(input, "pharmacistName"),
-      pharmacistLicenseNumber: text(input, "pharmacistLicenseNumber"),
-      pharmacistLicensePath,
-    },
-  });
-
+  let application;
+  try {
+    application = await prisma.pharmacyApplication.create({
+      data: {
+        ownerName: text(input, "ownerName"),
+        ownerPhone: phone,
+        pharmacyName: text(input, "pharmacyName"),
+        address: text(input, "address"),
+        lat,
+        lng,
+        drugLicenseNumber,
+        drugLicensePath,
+        pharmacistName: text(input, "pharmacistName"),
+        pharmacistLicenseNumber: text(input, "pharmacistLicenseNumber"),
+        pharmacistLicensePath,
+      },
+    });
+  } catch (error) {
+    await deleteUploadedFiles(uploadedPaths, "pharmacy licence documents");
+    throw error;
+  }
 
   res.status(201).json({ id: application.id, status: application.status });
 }
@@ -90,7 +112,6 @@ export async function pendingPharmacyApplications(
     orderBy: { createdAt: "asc" },
   });
 
-
   res.json({
     items: await Promise.all(
       items.map(
@@ -102,7 +123,6 @@ export async function pendingPharmacyApplications(
       ),
     ),
   });
-
 }
 
 export async function approvePharmacyApplication(req: Request, res: Response) {
@@ -164,7 +184,6 @@ export async function approvePharmacyApplication(req: Request, res: Response) {
     ownerPhone: application.ownerPhone,
     temporaryPassword,
   });
-
 }
 
 export async function rejectPharmacyApplication(req: Request, res: Response) {

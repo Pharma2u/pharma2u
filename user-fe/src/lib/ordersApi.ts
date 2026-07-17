@@ -129,6 +129,8 @@ export type CustomerOrder = {
   createdAt: string;
   estimatedDeliveryTime: string | null;
   pharmacy: { name: string; address: string };
+  dropLat?: number | null;
+  dropLng?: number | null;
   items: { id: string; name: string; qty: number; price: number }[];
 };
 export function listMyOrders(token: string) {

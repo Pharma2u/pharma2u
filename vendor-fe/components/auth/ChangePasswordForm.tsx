@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 
 type Props = {
   onSubmit: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -44,23 +45,23 @@ export function ChangePasswordForm({ onSubmit, error }: Props) {
         </p>
         <label className="mt-7 block text-sm font-medium">
           Temporary password
-          <input
+          <PasswordInput
             required
-            type="password"
+            autoComplete="current-password"
             value={currentPassword}
             onChange={(event) => setCurrentPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3"
           />
         </label>
         <label className="mt-4 block text-sm font-medium">
           New password
-          <input
+          <PasswordInput
             required
             minLength={8}
-            type="password"
+            autoComplete="new-password"
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3"
           />
         </label>
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}

@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import type { ProvisionedAccount } from "@/lib/authApi";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 
 type Props = {
   onProvisionStaff: (
@@ -109,12 +110,12 @@ export function ProvisioningPanel({
         {accountType === "admin" && (
           <label className="block text-sm font-medium">
             Your current password
-            <input
+            <PasswordInput
               required
-              type="password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border p-3"
+              className="w-full rounded-xl border p-3"
             />
           </label>
         )}

@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 type Props = {
   onSubmit: (phone: string, password: string) => Promise<void>;
   error: string;
@@ -39,12 +40,12 @@ export function VendorLoginForm({ onSubmit, error }: Props) {
         </label>
         <label className="mt-4 block text-sm font-medium">
           Password
-          <input
+          <PasswordInput
             required
-            type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3"
           />
         </label>
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}

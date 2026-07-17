@@ -39,7 +39,12 @@ router.post(
   apply,
 );
 
-router.post("/riders/location", authMiddleware("rider"), requirePasswordChanged, updateMyLocation);
+router.post(
+  "/riders/location",
+  authMiddleware("rider"),
+  requirePasswordChanged,
+  updateMyLocation,
+);
 
 router.get(
   "/admin/riders/pending",
@@ -58,7 +63,6 @@ router.post(
   authMiddleware("admin"),
   requirePasswordChanged,
   reject,
-  updateMyLocation,
 );
 
 export default router;

@@ -4,8 +4,14 @@ import { randomBytes } from "crypto";
 import type { Request, Response } from "express";
 import type { Prisma } from "../generated/prisma/client";
 import { prisma } from "../config/prisma";
+import { saveLiveRiderLocation } from "../services/rider-location.service";
+import { publishRiderLocation } from "../realtime";
 import { generateTempPassword } from "../utils/generateTempPassword";
-import { signedDocumentUrl, uploadPrivateDocument } from "../utils/uploadthing";
+import {
+  deleteUploadedFiles,
+  signedDocumentUrl,
+  uploadPrivateDocument,
+} from "../utils/uploadthing";
 import {
   validateRejection,
   validateRiderApplication,
@@ -38,48 +44,72 @@ export async function apply(req: Request, res: Response) {
     res.status(409).json({ error: "A user with this phone already exists." });
     return;
   }
-  const user = await prisma.$transaction(
-    async (tx: Prisma.TransactionClient) => {
-      // Placeholder satisfies the non-null schema; explicit login status checks are the access control.
-      const passwordHash = await bcrypt.hash(
-        randomBytes(32).toString("hex"),
-        12,
-      );
-      const rider = await tx.user.create({
-        data: {
-          name: input.name,
-          phone: input.phone,
-          role: "rider",
-          passwordHash,
-          applicationStatus: "pending",
-        },
-      });
-      const [aadharKey, panKey, dlKey] = await Promise.all([
-        uploadPrivateDocument(docs.aadhar, "aadhar"),
-        uploadPrivateDocument(docs.pan, "pan"),
-        uploadPrivateDocument(docs.dl, "driving-license"),
-      ]);
-      await tx.riderKyc.create({
-        data: {
-          userId: rider.id,
-          aadharNumber: input.aadharNumber,
-          aadharImagePath: aadharKey,
-          panNumber: input.panNumber,
-          panImagePath: panKey,
-          drivingLicenseNumber: input.drivingLicenseNumber,
-          dlImagePath: dlKey,
-          vehicleType: input.vehicleType,
-          vehicleNumber: input.vehicleNumber,
-        },
-      });
-      return rider;
-    },
+
+  // Do not keep a database transaction open during three network uploads. If one
+  // upload fails, remove any documents that had already reached UploadThing.
+  const uploadResults = await Promise.allSettled([
+    uploadPrivateDocument(docs.aadhar, "aadhar"),
+    uploadPrivateDocument(docs.pan, "pan"),
+    uploadPrivateDocument(docs.dl, "driving-license"),
+  ]);
+  const uploadedKeys = uploadResults.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
   );
-  res.status(201).json({
-    applicationId: user.id,
-    status: "pending",
-    message: "Application submitted, awaiting review",
-  });
+  const failedUpload = uploadResults.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (failedUpload) {
+    await deleteUploadedFiles(uploadedKeys, "rider KYC documents");
+    throw failedUpload.reason;
+  }
+  const [aadharKey, panKey, dlKey] = uploadedKeys as [string, string, string];
+
+  try {
+    const user = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const passwordHash = await bcrypt.hash(
+          randomBytes(32).toString("hex"),
+          12,
+        );
+        const rider = await tx.user.create({
+          data: {
+            name: input.name,
+            phone: input.phone,
+            role: "rider",
+            passwordHash,
+            applicationStatus: "pending",
+          },
+        });
+        await tx.riderKyc.create({
+          data: {
+            userId: rider.id,
+            aadharNumber: input.aadharNumber,
+            aadharImagePath: aadharKey,
+            panNumber: input.panNumber,
+            panImagePath: panKey,
+            drivingLicenseNumber: input.drivingLicenseNumber,
+            dlImagePath: dlKey,
+            vehicleType: input.vehicleType,
+            vehicleNumber: input.vehicleNumber,
+          },
+        });
+        return rider;
+      },
+    );
+    res.status(201).json({
+      applicationId: user.id,
+      status: "pending",
+      message: "Application submitted, awaiting review",
+    });
+  } catch (error) {
+    // The user and riderKyc records are transactional; UploadThing is not.
+    await deleteUploadedFiles(uploadedKeys, "rider KYC documents");
+    if ((error as { code?: string }).code === "P2002") {
+      res.status(409).json({ error: "A user with this phone already exists." });
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function pending(req: Request, res: Response) {
@@ -191,17 +221,61 @@ export async function reject(req: Request, res: Response) {
 }
 
 export async function updateMyLocation(req: Request, res: Response) {
-  const input = req.body as { lat?: unknown; lng?: unknown; isOnline?: unknown };
+  const input = req.body as {
+    lat?: unknown;
+    lng?: unknown;
+    isOnline?: unknown;
+    recordedAt?: unknown;
+  };
   const lat = Number(input?.lat);
   const lng = Number(input?.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-    res.status(400).json({ error: "Valid lat and lng coordinates are required." });
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    res
+      .status(400)
+      .json({ error: "Valid lat and lng coordinates are required." });
     return;
   }
-  const location = await prisma.riderLocation.upsert({
-    where: { riderId: req.user!.id },
-    create: { riderId: req.user!.id, lat, lng, isOnline: input.isOnline !== false },
-    update: { lat, lng, isOnline: input.isOnline !== false },
-  });
-  res.json(location);
+  if (input.isOnline !== undefined && typeof input.isOnline !== "boolean") {
+    res.status(400).json({ error: "isOnline must be a boolean." });
+    return;
+  }
+  const recordedAt =
+    input.recordedAt === undefined ? Date.now() : Number(input.recordedAt);
+  if (
+    !Number.isSafeInteger(recordedAt) ||
+    recordedAt > Date.now() + 60_000 ||
+    recordedAt < Date.now() - 5 * 60_000
+  ) {
+    res.status(400).json({
+      error: "recordedAt must be a recent Unix timestamp in milliseconds.",
+    });
+    return;
+  }
+  try {
+    const result = await saveLiveRiderLocation({
+      riderId: req.user!.id,
+      lat,
+      lng,
+      isOnline: input.isOnline !== false,
+      recordedAt,
+    });
+    if (!result.accepted && result.reason === "rate_limited") {
+      res.status(429).json(result);
+      return;
+    }
+    if (result.accepted) publishRiderLocation(result.location);
+    res.json(result);
+  } catch (error) {
+    console.error("Unable to save live rider location:", error);
+    res
+      .status(503)
+      .json({ error: "Live location service is temporarily unavailable." });
+  }
 }

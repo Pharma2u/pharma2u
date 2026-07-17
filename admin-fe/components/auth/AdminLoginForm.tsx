@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 
 type Props = {
   onSubmit: (phone: string, password: string) => Promise<void>;
@@ -44,12 +45,12 @@ export function AdminLoginForm({ onSubmit, error }: Props) {
         </label>
         <label className="mt-5 block text-sm font-semibold text-slate-800">
           Password
-          <input
+          <PasswordInput
             required
-            type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900 placeholder:text-slate-500"
+            className="w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900 placeholder:text-slate-500"
             placeholder="Enter your password"
           />
         </label>

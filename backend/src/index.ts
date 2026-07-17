@@ -2,6 +2,7 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import { createServer } from "node:http";
 import cookieParser from "cookie-parser";
 import multer from "multer";
 import authRoutes from "./routes/auth.routes";
@@ -18,10 +19,13 @@ import { PharmacyValidationError } from "./validators/pharmacy.validator";
 import { RiderValidationError } from "./validators/rider.validator";
 import { ProductValidationError } from "./validators/product.validator";
 import { AddressValidationError } from "./validators/address.validator";
+import { initializeRealtime } from "./realtime";
+import { connectRedis } from "./config/redis";
 
 assertJwtSecret();
 
 const app = express();
+const server = createServer(app);
 
 const allowedOrigins = (
   process.env.FRONTEND_ORIGINS ??
@@ -36,7 +40,6 @@ app.post(
   razorpayWebhook,
 );
 
-
 app.use(express.json());
 app.use(cookieParser());
 app.use("/api/auth", authRoutes);
@@ -46,7 +49,6 @@ app.use("/api", productRoutes);
 app.use("/api", orderRoutes);
 app.use("/api", addressRoutes);
 app.use("/api", pharmacyApplicationRoutes);
-
 
 app.use(
   (
@@ -79,7 +81,15 @@ app.use(
   },
 );
 
+async function start() {
+  await connectRedis();
+  await initializeRealtime(server, allowedOrigins);
+  server.listen(Number(process.env.PORT_NO ?? 5000), () =>
+    console.info(`API listening on port ${process.env.PORT_NO ?? 5000}`),
+  );
+}
 
-app.listen(Number(process.env.PORT_NO ?? 5000), () =>
-  console.info(`API listening on port ${process.env.PORT_NO ?? 5000}`),
-);
+start().catch((error) => {
+  console.error("API startup failed:", error);
+  process.exit(1);
+});
