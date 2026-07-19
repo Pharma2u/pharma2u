@@ -164,7 +164,13 @@ model Product {
 }
 
 model Order {
+  deliveryOtp           String?
+  deliveryOtpIssuedAt   DateTime?
+  deliveryOtpVerifiedAt DateTime?
   id                    String             @id @default(uuid())
+  pickupOtp             String?
+  pickupOtpIssuedAt     DateTime?
+  pickupOtpVerifiedAt   DateTime?
   orderCode             String             @unique
   customerId            String
   customer              User               @relation("CustomerOrders", fields: [customerId], references: [id])

@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomInt, randomUUID, timingSafeEqual } from "crypto";
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
 import {
@@ -45,6 +45,31 @@ function requiredText(value: unknown, field: string) {
 
 function optionalText(value: unknown) {
   return typeof value === "string" ? value.trim() || null : null;
+}
+
+function createDeliveryOtp() {
+  return randomInt(100_000, 1_000_000).toString();
+}
+
+function createPickupOtp() {
+  return randomInt(100_000, 1_000_000).toString();
+}
+
+function pickupOtpMatches(expected: string | null, supplied: string | null) {
+  if (!expected || !supplied || !/^\d{6}$/.test(supplied)) return false;
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
+}
+
+function deliveryOtpMatches(expected: string | null, supplied: string | null) {
+  if (!expected || !supplied || !/^\d{6}$/.test(supplied)) return false;
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  return (
+    expectedBytes.length === suppliedBytes.length &&
+    timingSafeEqual(expectedBytes, suppliedBytes)
+  );
 }
 
 function createOrderCode() {
@@ -262,7 +287,7 @@ export async function vendorOrderQueue(req: Request, res: Response) {
     include: {
       items: true,
       customer: { select: { name: true } },
-      pharmacy: { select: { name: true } },
+      pharmacy: { select: { name: true, vendorUserId: true } },
       relayPharmacy: { select: { vendorUserId: true } },
       rider: {
         select: {
@@ -281,11 +306,26 @@ export async function vendorOrderQueue(req: Request, res: Response) {
     take: 100,
   });
 
-  res.json({
-    items: orders.map((order) => {
+  const items = await Promise.all(
+    orders.map(async (order) => {
       const isRelayPharmacy = order.relayPharmacy?.vendorUserId === vendorId;
+      const isPrimaryPharmacy = order.pharmacy.vendorUserId === vendorId;
+      const needsLegacyPickupOtp =
+        isPrimaryPharmacy &&
+        !order.pickupOtp &&
+        ["awaiting_rider", "rider_assigned"].includes(order.status);
+      const pickupOtp = needsLegacyPickupOtp ? createPickupOtp() : order.pickupOtp;
+
+      if (needsLegacyPickupOtp) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { pickupOtp, pickupOtpIssuedAt: new Date() },
+        });
+      }
+
       return {
         ...order,
+        pickupOtp,
         fulfilmentLeg: isRelayPharmacy ? "relay" : "primary",
         canPackRelay:
           isRelayPharmacy &&
@@ -293,7 +333,9 @@ export async function vendorOrderQueue(req: Request, res: Response) {
           ["verified", "awaiting_rider"].includes(order.status),
       };
     }),
-  });
+  );
+
+  res.json({ items });
 }
 
 export async function verifyVendorOrder(req: Request, res: Response) {
@@ -449,6 +491,8 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
     where: { id: order.id },
     data: {
       status: "awaiting_rider",
+      pickupOtp: order.pickupOtp ?? createPickupOtp(),
+      pickupOtpIssuedAt: order.pickupOtpIssuedAt ?? new Date(),
       events: {
         create: {
           status: "awaiting_rider",
@@ -514,6 +558,8 @@ export async function riderAvailableTasks(req: Request, res: Response) {
           dropLat: _dropLat,
           dropLng: _dropLng,
           deliveryInstructions: _deliveryInstructions,
+          deliveryOtp: _deliveryOtp,
+          pickupOtp: _pickupOtp,
           ...order
         }) => ({
           ...order,
@@ -526,6 +572,8 @@ export async function riderAvailableTasks(req: Request, res: Response) {
           dropLat: _dropLat,
           dropLng: _dropLng,
           deliveryInstructions: _deliveryInstructions,
+          deliveryOtp: _deliveryOtp,
+          pickupOtp: _pickupOtp,
           ...order
         }) => ({
           ...order,
@@ -553,7 +601,7 @@ export async function riderMyTasks(req: Request, res: Response) {
   });
 
   res.json({
-    items: items.map((order) => ({
+    items: items.map(({ deliveryOtp: _deliveryOtp, pickupOtp: _pickupOtp, ...order }) => ({
       ...order,
       leg: order.relayRiderId === req.user!.id ? "relay" : "primary",
     })),
@@ -664,6 +712,32 @@ export async function updateRiderDelivery(req: Request, res: Response) {
     });
   }
 
+  const suppliedDeliveryOtp = optionalText(input.deliveryOtp);
+  const suppliedPickupOtp = optionalText(input.pickupOtp);
+  if (nextStatus === "picked_up" && !pickupOtpMatches(order.pickupOtp, suppliedPickupOtp)) {
+    return void res.status(400).json({
+      error: order.pickupOtp
+        ? "Enter the 6-digit pickup code provided by the pharmacy."
+        : "Pickup code is not available for this order.",
+    });
+  }
+
+  if (
+    nextStatus === "delivered" &&
+    !deliveryOtpMatches(order.deliveryOtp, suppliedDeliveryOtp)
+  ) {
+    return void res.status(400).json({
+      error: order.deliveryOtp
+        ? "Enter the 6-digit delivery OTP provided by the customer."
+        : "Delivery OTP is not available for this order.",
+    });
+  }
+
+  const deliveryOtp =
+    nextStatus === "on_the_way"
+      ? (order.deliveryOtp ?? createDeliveryOtp())
+      : undefined;
+
   const orderStatus =
     nextStatus === "picked_up" && order.isRelay ? "relay_pending" : nextStatus;
   await prisma.order.update({
@@ -671,6 +745,13 @@ export async function updateRiderDelivery(req: Request, res: Response) {
     data: {
       status: orderStatus,
       deliveredAt: nextStatus === "delivered" ? new Date() : undefined,
+      deliveryOtp,
+      deliveryOtpIssuedAt:
+        nextStatus === "on_the_way"
+          ? (order.deliveryOtpIssuedAt ?? new Date())
+          : undefined,
+      pickupOtpVerifiedAt: nextStatus === "picked_up" ? new Date() : undefined,
+      deliveryOtpVerifiedAt: nextStatus === "delivered" ? new Date() : undefined,
       events: {
         create: {
           status: orderStatus,
