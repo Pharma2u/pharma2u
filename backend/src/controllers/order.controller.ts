@@ -58,9 +58,13 @@ export async function getMyOrder(req: Request, res: Response) {
     res.status(404).json({ error: "Order not found." });
     return;
   }
-  res.json(order);
-}
+  const { deliveryOtp, ...orderDetails } = order;
+  res.json({
+    ...orderDetails,
+    deliveryOtp: order.status === "on_the_way" ? deliveryOtp : null,
+  });
 
+}
 export async function cancelMyOrder(req: Request, res: Response) {
   const id = String(req.params.id),
     b = body(req.body);
