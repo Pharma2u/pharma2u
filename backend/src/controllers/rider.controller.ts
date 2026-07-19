@@ -220,6 +220,47 @@ export async function reject(req: Request, res: Response) {
   res.json({ id: req.params.id, status: "rejected" });
 }
 
+export async function fleet(req: Request, res: Response) {
+  const riders = await prisma.user.findMany({
+    where: { role: "rider", applicationStatus: "approved" },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      riderKyc: { select: { vehicleType: true, vehicleNumber: true } },
+      riderLocation: {
+        select: { lat: true, lng: true, isOnline: true, updatedAt: true },
+      },
+      ordersAsRider: {
+        where: {
+          status: {
+            in: ["rider_assigned", "picked_up", "relay_pending", "on_the_way"],
+          },
+        },
+        select: {
+          id: true,
+          orderCode: true,
+          status: true,
+          pharmacy: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const locationFreshAfter = Date.now() - 90_000;
+  res.json({
+    items: riders.map((rider) => ({
+      ...rider,
+      availability:
+        rider.riderLocation?.isOnline &&
+        rider.riderLocation.updatedAt.getTime() >= locationFreshAfter
+          ? "online"
+          : "offline",
+    })),
+  });
+}
+
 export async function updateMyLocation(req: Request, res: Response) {
   const input = req.body as {
     lat?: unknown;

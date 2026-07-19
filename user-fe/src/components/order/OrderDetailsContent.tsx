@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 
 import {
   ArrowLeft,
@@ -202,6 +203,22 @@ export default function OrderDetailsContent({
       active = false;
       window.clearInterval(intervalId);
     };
+  }, [orderId, session?.token]);
+
+  useEffect(() => {
+    if (!session?.token) return;
+
+    const socketBase = (
+      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"
+    )
+      .replace(/\/api\/?$/, "")
+      .replace(/\/$/, "");
+    const socket = io(socketBase, { auth: { token: session.token } });
+    socket.on("connect", () => socket.emit("tracking:subscribe", orderId));
+    socket.on("order:updated", (update: { status?: string }) => {
+      if (update.status) setLiveStatus(update.status);
+    });
+    return () => socket.close();
   }, [orderId, session?.token]);
 
   /*

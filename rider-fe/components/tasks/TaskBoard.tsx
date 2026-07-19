@@ -10,7 +10,7 @@ import { useRiderTasks } from "./useRiderTasks";
 
 export function TaskBoard({ token }: { token: string }) {
   const availability = useRiderAvailability(token);
-  const tasks = useRiderTasks(token);
+  const tasks = useRiderTasks(token, availability.isOnline);
   const codTotal = tasks.activeTasks
     .filter((task) => task.paymentMethod === "cod")
     .reduce((total, task) => total + task.total, 0);
@@ -69,9 +69,11 @@ export function TaskBoard({ token }: { token: string }) {
           count={tasks.availableTasks.length}
           emptyIcon="clock"
           emptyText={
-            tasks.isLoading
-              ? "Finding available delivery jobs..."
-              : "New jobs will appear here automatically when pharmacies are ready."
+            !availability.isOnline
+              ? "Go online and share your current location to receive nearby jobs."
+              : tasks.isLoading
+                ? "Finding nearby delivery jobs..."
+                : "No packed orders are currently available near you."
           }
           onRefresh={() => void tasks.refreshTasks()}
         >

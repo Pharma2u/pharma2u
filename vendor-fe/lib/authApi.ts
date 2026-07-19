@@ -187,6 +187,17 @@ export type VendorOrder = {
   canPackRelay: boolean;
   relayPackedAt: string | null;
   customer: { name: string };
+  rider: {
+    id: string;
+    name: string;
+    riderLocation: {
+      lat: number;
+      lng: number;
+      isOnline: boolean;
+      updatedAt: string;
+    } | null;
+  } | null;
+  relayRider: { id: string; name: string } | null;
   items: { id: string; name: string; qty: number; price: number }[];
   payment: {
     provider: string;

@@ -4,7 +4,12 @@ const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 type ApiError = { error?: string; message?: string };
 
 async function request<T>(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${apiBase}${path}`, init);
+  // Delivery jobs and rider status are live data. Browsers otherwise reuse a
+  // previously cached empty task list while the rider is waiting for an order.
+  const response = await fetch(`${apiBase}${path}`, {
+    cache: "no-store",
+    ...init,
+  });
   const data = (await response.json().catch(() => ({}))) as T & ApiError;
   if (!response.ok)
     throw new Error(data.error ?? data.message ?? "Request failed.");
