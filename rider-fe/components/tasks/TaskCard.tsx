@@ -1,4 +1,5 @@
 import { RiderIcon } from "@/components/ui/RiderIcon";
+import { useState } from "react";
 import type { RiderTask } from "@/lib/api";
 import {
   formatMoney,
@@ -15,7 +16,7 @@ type Props = {
   isActive?: boolean;
   isBusy: boolean;
   onAccept: (task: RiderTask) => void;
-  onAdvance: (task: RiderTask) => void;
+  onAdvance: (task: RiderTask, deliveryOtp?: string, pickupOtp?: string) => void;
 };
 
 export function TaskCard({
@@ -28,7 +29,9 @@ export function TaskCard({
   const pickup = getPickup(task);
   const destination = getDestination(task);
   const pickupMapUrl = googleMapsSearch(pickup?.address);
+  const [pickupOtp, setPickupOtp] = useState("");
   const navigationUrl = googleMapsDirections(destination);
+  const [deliveryOtp, setDeliveryOtp] = useState("");
   const nextAction = nextTaskAction(task);
 
   return (
@@ -103,8 +106,39 @@ export function TaskCard({
       )}
 
       <div className="delivery-actions">
+      {isActive && task.leg !== "relay" && task.status === "rider_assigned" && (
+        <div className="delivery-otp-entry">
+          <label htmlFor={`pickup-otp-${task.id}`}>Pharmacy pickup code</label>
+          <input
+            id={`pickup-otp-${task.id}`}
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="Enter 6-digit code"
+            value={pickupOtp}
+            onChange={(event) => setPickupOtp(event.target.value.replace(/\D/g, ""))}
+          />
+          <small>Get this code from the pharmacy after they hand over the package.</small>
+        </div>
+      )}
+
+      {isActive && task.leg !== "relay" && task.status === "on_the_way" && (
+        <div className="delivery-otp-entry">
+          <label htmlFor={`delivery-otp-${task.id}`}>Customer delivery OTP</label>
+          <input
+            id={`delivery-otp-${task.id}`}
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="Enter 6-digit OTP"
+            value={deliveryOtp}
+            onChange={(event) => setDeliveryOtp(event.target.value.replace(/\D/g, ""))}
+          />
+          <small>Ask the customer for this code before marking delivered.</small>
+        </div>
+      )}
+
         {isActive && pickupMapUrl && (
           <MapLink href={pickupMapUrl} label="Pickup map" icon="map" />
+
         )}
         {isActive && navigationUrl && (
           <MapLink href={navigationUrl} label="Navigate" icon="navigation" />
@@ -115,7 +149,7 @@ export function TaskCard({
               type="button"
               className="delivery-primary-action"
               disabled={isBusy}
-              onClick={() => onAdvance(task)}
+              onClick={() => onAdvance(task, deliveryOtp, pickupOtp)}
             >
               {isBusy ? "Updating..." : nextAction}
             </button>

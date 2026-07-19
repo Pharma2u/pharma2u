@@ -129,6 +129,7 @@ export type CustomerOrder = {
   createdAt: string;
   estimatedDeliveryTime: string | null;
   pharmacy: { name: string; address: string };
+  deliveryOtp?: string | null;
   dropLat?: number | null;
   dropLng?: number | null;
   items: { id: string; name: string; qty: number; price: number }[];
