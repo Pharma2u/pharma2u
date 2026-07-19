@@ -186,6 +186,7 @@ export type VendorOrder = {
   fulfilmentLeg: "primary" | "relay";
   canPackRelay: boolean;
   relayPackedAt: string | null;
+  pickupOtp: string | null;
   customer: { name: string };
   rider: {
     id: string;

@@ -175,6 +175,18 @@ export function OrderQueue({ token }: { token: string }) {
                       </p>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                    {order.fulfilmentLeg === "primary" && order.pickupOtp &&
+                      ["awaiting_rider", "rider_assigned"].includes(order.status) && (
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                          <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                            Rider pickup code
+                          </p>
+                          <p className="mt-1 font-mono text-xl font-bold tracking-[0.22em]">
+                            {order.pickupOtp}
+                          </p>
+                          <p className="mt-1 text-xs">Share this code only when the assigned rider collects the package.</p>
+                        </div>
+                      )}
                       <span
                         className={`rounded-full px-2.5 py-1 ${order.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-700" : order.paymentStatus === "failed" ? "bg-red-50 text-red-700" : order.paymentStatus === "refunded" ? "bg-violet-50 text-violet-700" : "bg-amber-50 text-amber-700"}`}
                       >

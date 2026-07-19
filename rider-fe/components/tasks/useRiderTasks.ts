@@ -70,21 +70,21 @@ export function useRiderTasks(token: string, isOnline: boolean) {
     );
   }
 
-  function advanceTask(task: RiderTask) {
+  function advanceTask(task: RiderTask, deliveryOtp?: string, pickupOtp?: string) {
     let operation: TaskOperation | null = null;
 
     if (task.leg === "relay" && task.status === "relay_pending") {
       operation = () => completeRelayHandoff(token, task.id);
     } else if (task.leg !== "relay") {
       if (task.status === "rider_assigned") {
-        operation = () => updateDeliveryStatus(token, task.id, "picked_up");
+        operation = () => updateDeliveryStatus(token, task.id, "picked_up", undefined, pickupOtp);
       } else if (
         task.status === "picked_up" ||
         task.status === "relay_pending"
       ) {
         operation = () => updateDeliveryStatus(token, task.id, "on_the_way");
       } else if (task.status === "on_the_way") {
-        operation = () => updateDeliveryStatus(token, task.id, "delivered");
+        operation = () => updateDeliveryStatus(token, task.id, "delivered", deliveryOtp);
       }
     }
 

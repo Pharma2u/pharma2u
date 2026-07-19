@@ -166,6 +166,7 @@ export default function OrderDetailsContent({
     lng: number;
   } | null>(null);
 
+  const [deliveryOtp, setDeliveryOtp] = useState<string | null>(null);
   /*
    * GET ORDER
    */
@@ -182,6 +183,7 @@ export default function OrderDetailsContent({
       try {
         const liveOrder = await getMyOrder(session.token, orderId);
         if (!active) return;
+        setDeliveryOtp(liveOrder.deliveryOtp ?? null);
         setLiveStatus(liveOrder.status);
         if (
           Number.isFinite(liveOrder.dropLat) &&
@@ -218,7 +220,9 @@ export default function OrderDetailsContent({
     socket.on("order:updated", (update: { status?: string }) => {
       if (update.status) setLiveStatus(update.status);
     });
-    return () => socket.close();
+    return () => {
+      socket.close();
+    };
   }, [orderId, session?.token]);
 
   /*
@@ -351,6 +355,23 @@ export default function OrderDetailsContent({
       )}
 
       {/* ================= MAIN GRID ================= */}
+      {currentStatus === "out_for_delivery" && deliveryOtp && (
+        <section className="mt-8 rounded-3xl border border-[#9CE3D0] bg-[#EAFAF5] p-5 sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#239C7B]">
+            Delivery OTP
+          </p>
+          <h2 className="mt-2 text-xl font-bold text-[#17212B]">
+            Share this code only when your rider arrives
+          </h2>
+          <p className="mt-3 font-mono text-3xl font-bold tracking-[0.35em] text-[#17212B]">
+            {deliveryOtp}
+          </p>
+          <p className="mt-3 text-sm text-[#64717D]">
+            The delivery partner will enter this 6-digit OTP to complete your delivery.
+          </p>
+        </section>
+      )}
+
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* ================= LEFT ================= */}

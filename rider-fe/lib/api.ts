@@ -112,6 +112,8 @@ export function updateDeliveryStatus(
   token: string,
   id: string,
   status: "picked_up" | "on_the_way" | "delivered",
+  deliveryOtp?: string,
+  pickupOtp?: string,
 ) {
   return request<{ id: string; status: string }>(`/orders/${id}/status`, {
     method: "POST",
@@ -119,7 +121,7 @@ export function updateDeliveryStatus(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, deliveryOtp, pickupOtp }),
   });
 }
 

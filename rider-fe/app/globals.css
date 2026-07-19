@@ -895,6 +895,33 @@ small {
 }
 
 .delivery-actions {
+.delivery-otp-entry {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #bce8dc;
+  border-radius: 10px;
+  background: var(--brand-soft);
+}
+
+.delivery-otp-entry label {
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.delivery-otp-entry input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #91cfc0;
+  border-radius: 8px;
+  background: white;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+
+.delivery-otp-entry small { color: var(--muted); }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
