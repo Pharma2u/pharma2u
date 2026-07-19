@@ -12,7 +12,7 @@ import {
 
 type TaskOperation = () => Promise<unknown>;
 
-export function useRiderTasks(token: string) {
+export function useRiderTasks(token: string, isOnline: boolean) {
   const [availableTasks, setAvailableTasks] = useState<RiderTask[]>([]);
   const [activeTasks, setActiveTasks] = useState<RiderTask[]>([]);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
@@ -23,7 +23,9 @@ export function useRiderTasks(token: string) {
     setError("");
     try {
       const [available, active] = await Promise.all([
-        listRiderTasks(token),
+        isOnline
+          ? listRiderTasks(token)
+          : Promise.resolve({ items: [] as RiderTask[] }),
         listMyRiderTasks(token),
       ]);
       setAvailableTasks(available.items);
@@ -37,11 +39,15 @@ export function useRiderTasks(token: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [isOnline, token]);
 
   useEffect(() => {
     void Promise.resolve().then(refreshTasks);
-  }, [refreshTasks]);
+    if (!isOnline) return;
+
+    const intervalId = window.setInterval(refreshTasks, 15_000);
+    return () => window.clearInterval(intervalId);
+  }, [isOnline, refreshTasks]);
 
   async function runTaskOperation(taskId: string, operation: TaskOperation) {
     setBusyTaskId(taskId);

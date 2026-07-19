@@ -55,18 +55,27 @@ export async function initializeRealtime(
           const user = socket.data.user as { id: string; role: string };
           const order = await prisma.order.findUnique({
             where: { id: orderId },
-            select: { customerId: true, riderId: true, relayRiderId: true },
+            select: {
+              customerId: true,
+              riderId: true,
+              relayRiderId: true,
+              pharmacy: { select: { vendorUserId: true } },
+              relayPharmacy: { select: { vendorUserId: true } },
+            },
           });
           const allowed =
             order &&
             (user.role === "admin" ||
               user.id === order.customerId ||
               user.id === order.riderId ||
-              user.id === order.relayRiderId);
+              user.id === order.relayRiderId ||
+              user.id === order.pharmacy.vendorUserId ||
+              user.id === order.relayPharmacy?.vendorUserId);
           if (!allowed) return done?.({ ok: false });
           const riderIds = [order.riderId, order.relayRiderId].filter(
             (id): id is string => Boolean(id),
           );
+          socket.join(`order:${orderId}`);
           for (const riderId of riderIds) socket.join(`rider:${riderId}`);
           const locations = await Promise.all(
             riderIds.map(getLiveRiderLocation),
@@ -87,6 +96,10 @@ export function publishRiderLocation(
   >,
 ) {
   io?.to(`rider:${location.riderId}`).emit("rider:location", location);
+}
+
+export function publishOrderUpdate(orderId: string, payload: unknown) {
+  io?.to(`order:${orderId}`).emit("order:updated", payload);
 }
 
 type LiveRiderLocation = {

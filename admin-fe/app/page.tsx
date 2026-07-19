@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AdminLoginForm } from "@/components/auth/AdminLoginForm";
 import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 import { OperationsPanel } from "@/components/admin/OperationsPanel";
+import { FleetPanel } from "@/components/admin/FleetPanel";
 import { PharmacyOnboardingPanel } from "@/components/admin/PharmacyOnboardingPanel";
 import { PharmacyApplicationsPanel } from "@/components/admin/PharmacyApplicationsPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
@@ -26,7 +27,7 @@ export default function AdminPortal() {
   const { session, hydrated } = usePersistedAdminSession();
   const [error, setError] = useState("");
   const [section, setSection] = useState<
-    "overview" | "pharmacy" | "applications" | "riders" | "accounts"
+    "overview" | "pharmacy" | "applications" | "riders" | "fleet" | "accounts"
   >("overview");
 
   async function signIn(phone: string, password: string) {
@@ -119,6 +120,12 @@ export default function AdminPortal() {
             Pharmacy applications
           </button>
           <button
+            onClick={() => setSection("fleet")}
+            className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "fleet" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+          >
+            Live rider fleet
+          </button>
+          <button
             onClick={() => setSection("riders")}
             className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "riders" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
           >
@@ -132,7 +139,9 @@ export default function AdminPortal() {
           </button>
         </aside>
         <section>
-          {section === "riders" ? (
+          {section === "fleet" ? (
+            <FleetPanel token={session.token} />
+          ) : section === "riders" ? (
             <OperationsPanel token={session.token} />
           ) : section === "applications" ? (
             <PharmacyApplicationsPanel token={session.token} />

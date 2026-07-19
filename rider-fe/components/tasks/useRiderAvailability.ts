@@ -22,13 +22,14 @@ function distanceMetres(from: LocationPoint, lat: number, lng: number) {
 
 export function useRiderAvailability(token: string) {
   const [isOnline, setIsOnline] = useState(false);
+  const [isSharingLocation, setIsSharingLocation] = useState(false);
   const [message, setMessage] = useState(
     "Go online to receive jobs and share your live location.",
   );
   const lastLocation = useRef<LocationPoint | null>(null);
 
   useEffect(() => {
-    if (!isOnline) return;
+    if (!isSharingLocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -47,13 +48,26 @@ export function useRiderAvailability(token: string) {
         setMessage(
           `Live location active - accuracy ${Math.round(position.coords.accuracy)} m`,
         );
-        void updateMyLocation(token, lat, lng, sentAt, true).catch((error) => {
-          setMessage(
-            error instanceof Error
-              ? error.message
-              : "Unable to share live location.",
-          );
-        });
+        void updateMyLocation(token, lat, lng, sentAt, true)
+          .then((result) => {
+            if (!result.accepted) {
+              setIsOnline(false);
+              setMessage("Unable to confirm your live location. Please retry.");
+              return;
+            }
+            // Start looking for work only after the API has recorded the
+            // location. This prevents the first task request from being
+            // rejected as offline when a rider starts duty.
+            setIsOnline(true);
+          })
+          .catch((error) => {
+            setIsOnline(false);
+            setMessage(
+              error instanceof Error
+                ? error.message
+                : "Unable to share live location.",
+            );
+          });
       },
       (error) => {
         setMessage(
@@ -62,12 +76,13 @@ export function useRiderAvailability(token: string) {
             : "Unable to get your current location.",
         );
         setIsOnline(false);
+        setIsSharingLocation(false);
       },
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOnline, token]);
+  }, [isSharingLocation, token]);
 
   function goOnline() {
     if (!("geolocation" in navigator)) {
@@ -75,10 +90,12 @@ export function useRiderAvailability(token: string) {
       return;
     }
     setMessage("Requesting precise location...");
-    setIsOnline(true);
+    lastLocation.current = null;
+    setIsSharingLocation(true);
   }
 
   function goOffline() {
+    setIsSharingLocation(false);
     setIsOnline(false);
     setMessage("You are offline. Live location sharing is paused.");
     const point = lastLocation.current;
@@ -96,6 +113,6 @@ export function useRiderAvailability(token: string) {
   return {
     isOnline,
     message,
-    toggleAvailability: isOnline ? goOffline : goOnline,
+    toggleAvailability: isSharingLocation ? goOffline : goOnline,
   };
 }

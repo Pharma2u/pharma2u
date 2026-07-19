@@ -14,6 +14,7 @@ import {
   createRazorpayOrder,
   razorpayKeyId,
 } from "../services/razorpay.service";
+import { publishOrderUpdate } from "../realtime";
 
 type DeliveryStatus = "picked_up" | "on_the_way" | "delivered";
 type TaskLeg = "primary" | "relay";
@@ -72,6 +73,37 @@ function taskLeg(value: unknown): TaskLeg {
   if (value === undefined) return "primary";
   if (value === "primary" || value === "relay") return value;
   throw httpError("leg must be either primary or relay.");
+}
+
+const RIDER_LOCATION_FRESHNESS_MS = 90_000;
+const DISPATCH_RADIUS_METRES = 5_000;
+
+async function nearbyPharmacyIds(riderId: string) {
+  const location = await prisma.riderLocation.findUnique({
+    where: { riderId },
+    select: { lat: true, lng: true, isOnline: true, updatedAt: true },
+  });
+  const isFresh =
+    location &&
+    Date.now() - location.updatedAt.getTime() <= RIDER_LOCATION_FRESHNESS_MS;
+  if (!location?.isOnline || !isFresh) {
+    return { isDispatchable: false, ids: [] as string[] };
+  }
+
+  const pharmacies = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id
+    FROM pharmacies
+    WHERE location IS NOT NULL
+      AND ST_DWithin(
+        location,
+        ST_SetSRID(ST_MakePoint(${location.lng}, ${location.lat}), 4326)::geography,
+        ${DISPATCH_RADIUS_METRES}
+      )
+  `;
+  return {
+    isDispatchable: true,
+    ids: pharmacies.map((pharmacy) => pharmacy.id),
+  };
 }
 
 export async function placeMatchedOrder(req: Request, res: Response) {
@@ -232,6 +264,16 @@ export async function vendorOrderQueue(req: Request, res: Response) {
       customer: { select: { name: true } },
       pharmacy: { select: { name: true } },
       relayPharmacy: { select: { vendorUserId: true } },
+      rider: {
+        select: {
+          id: true,
+          name: true,
+          riderLocation: {
+            select: { lat: true, lng: true, isOnline: true, updatedAt: true },
+          },
+        },
+      },
+      relayRider: { select: { id: true, name: true } },
       payment: true,
       refund: true,
     },
@@ -416,15 +458,25 @@ export async function markVendorOrderPacked(req: Request, res: Response) {
     },
   });
 
+  publishOrderUpdate(order.id, { id: order.id, status: "awaiting_rider" });
   res.json({ id: order.id, status: "awaiting_rider" });
 }
 
-export async function riderAvailableTasks(_req: Request, res: Response) {
+export async function riderAvailableTasks(req: Request, res: Response) {
+  const dispatch = await nearbyPharmacyIds(req.user!.id);
+  if (!dispatch.isDispatchable) {
+    return void res.json({
+      items: [],
+      availability: "offline_or_location_stale",
+    });
+  }
+  if (dispatch.ids.length === 0) return void res.json({ items: [] });
   const [primaryTasks, relayTasks] = await Promise.all([
     prisma.order.findMany({
       where: {
         status: "awaiting_rider",
         riderId: null,
+        pharmacyId: { in: dispatch.ids },
         OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
         AND: [
           { OR: [{ relayPharmacyId: null }, { relayPackedAt: { not: null } }] },
@@ -442,6 +494,7 @@ export async function riderAvailableTasks(_req: Request, res: Response) {
         isRelay: true,
         status: "rider_assigned",
         relayRiderId: null,
+        relayPharmacyId: { in: dispatch.ids },
         OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
       },
       include: {
@@ -510,6 +563,12 @@ export async function riderMyTasks(req: Request, res: Response) {
 export async function acceptRiderTask(req: Request, res: Response) {
   const leg = taskLeg(req.body ? requestBody(req.body).leg : undefined);
   const id = String(req.params.id);
+  const dispatch = await nearbyPharmacyIds(req.user!.id);
+  if (!dispatch.isDispatchable || dispatch.ids.length === 0) {
+    return void res.status(409).json({
+      error: "Go online and share a current location before accepting a job.",
+    });
+  }
 
   if (leg === "primary") {
     const claimed = await prisma.order.updateMany({
@@ -517,6 +576,7 @@ export async function acceptRiderTask(req: Request, res: Response) {
         id,
         status: "awaiting_rider",
         riderId: null,
+        pharmacyId: { in: dispatch.ids },
         OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
         AND: [
           { OR: [{ relayPharmacyId: null }, { relayPackedAt: { not: null } }] },
@@ -542,6 +602,7 @@ export async function acceptRiderTask(req: Request, res: Response) {
         isRelay: true,
         status: "rider_assigned",
         relayRiderId: null,
+        relayPharmacyId: { in: dispatch.ids },
         riderId: { not: req.user!.id },
         OR: [{ paymentMethod: "cod" }, { paymentStatus: "paid" }],
       },
@@ -560,6 +621,11 @@ export async function acceptRiderTask(req: Request, res: Response) {
     });
   }
 
+  publishOrderUpdate(id, {
+    id,
+    status: "rider_assigned",
+    riderId: req.user!.id,
+  });
   res.json({ id, leg, status: "rider_assigned" });
 }
 
@@ -618,6 +684,8 @@ export async function updateRiderDelivery(req: Request, res: Response) {
       },
     },
   });
+  publishOrderUpdate(order.id, { id: order.id, status: orderStatus });
+
   if (nextStatus === "delivered" && order.paymentMethod === "cod") {
     await prisma.$transaction([
       prisma.payment.update({

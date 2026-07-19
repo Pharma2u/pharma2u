@@ -67,6 +67,28 @@ export const adminOperations = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  fleet: (t: string) =>
+    api<{
+      items: {
+        id: string;
+        name: string;
+        phone: string;
+        availability: "online" | "offline";
+        riderKyc: { vehicleType: string; vehicleNumber: string } | null;
+        riderLocation: {
+          lat: number;
+          lng: number;
+          isOnline: boolean;
+          updatedAt: string;
+        } | null;
+        ordersAsRider: {
+          id: string;
+          orderCode: string;
+          status: string;
+          pharmacy: { name: string };
+        }[];
+      }[];
+    }>("/admin/riders/fleet", t),
   pending: (t: string) =>
     api<{
       items: {

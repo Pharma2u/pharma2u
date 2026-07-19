@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import {
   apply,
   approve,
+  fleet,
   pending,
   reject,
   updateMyLocation,
@@ -46,6 +47,12 @@ router.post(
   updateMyLocation,
 );
 
+router.get(
+  "/admin/riders/fleet",
+  authMiddleware("admin"),
+  requirePasswordChanged,
+  fleet,
+);
 router.get(
   "/admin/riders/pending",
   authMiddleware("admin"),

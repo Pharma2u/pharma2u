@@ -69,8 +69,12 @@ export function OrderQueue({ token }: { token: string }) {
       .finally(() => {
         if (active) setIsLoading(false);
       });
+    const intervalId = window.setInterval(() => {
+      void loadOrders();
+    }, 15_000);
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, [token]);
 
@@ -151,6 +155,25 @@ export function OrderQueue({ token }: { token: string }) {
                       {order.customer.name} - INR {order.total}
                     </p>
                     <p className="mt-2 text-sm">{orderItemsLabel(order)}</p>
+                    {order.rider && (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Delivery rider:{" "}
+                        <span className="font-semibold text-slate-900">
+                          {order.rider.name}
+                        </span>
+                        {order.rider.riderLocation?.isOnline
+                          ? " - Live location active"
+                          : " - Location unavailable"}
+                      </p>
+                    )}
+                    {order.relayRider && (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Relay rider:{" "}
+                        <span className="font-semibold text-slate-900">
+                          {order.relayRider.name}
+                        </span>
+                      </p>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                       <span
                         className={`rounded-full px-2.5 py-1 ${order.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-700" : order.paymentStatus === "failed" ? "bg-red-50 text-red-700" : order.paymentStatus === "refunded" ? "bg-violet-50 text-violet-700" : "bg-amber-50 text-amber-700"}`}
