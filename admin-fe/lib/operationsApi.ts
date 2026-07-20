@@ -96,6 +96,9 @@ export const adminOperations = {
         name: string;
         phone: string;
         kyc?: {
+          aadharNumber: string;
+          panNumber: string;
+          drivingLicenseNumber: string;
           vehicleType: string;
           vehicleNumber: string;
           aadharImageUrl: string;

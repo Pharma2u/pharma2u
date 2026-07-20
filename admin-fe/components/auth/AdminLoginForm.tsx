@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { PasswordInput } from "./PasswordInput";
+import Image from "next/image";
 
 type Props = {
   onSubmit: (phone: string, password: string) => Promise<void>;
@@ -20,14 +21,12 @@ export function AdminLoginForm({ onSubmit, error }: Props) {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-950 p-5">
+    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_right,#176c60_0,#062d2a_42%,#041f1d_100%)] p-5">
       <form
         onSubmit={submit}
         className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl sm:p-10"
       >
-        <p className="text-sm font-bold tracking-[0.2em] text-emerald-600">
-          PHARMA2U
-        </p>
+        <Image src="/images/logo/logo.png" alt="Pharma2U" width={150} height={52} className="h-12 w-auto object-contain" priority />
         <h1 className="mt-3 text-3xl font-bold text-slate-900">Admin portal</h1>
         <p className="mt-2 text-sm text-slate-600">
           Use your administrator credentials.

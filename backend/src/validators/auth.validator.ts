@@ -24,6 +24,7 @@ export type ProvisionStaffInput = {
   email: string;
   name: string;
   role: "rider";
+  currentPassword: string;
 };
 export type ProvisionAdminInput = {
   phone: string;
@@ -134,6 +135,7 @@ export function validateProvisionStaff(body: unknown): ProvisionStaffInput {
     email: email(data),
     name: requiredString(data, "name"),
     role,
+    currentPassword: requiredString(data, "currentPassword"),
   };
 }
 

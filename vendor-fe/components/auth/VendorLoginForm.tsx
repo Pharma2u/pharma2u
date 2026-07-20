@@ -1,6 +1,7 @@
 "use client";
 import { FormEvent, useState } from "react";
 import { PasswordInput } from "./PasswordInput";
+import Image from "next/image";
 type Props = {
   onSubmit: (phone: string, password: string) => Promise<void>;
   error: string;
@@ -15,14 +16,12 @@ export function VendorLoginForm({ onSubmit, error }: Props) {
     await onSubmit(phone, password).finally(() => setLoading(false));
   }
   return (
-    <main className="grid min-h-screen place-items-center bg-[#062d2a] p-5">
+    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_right,#176c60_0,#062d2a_42%,#041f1d_100%)] p-5">
       <form
         onSubmit={submit}
         className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
       >
-        <p className="text-sm font-bold tracking-[0.2em] text-teal-600">
-          PHARMA2U
-        </p>
+        <Image src="/images/logo/logo.png" alt="Pharma2U" width={150} height={52} className="h-12 w-auto object-contain" priority />
         <h1 className="mt-3 text-3xl font-bold text-slate-900">
           Vendor portal
         </h1>
@@ -53,7 +52,7 @@ export function VendorLoginForm({ onSubmit, error }: Props) {
           disabled={loading}
           className="mt-6 w-full rounded-xl bg-teal-500 p-3 font-semibold text-slate-950 disabled:opacity-60"
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
     </main>

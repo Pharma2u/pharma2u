@@ -114,3 +114,26 @@ export async function myPharmacy(req: Request, res: Response) {
   }
   res.json(pharmacy);
 }
+
+export async function setMyPharmacyOpenStatus(req: Request, res: Response) {
+  if (typeof req.body?.isOpen !== "boolean") {
+    res.status(400).json({ error: "isOpen must be boolean." });
+    return;
+  }
+
+  const pharmacy = await prisma.pharmacy.findFirst({
+    where: { vendorUserId: req.user!.id },
+    select: { id: true },
+  });
+  if (!pharmacy) {
+    res.status(404).json({ error: "Pharmacy not found." });
+    return;
+  }
+
+  res.json(
+    await prisma.pharmacy.update({
+      where: { id: pharmacy.id },
+      data: { isOpen: req.body.isOpen },
+    }),
+  );
+}

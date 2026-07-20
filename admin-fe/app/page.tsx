@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { AdminLoginForm } from "@/components/auth/AdminLoginForm";
 import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 import { OperationsPanel } from "@/components/admin/OperationsPanel";
 import { FleetPanel } from "@/components/admin/FleetPanel";
 import { PharmacyOnboardingPanel } from "@/components/admin/PharmacyOnboardingPanel";
+import { RiderApplicationsPanel } from "@/components/admin/RiderApplicationsPanel";
 import { PharmacyApplicationsPanel } from "@/components/admin/PharmacyApplicationsPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
 import {
@@ -54,13 +56,7 @@ export default function AdminPortal() {
   if (!hydrated)
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
-        Restoring session…
-      </main>
-    );
-  if (!hydrated)
-    return (
-      <main className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
-        Restoring session…
+        Restoring session...
       </main>
     );
   if (!session) return <AdminLoginForm onSubmit={signIn} error={error} />;
@@ -68,16 +64,13 @@ export default function AdminPortal() {
     return <PasswordChangeForm onSubmit={replacePassword} error={error} />;
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <main className="min-h-screen bg-[#f4f7f6]">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <div>
-            <p className="text-xs font-bold tracking-[0.22em] text-emerald-600">
-              PHARMA2U · ADMIN
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">
-              Operations dashboard
-            </h1>
+          <div className="flex items-center gap-3">
+            <Image src="/images/logo/logo.png" alt="Pharma2U" width={130} height={42} className="h-10 w-auto object-contain" priority />
+            <span className="hidden h-7 w-px bg-slate-200 sm:block" />
+            <div><p className="text-[10px] font-extrabold tracking-[0.18em] text-emerald-700">ADMIN CONTROL</p><h1 className="text-sm font-bold text-slate-950 sm:text-base">Operations dashboard</h1></div>
           </div>
           <div className="flex items-center gap-4">
             <p className="hidden text-right text-sm text-slate-500 sm:block">
@@ -96,9 +89,9 @@ export default function AdminPortal() {
           </div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[210px_1fr]">
-        <aside className="rounded-3xl border border-slate-200 bg-white p-3">
-          <p className="px-3 py-2 text-xs font-bold tracking-[0.16em] text-slate-400">
+      <div className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-8 lg:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="h-fit overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_8px_30px_rgba(15,23,42,.04)] lg:sticky lg:top-24 lg:rounded-3xl lg:p-3">
+          <p className="hidden px-3 py-2 text-xs font-bold tracking-[0.16em] text-slate-400 lg:block">
             WORKSPACE
           </p>
           <button
@@ -131,6 +124,7 @@ export default function AdminPortal() {
           >
             Rider applications
           </button>{" "}
+
           <button
             onClick={() => setSection("pharmacy")}
             className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "pharmacy" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
@@ -138,11 +132,12 @@ export default function AdminPortal() {
             Pharmacy onboarding
           </button>
         </aside>
-        <section>
+        <section className="min-w-0">
           {section === "fleet" ? (
             <FleetPanel token={session.token} />
           ) : section === "riders" ? (
             <OperationsPanel token={session.token} />
+
           ) : section === "applications" ? (
             <PharmacyApplicationsPanel token={session.token} />
           ) : section === "pharmacy" ? (
@@ -151,8 +146,8 @@ export default function AdminPortal() {
             <OperationsPanel token={session.token} />
           ) : (
             <ProvisioningPanel
-              onProvisionStaff={(name, phone, email, role) =>
-                provisionStaff(session.token, name, phone, email, role)
+              onProvisionStaff={(name, phone, email, currentPassword, role) =>
+                provisionStaff(session.token, name, phone, email, role, currentPassword)
               }
               onProvisionAdmin={(name, phone, currentPassword) =>
                 provisionAdmin(session.token, name, phone, currentPassword)

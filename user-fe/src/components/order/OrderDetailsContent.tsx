@@ -161,6 +161,7 @@ export default function OrderDetailsContent({
 }: OrderDetailsContentProps) {
   const session = useSelector((state: AuthRootState) => state.auth.session);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [liveDestination, setLiveDestination] = useState<{
     lat: number;
     lng: number;
@@ -185,6 +186,7 @@ export default function OrderDetailsContent({
         if (!active) return;
         setDeliveryOtp(liveOrder.deliveryOtp ?? null);
         setLiveStatus(liveOrder.status);
+        setLastUpdated(new Date());
         if (
           Number.isFinite(liveOrder.dropLat) &&
           Number.isFinite(liveOrder.dropLng)
@@ -218,7 +220,10 @@ export default function OrderDetailsContent({
     const socket = io(socketBase, { auth: { token: session.token } });
     socket.on("connect", () => socket.emit("tracking:subscribe", orderId));
     socket.on("order:updated", (update: { status?: string }) => {
-      if (update.status) setLiveStatus(update.status);
+      if (update.status) {
+        setLiveStatus(update.status);
+        setLastUpdated(new Date());
+      }
     });
     return () => {
       socket.close();
@@ -343,6 +348,23 @@ export default function OrderDetailsContent({
           </div>
         )}
       </div>
+
+      {isLiveTrackingActive && (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#9CE3D0] bg-[#EAFAF5] px-4 py-3 text-sm">
+          <span className="flex items-center gap-2 font-semibold text-[#17212B]">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#2EB68F]" />
+            Live delivery updates are on
+          </span>
+          <span className="text-xs text-[#64717D]">
+            {lastUpdated
+              ? `Updated ${lastUpdated.toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}`
+              : "Connecting to your rider…"}
+          </span>
+        </div>
+      )}
 
       {session?.token && isLiveTrackingActive && (
         <div className="mt-8">
