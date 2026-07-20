@@ -10,6 +10,7 @@ import {
   deactivateProduct,
   getMyPharmacy,
   listProducts,
+  setMyPharmacyOpenStatus,
   updateStock,
   updateProduct,
   type Pharmacy,
@@ -33,6 +34,7 @@ export function InventoryPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
+  const [updatingPharmacyStatus, setUpdatingPharmacyStatus] = useState(false);
   const [showForm, setShowForm] = useState(startAdding);
   const [adding, setAdding] = useState(false);
   const [newProductImages, setNewProductImages] = useState<File[]>([]);
@@ -88,6 +90,29 @@ export function InventoryPanel({
     const timer = window.setTimeout(() => setNotice(""), 3500);
     return () => window.clearTimeout(timer);
   }, [notice]);
+  async function togglePharmacyStatus() {
+    if (!pharmacy || updatingPharmacyStatus) return;
+    setError("");
+    setUpdatingPharmacyStatus(true);
+    try {
+      const updated = await setMyPharmacyOpenStatus(token, !pharmacy.isOpen);
+      setPharmacy(updated);
+      setNotice(
+        updated.isOpen
+          ? "Your pharmacy is now open for customer orders."
+          : "Your pharmacy is now closed for new customer orders.",
+      );
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to update pharmacy status.",
+      );
+    } finally {
+      setUpdatingPharmacyStatus(false);
+    }
+  }
+
 
   function selectProductImages(
     event: ChangeEvent<HTMLInputElement>,
@@ -291,6 +316,20 @@ export function InventoryPanel({
           >
             {pharmacy.isOpen ? "Open for orders" : "Currently closed"}
           </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pharmacy.isOpen}
+            aria-label={pharmacy.isOpen ? "Close pharmacy for orders" : "Open pharmacy for orders"}
+            disabled={updatingPharmacyStatus}
+            onClick={() => void togglePharmacyStatus()}
+            className={`relative ml-3 inline-flex h-8 w-14 shrink-0 items-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${pharmacy.isOpen ? "bg-teal-600" : "bg-slate-300"}`}
+          >
+            <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${pharmacy.isOpen ? "translate-x-7" : "translate-x-1"}`} />
+            <span className="sr-only">
+              {updatingPharmacyStatus ? "Updating pharmacy status" : "Toggle pharmacy status"}
+            </span>
+          </button>
         </div>
       )}
       {(error || notice) && (

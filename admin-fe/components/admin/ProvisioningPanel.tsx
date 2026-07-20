@@ -9,6 +9,7 @@ type Props = {
     name: string,
     phone: string,
     email: string,
+    currentPassword: string,
     role: "rider",
   ) => Promise<ProvisionedAccount>;
   onProvisionAdmin: (
@@ -22,7 +23,7 @@ export function ProvisioningPanel({
   onProvisionStaff,
   onProvisionAdmin,
 }: Props) {
-  const [accountType, setAccountType] = useState<"rider" | "admin">("rider");
+  const [accountType, setAccountType] = useState<"rider" | "admin">("admin");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -38,7 +39,7 @@ export function ProvisioningPanel({
       const created =
         accountType === "admin"
           ? await onProvisionAdmin(name, phone, currentPassword)
-          : await onProvisionStaff(name, phone, email, accountType);
+          : await onProvisionStaff(name, phone, email, currentPassword, accountType);
       setResult(
         `${created.role} created for ${created.phone}. Temporary password: ${created.temporaryPassword}`,
       );
@@ -107,7 +108,7 @@ export function ProvisioningPanel({
             />
           </label>
         )}{" "}
-        {accountType === "admin" && (
+        {(
           <label className="block text-sm font-medium">
             Your current password
             <PasswordInput

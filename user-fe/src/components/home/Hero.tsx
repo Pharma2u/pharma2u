@@ -10,12 +10,12 @@ import {
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-[#F4FCF9]">
+    <section className="relative overflow-hidden bg-white">
       {/* DECORATIVE BACKGROUND */}
 
-      <div className="pointer-events-none absolute -right-24 -top-24 h-[320px] w-[320px] rounded-full bg-[#45C9A5]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 -top-24 h-[320px] w-[320px] rounded-full bg-[#5B3DF5]/10 blur-3xl" />
 
-      <div className="pointer-events-none absolute -bottom-32 -left-24 h-[320px] w-[320px] rounded-full bg-[#45C9A5]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-24 h-[320px] w-[320px] rounded-full bg-[#14B8A6]/10 blur-3xl" />
 
       <div className="container-custom relative">
         <div className="grid min-h-[560px] items-center gap-10 py-12 lg:grid-cols-2 lg:py-16">
@@ -24,7 +24,7 @@ export default function Hero() {
           <div className="max-w-[680px]">
             {/* DELIVERY BADGE */}
 
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#45C9A5]/30 bg-white px-4 py-2 shadow-sm">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#5B3DF5]/20 bg-white px-4 py-2 shadow-[0_8px_30px_rgba(91,61,245,.08)]">
               <Clock3
                 size={16}
                 className="text-[#2EB68F]"
@@ -108,7 +108,7 @@ export default function Hero() {
           <div className="relative hidden min-h-[450px] items-center justify-center lg:flex">
             {/* LARGE CIRCLE */}
 
-            <div className="absolute h-[420px] w-[420px] rounded-full bg-[#DDF8EF]" />
+            <div className="absolute h-[420px] w-[420px] rounded-full bg-gradient-to-br from-[#E6FBF8] via-[#EEF2FF] to-[#F3E8FF]" />
 
             <div className="relative w-full max-w-[470px]">
               {/* MAIN CARD */}

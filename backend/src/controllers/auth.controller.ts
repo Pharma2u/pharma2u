@@ -179,6 +179,18 @@ export async function provisionStaff(
     duplicate(response);
     return;
   }
+  const actingAdmin = await prisma.user.findUnique({
+    where: { id: request.user!.id },
+    select: { passwordHash: true },
+  });
+  if (
+    !actingAdmin ||
+    !(await bcrypt.compare(input.currentPassword, actingAdmin.passwordHash))
+  ) {
+    response.status(400).json({ message: "currentPassword is incorrect." });
+    return;
+  }
+
   const temporaryPassword = generateTempPassword();
   const user = await prisma.user.create({
     data: {
@@ -186,11 +198,21 @@ export async function provisionStaff(
       name: input.name,
       role: input.role,
       passwordHash: await bcrypt.hash(temporaryPassword, bcryptRounds),
+      email: input.email,
+      applicationStatus: "approved",
       mustChangePassword: true,
     },
     select: { id: true, phone: true, email: true, role: true },
   });
   // The plaintext credential is deliberately returned only here and never persisted separately.
+  await prisma.adminAuditLog.create({
+    data: {
+      actingAdminId: request.user!.id,
+      createdUserId: user.id,
+      action: "admin_created_rider",
+    },
+  });
+
   response.status(201).json({ ...user, temporaryPassword });
 }
 

@@ -58,10 +58,11 @@ export function provisionStaff(
   phone: string,
   email: string,
   role: "rider",
+  currentPassword: string,
 ) {
   return post<ProvisionedAccount>(
     "/admin/provision-staff",
-    { name, phone, email, role },
+    { name, phone, email, role, currentPassword },
     token,
   );
 }

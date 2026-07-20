@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { VendorLoginForm } from "@/components/auth/VendorLoginForm";
 import { InventoryPanel } from "@/components/inventory/InventoryPanel";
@@ -56,16 +57,14 @@ export default function VendorPortal() {
   const viewingOrders = workspace === "orders";
 
   return (
-    <main className="min-h-screen bg-[#f5f8f7] text-slate-900">
+    <main className="min-h-screen bg-[#f4f7f6] text-slate-900">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-8">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-teal-600 text-white shadow-sm">
-              <span className="text-lg font-black">P</span>
-            </div>
+            <Image src="/images/logo/logo.png" alt="Pharma2U" width={130} height={42} className="h-10 w-auto object-contain" priority />
             <div>
               <p className="text-[10px] font-bold tracking-[0.2em] text-teal-700">
-                PHARMA2U VENDOR
+                VENDOR PARTNER
               </p>
               <h1 className="text-lg font-bold tracking-tight">
                 Pharmacy workspace
@@ -91,12 +90,12 @@ export default function VendorPortal() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1440px] gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-24">
+      <div className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-8 lg:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="h-fit overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_8px_30px_rgba(15,23,42,.04)] lg:sticky lg:top-24 lg:rounded-3xl lg:p-3">
           <p className="px-3 pb-2 pt-1 text-[10px] font-bold tracking-[0.18em] text-slate-400">
             WORKSPACE
           </p>
-          <nav className="space-y-1" aria-label="Vendor workspace">
+          <nav className="flex min-w-max gap-1 lg:block lg:min-w-0 lg:space-y-1" aria-label="Vendor workspace">
             <NavItem
               active={viewingOrders}
               icon={<span className="text-base">#</span>}
@@ -126,7 +125,7 @@ export default function VendorPortal() {
               onClick={() => setWorkspace("add-product")}
             />{" "}
           </nav>
-          <div className="mt-4 rounded-2xl bg-teal-50 p-4">
+          <div className="mt-4 hidden rounded-2xl bg-teal-50 p-4 lg:block">
             <p className="text-xs font-bold text-teal-800">Good practice</p>
             <p className="mt-1 text-xs leading-5 text-teal-700">
               Keep batch, expiry, stock, price, and product images current for
@@ -136,7 +135,7 @@ export default function VendorPortal() {
         </aside>
 
         <section className="min-w-0">
-          <div className="overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-sm sm:px-8">
+          <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(120deg,#073b36,#0b5f54)] px-6 py-7 text-white shadow-[0_16px_50px_rgba(6,78,69,.16)] sm:px-8">
             <p className="text-xs font-bold tracking-[0.18em] text-teal-300">
               {viewingOrders
                 ? "ORDER OPERATIONS"
@@ -196,7 +195,7 @@ function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${active ? "bg-teal-600 text-white shadow-sm" : "text-slate-700 hover:bg-slate-50"}`}
+      className={`flex min-w-[190px] items-center gap-3 rounded-xl px-3 py-3 text-left transition lg:w-full lg:min-w-0 lg:rounded-2xl ${active ? "bg-teal-600 text-white shadow-sm" : "text-slate-700 hover:bg-slate-50"}`}
     >
       <span className={active ? "text-white" : "text-teal-600"}>{icon}</span>
       <span>

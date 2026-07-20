@@ -102,6 +102,13 @@ export function changePassword(
 export function getMyPharmacy(token: string) {
   return request<Pharmacy>("/vendor/pharmacy/me", token);
 }
+export function setMyPharmacyOpenStatus(token: string, isOpen: boolean) {
+  return request<Pharmacy>("/vendor/pharmacy/me", token, {
+    method: "PATCH",
+    body: JSON.stringify({ isOpen }),
+  });
+}
+
 export function listProducts(token: string, search = "", category = "") {
   const query = new URLSearchParams();
   if (search) query.set("search", search);

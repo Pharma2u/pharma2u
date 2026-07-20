@@ -15,6 +15,7 @@ import {
   Search,
   ShoppingCart,
 } from "lucide-react";
+import image from "../../../public/images/logo/logo.png";
 
 import { useCartStore } from "@/src/store/cartStore";
 import { AccountMenu } from "@/src/components/account/AccountMenu";
@@ -37,17 +38,9 @@ export default function Header() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  /*
-   * CART
-   */
-
   const cartItems = useCartStore((state) => state.items);
 
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-
-  /*
-   * SEARCH
-   */
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,17 +60,17 @@ export default function Header() {
       <div className="container-custom">
         {/* ================= DESKTOP HEADER ================= */}
 
-        <div className="hidden h-[82px] items-center gap-5 md:flex">
+        <div className="hidden h-[106px] items-center gap-5 md:flex">
           {/* LOGO */}
 
           <Link href="/" className="flex shrink-0 items-center">
             <Image
-              src="/images/logo/logo.png"
-              alt="GoCure"
+              src={image}
+              alt="Pharma2u"
               width={190}
               height={70}
               priority
-              className="h-[62px] w-[145px] object-contain"
+              className="h-[92px] w-[92px] object-contain"
             />
           </Link>
 
@@ -183,12 +176,12 @@ export default function Header() {
 
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
-                  src="/images/logo/logo.png"
-                  alt="GoCure"
+                  src={image}
+                  alt="Pharma2u"
                   width={150}
                   height={65}
                   priority
-                  className="h-[65px] w-[150px] object-contain"
+                  className="h-[72px] w-[72px] object-contain"
                 />
               </Link>
 

@@ -39,7 +39,7 @@ export default function ProductCard({
   };
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5EAE8] bg-white transition duration-200 hover:-translate-y-1 hover:border-[#45C9A5] hover:shadow-[0_16px_45px_rgba(23,33,43,0.08)]">
+    <div className="card-lift group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5EAE8] bg-white hover:border-[#45C9A5]">
 
       {/* PRODUCT IMAGE */}
 

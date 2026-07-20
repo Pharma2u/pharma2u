@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { ApplicationForm } from "@/components/auth/ApplicationForm";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { RiderLoginForm } from "@/components/auth/RiderLoginForm";
@@ -96,11 +97,8 @@ export default function RiderPortal() {
       <main className="shell dashboard-shell">
         <nav className="dashboard-topbar" aria-label="Rider account">
           <div className="dashboard-brandmark">
-            <span>P2U</span>
-            <div>
-              <strong>Pharma2u</strong>
-              <small>Rider operations</small>
-            </div>
+            <Image src="/images/logo/logo.png" alt="Pharma2U" width={132} height={44} className="brand-logo" priority />
+            <div className="brand-divider"><strong>Rider partner</strong><small>Delivery operations</small></div>
           </div>
           <div className="rider-account">
             <span className="rider-avatar">{initials}</span>
@@ -133,9 +131,9 @@ export default function RiderPortal() {
 
   return (
     <main className="shell auth-shell">
-      <header>
+      <header className="auth-hero">
         <div>
-          <p className="brand">PHARMA2U</p>
+          <Image src="/images/logo/logo.png" alt="Pharma2U" width={160} height={54} className="auth-logo" priority />
           <h1>Deliver care, faster.</h1>
           <p className="muted">
             Apply to join our rider network or sign in to your approved account.
