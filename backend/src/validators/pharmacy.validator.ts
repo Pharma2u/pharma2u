@@ -7,7 +7,6 @@ const text = (o: Record<string, unknown>, k: string) => {
   return v.trim();
 };
 
-
 const number = (o: Record<string, unknown>, k: string) => {
   const v = o[k];
   if (typeof v !== "number" || !Number.isFinite(v))
@@ -15,13 +14,11 @@ const number = (o: Record<string, unknown>, k: string) => {
   return v;
 };
 
-
 const body = (v: unknown) => {
   if (!v || typeof v !== "object" || Array.isArray(v))
     throw new PharmacyValidationError("Request body must be an object.");
   return v as Record<string, unknown>;
 };
-
 
 export function validatePharmacyCreate(v: unknown) {
   const o = body(v),
@@ -46,7 +43,6 @@ export function validatePharmacyCreate(v: unknown) {
     vendorPhone,
   };
 }
-
 
 export function validatePharmacyUpdate(v: unknown) {
   const o = body(v),
@@ -79,5 +75,25 @@ export function validatePharmacyUpdate(v: unknown) {
   }
   if (!Object.keys(out).length)
     throw new PharmacyValidationError("No update fields supplied.");
+  return out;
+}
+
+export function validateVendorPharmacyProfile(v: unknown) {
+  const o = body(v),
+    out: Record<string, unknown> = {};
+  for (const key of ["name", "address", "openingTime", "closingTime"])
+    if (o[key] !== undefined) out[key] = text(o, key);
+  if (o.operatingDays !== undefined) {
+    const days = Array.isArray(o.operatingDays)
+      ? o.operatingDays
+      : typeof o.operatingDays === "string"
+        ? o.operatingDays.split(",")
+        : null;
+    if (!days || days.some((day) => typeof day !== "string" || !day.trim()))
+      throw new PharmacyValidationError(
+        "operatingDays must be a list of days.",
+      );
+    out.operatingDays = [...new Set(days.map((day) => day.trim()))];
+  }
   return out;
 }

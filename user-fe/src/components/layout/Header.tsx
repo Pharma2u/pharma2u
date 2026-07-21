@@ -32,7 +32,7 @@ export default function Header() {
   );
 
   const locationText =
-    selectedAddress?.label || selectedAddress?.city || "Select location";
+    selectedAddress?.fullAddress || selectedAddress?.city || "Select location";
 
   const router = useRouter();
 
@@ -89,7 +89,7 @@ export default function Header() {
               <p className="text-xs text-[#6B7280]">Delivering to</p>
 
               <div className="flex items-center gap-1">
-                <span className="truncate text-sm font-semibold text-[#17212B]">
+                <span title={locationText} className="truncate text-sm font-semibold text-[#17212B]">
                   {locationText}
                 </span>
 
@@ -200,7 +200,7 @@ export default function Header() {
                   </p>
 
                   <div className="flex items-center gap-0.5">
-                    <span className="max-w-[85px] truncate text-xs font-semibold text-[#17212B]">
+                    <span title={locationText} className="max-w-[110px] truncate text-xs font-semibold text-[#17212B]">
                       {locationText}
                     </span>
 
@@ -270,3 +270,4 @@ export default function Header() {
     </header>
   );
 }
+

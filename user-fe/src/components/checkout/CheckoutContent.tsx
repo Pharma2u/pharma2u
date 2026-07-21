@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
 import Link from "next/link";
@@ -27,6 +27,7 @@ import LocationModal from "@/src/components/location/LocationModal";
 
 import {
   createOrder,
+  uploadOrderPrescription,
   reportRazorpayPaymentFailed,
   verifyRazorpayPayment,
   type CreatedOrder,
@@ -81,6 +82,8 @@ export default function CheckoutContent() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [isRazorpayReady, setIsRazorpayReady] = useState(false);
+  const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
+  const prescriptionInputRef = useRef<HTMLInputElement>(null);
 
   /*
    * CART
@@ -149,7 +152,7 @@ export default function CheckoutContent() {
   const deliveryTimes = items
     .map((item) => item.pharmacy?.deliveryTime)
     .filter(
-      (deliveryTime): deliveryTime is number => deliveryTime !== undefined,
+      (deliveryTime): deliveryTime is number => typeof deliveryTime === "number",
     );
 
   const estimatedDeliveryTime =
@@ -188,6 +191,7 @@ export default function CheckoutContent() {
     items.length > 0 &&
     !hasStockIssue &&
     !hasMissingPharmacy &&
+    (!hasPrescriptionProducts || Boolean(prescriptionFile)) &&
     !isPlacingOrder &&
     (paymentMethod === "cod" || isRazorpayReady);
 
@@ -307,6 +311,9 @@ export default function CheckoutContent() {
         deliveryFee,
         estimatedMinutes: estimatedDeliveryTime,
       });
+      if (hasPrescriptionProducts && prescriptionFile) {
+        await uploadOrderPrescription(session.token, created.id, prescriptionFile);
+      }
       if (paymentMethod !== "cod") {
         try {
           const payment = await openRazorpayCheckout(created);
@@ -712,12 +719,12 @@ export default function CheckoutContent() {
                         <div className="mt-1 flex flex-wrap items-center gap-3 text-[10px] text-[#8B949E]">
                           <span className="flex items-center gap-1">
                             <Clock3 size={11} />
-                            {item.pharmacy.deliveryTime} mins
+                            {item.pharmacy.deliveryTime === null ? "Delivery estimate pending" : `${item.pharmacy.deliveryTime} mins`}
                           </span>
 
                           <span className="flex items-center gap-1">
                             <MapPin size={11} />
-                            {item.pharmacy.distance} km
+                            {item.pharmacy.distance === null ? "Distance unavailable" : `${item.pharmacy.distance} km`}
                           </span>
                         </div>
                       </div>
@@ -884,3 +891,5 @@ export default function CheckoutContent() {
     </>
   );
 }
+
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AdminLoginForm } from "@/components/auth/AdminLoginForm";
 import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
@@ -8,6 +8,7 @@ import { OperationsPanel } from "@/components/admin/OperationsPanel";
 import { FleetPanel } from "@/components/admin/FleetPanel";
 import { PharmacyOnboardingPanel } from "@/components/admin/PharmacyOnboardingPanel";
 import { RiderApplicationsPanel } from "@/components/admin/RiderApplicationsPanel";
+import { RiderKycOnboardingPanel } from "@/components/admin/RiderKycOnboardingPanel";
 import { PharmacyApplicationsPanel } from "@/components/admin/PharmacyApplicationsPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
 import {
@@ -23,14 +24,21 @@ import {
 } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedAdminSession } from "@/store/usePersistedSession";
+import { adminSessionExpiredEvent } from "@/lib/sessionEvents";
 
 export default function AdminPortal() {
   const dispatch = useAppDispatch();
   const { session, hydrated } = usePersistedAdminSession();
   const [error, setError] = useState("");
   const [section, setSection] = useState<
-    "overview" | "pharmacy" | "applications" | "riders" | "fleet" | "accounts"
+    "overview" | "pharmacy" | "applications" | "riders" | "rider-onboarding" | "fleet" | "accounts"
   >("overview");
+
+  useEffect(() => {
+    const forceLogout = () => dispatch(clearSession());
+    window.addEventListener(adminSessionExpiredEvent, forceLogout);
+    return () => window.removeEventListener(adminSessionExpiredEvent, forceLogout);
+  }, [dispatch]);
 
   async function signIn(phone: string, password: string) {
     setError("");
@@ -123,7 +131,14 @@ export default function AdminPortal() {
             className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "riders" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
           >
             Rider applications
-          </button>{" "}
+          </button>
+
+          <button
+            onClick={() => setSection("rider-onboarding")}
+            className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "rider-onboarding" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+          >
+            Rider onboarding
+          </button>
 
           <button
             onClick={() => setSection("pharmacy")}
@@ -133,10 +148,12 @@ export default function AdminPortal() {
           </button>
         </aside>
         <section className="min-w-0">
-          {section === "fleet" ? (
+          {section === "rider-onboarding" ? (
+            <RiderKycOnboardingPanel token={session.token} />
+          ) : section === "fleet" ? (
             <FleetPanel token={session.token} />
           ) : section === "riders" ? (
-            <OperationsPanel token={session.token} />
+            <RiderApplicationsPanel token={session.token} />
 
           ) : section === "applications" ? (
             <PharmacyApplicationsPanel token={session.token} />

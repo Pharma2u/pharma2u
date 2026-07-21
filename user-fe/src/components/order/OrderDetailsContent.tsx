@@ -361,7 +361,7 @@ export default function OrderDetailsContent({
                   hour: "numeric",
                   minute: "2-digit",
                 })}`
-              : "Connecting to your rider…"}
+              : "Connecting to your rider..."}
           </span>
         </div>
       )}
@@ -566,7 +566,7 @@ export default function OrderDetailsContent({
                         </p>
 
                         <p className="text-sm font-bold text-[#17212B]">
-                          ₹{item.unitPrice * item.quantity}
+                          {"\u20B9"}{item.unitPrice * item.quantity}
                         </p>
                       </div>
                     </div>
@@ -584,7 +584,7 @@ export default function OrderDetailsContent({
                       </p>
 
                       <p className="mt-1 text-[11px] text-[#8B949E]">
-                        {item.pharmacy.distance} km away
+                        {item.pharmacy.distance === null ? "Distance unavailable" : String(item.pharmacy.distance) + " km away"}
                       </p>
                     </div>
                   </div>
@@ -652,7 +652,7 @@ export default function OrderDetailsContent({
 
                   <span className="flex items-center gap-1.5">
                     <MapPin size={13} className="text-[#2EB68F]" />
-                    {firstPharmacy.distance} km
+                    {firstPharmacy.distance === null ? "Distance unavailable" : `${firstPharmacy.distance} km`}
                   </span>
                 </div>
               </div>
@@ -681,7 +681,7 @@ export default function OrderDetailsContent({
                 <span className="text-xs text-[#64717D]">Total MRP</span>
 
                 <span className="text-xs font-semibold text-[#17212B]">
-                  ₹{order.totalMRP}
+                  {"\u20B9"}{order.totalMRP}
                 </span>
               </div>
 
@@ -689,7 +689,7 @@ export default function OrderDetailsContent({
                 <span className="text-xs text-[#64717D]">Product discount</span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  - ₹{order.savings}
+                  - {"\u20B9"}{order.savings}
                 </span>
               </div>
 
@@ -697,7 +697,7 @@ export default function OrderDetailsContent({
                 <span className="text-xs text-[#64717D]">Delivery fee</span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  {order.deliveryFee === 0 ? "FREE" : `₹${order.deliveryFee}`}
+                  {order.deliveryFee === 0 ? "FREE" : `\u20B9${order.deliveryFee}`}
                 </span>
               </div>
 
@@ -706,7 +706,7 @@ export default function OrderDetailsContent({
                   <span className="font-bold text-[#17212B]">Total amount</span>
 
                   <span className="text-xl font-bold text-[#17212B]">
-                    ₹{order.totalAmount}
+                    {"\u20B9"}{order.totalAmount}
                   </span>
                 </div>
               </div>
@@ -751,3 +751,4 @@ export default function OrderDetailsContent({
     </div>
   );
 }
+

@@ -1,5 +1,9 @@
 export interface Product {
   id: string | number;
+  pharmacyId?: string;
+  pharmacyName?: string;
+  pharmacyAddress?: string;
+  stock?: number;
   name: string;
   manufacturer: string;
   packSize: string;

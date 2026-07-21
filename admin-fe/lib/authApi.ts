@@ -1,4 +1,5 @@
-﻿import type { AuthSession } from "@/store/authSlice";
+import type { AuthSession } from "@/store/authSlice";
+import { notifyAdminSessionExpired } from "./sessionEvents";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
@@ -24,6 +25,7 @@ async function post<T>(
     body: JSON.stringify(body),
   });
   const data = (await response.json().catch(() => ({}))) as T & ApiError;
+  if (response.status === 401 && token) notifyAdminSessionExpired();
   if (!response.ok) {
     throw new Error(data.error ?? data.message ?? "Request failed.");
   }

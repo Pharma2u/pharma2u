@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
   --background: #ffffff;
@@ -119,3 +119,4 @@ input:focus, select:focus {
 .hover\:bg-\[\#EAFAF5\]:hover { background-color: #f1efff !important; }
 .hover\:border-\[\#45C9A5\]:hover { border-color: #5b3df5 !important; }
 .focus-within\:border-\[\#45C9A5\]:focus-within { border-color: #5b3df5 !important; }
+

@@ -1,3 +1,5 @@
+import { notifyAdminSessionExpired } from "./sessionEvents";
+
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
 export type AdminRiderInput = {
@@ -31,6 +33,7 @@ export async function createAdminRider(token: string, input: AdminRiderInput) {
     body: form,
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) notifyAdminSessionExpired();
   if (!response.ok) throw new Error(data.error ?? data.message ?? "Unable to create rider.");
   return data as { id: string; phone: string; temporaryPassword: string };
 }

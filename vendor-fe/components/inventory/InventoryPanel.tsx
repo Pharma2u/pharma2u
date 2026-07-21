@@ -13,6 +13,7 @@ import {
   setMyPharmacyOpenStatus,
   updateStock,
   updateProduct,
+  updateMyPharmacyProfile,
   type Pharmacy,
   type Product,
   type ProductCategory,
@@ -22,10 +23,14 @@ export function InventoryPanel({
   token,
   startAdding = false,
   showCatalogue = true,
+  profileOnly = false,
+  showPharmacyProfile = true,
 }: {
   token: string;
   startAdding?: boolean;
   showCatalogue?: boolean;
+  profileOnly?: boolean;
+  showPharmacyProfile?: boolean;
 }) {
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -35,6 +40,7 @@ export function InventoryPanel({
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingPharmacyStatus, setUpdatingPharmacyStatus] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [showForm, setShowForm] = useState(startAdding);
   const [adding, setAdding] = useState(false);
   const [newProductImages, setNewProductImages] = useState<File[]>([]);
@@ -90,6 +96,22 @@ export function InventoryPanel({
     const timer = window.setTimeout(() => setNotice(""), 3500);
     return () => window.clearTimeout(timer);
   }, [notice]);
+  async function savePharmacyProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingProfile(true); setError("");
+    const form = new FormData(event.currentTarget);
+    try {
+      const updated = await updateMyPharmacyProfile(token, {
+        name: String(form.get("pharmacyName")).trim(), address: String(form.get("pharmacyAddress")).trim(),
+        openingTime: String(form.get("openingTime")), closingTime: String(form.get("closingTime")),
+        operatingDays: form.getAll("operatingDays").map(String),
+        logo: form.get("logo") instanceof File && (form.get("logo") as File).size ? form.get("logo") as File : undefined,
+        banner: form.get("banner") instanceof File && (form.get("banner") as File).size ? form.get("banner") as File : undefined,
+      });
+      setPharmacy(updated); setNotice("Pharmacy profile updated.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to update pharmacy profile."); }
+    finally { setSavingProfile(false); }
+  }
   async function togglePharmacyStatus() {
     if (!pharmacy || updatingPharmacyStatus) return;
     setError("");
@@ -300,7 +322,7 @@ export function InventoryPanel({
 
   return (
     <section className="mt-6 space-y-5">
-      {pharmacy && (
+      {showPharmacyProfile && pharmacy && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div>
             <p className="text-xs font-bold tracking-[0.16em] text-teal-700">
@@ -332,7 +354,19 @@ export function InventoryPanel({
           </button>
         </div>
       )}
-      {(error || notice) && (
+      {showPharmacyProfile && pharmacy && (
+        <form onSubmit={savePharmacyProfile} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+          <div className="md:col-span-2"><p className="text-xs font-bold tracking-[0.16em] text-teal-700">PHARMACY PROFILE</p><h2 className="mt-1 text-lg font-bold text-slate-900">Store details customers will see</h2></div>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Pharmacy name<input name="pharmacyName" required defaultValue={pharmacy.name} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Address<input name="pharmacyAddress" required defaultValue={pharmacy.address} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Opening time<input name="openingTime" required type="time" defaultValue={pharmacy.openingTime ?? "09:00"} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Closing time<input name="closingTime" required type="time" defaultValue={pharmacy.closingTime ?? "21:00"} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Pharmacy logo{pharmacy.logoPath && <img src={pharmacy.logoPath} alt="Current pharmacy logo" className="h-16 w-16 rounded-xl border border-slate-200 object-cover" />}<input name="logo" type="file" accept="image/jpeg,image/png,image/webp" className="rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Cover image{pharmacy.bannerPath && <img src={pharmacy.bannerPath} alt="Current pharmacy cover" className="h-20 w-full rounded-xl border border-slate-200 object-cover" />}<input name="banner" type="file" accept="image/jpeg,image/png,image/webp" className="rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>
+          <fieldset className="md:col-span-2"><legend className="text-sm font-semibold text-slate-700">Operating days</legend><div className="mt-2 flex flex-wrap gap-3">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day) => <label key={day} className="flex items-center gap-1.5 text-sm text-slate-600"><input name="operatingDays" type="checkbox" value={day} defaultChecked={pharmacy.operatingDays?.includes(day) ?? ["Mon","Tue","Wed","Thu","Fri","Sat"].includes(day)} />{day}</label>)}</div></fieldset>
+          <div className="flex justify-end md:col-span-2"><button disabled={savingProfile} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingProfile ? "Saving..." : "Save pharmacy profile"}</button></div>
+        </form>
+      )}      {(error || notice) && (
         <div
           role="status"
           className={`rounded-xl border px-4 py-3 text-sm font-medium ${error ? "border-red-100 bg-red-50 text-red-700" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}

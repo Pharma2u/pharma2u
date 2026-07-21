@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -361,7 +361,7 @@ export default function CartContent() {
                             className="text-[#2EB68F]"
                           />
 
-                          {item.pharmacy.deliveryTime} mins
+                          {item.pharmacy.deliveryTime === null ? "Delivery estimate pending" : `${item.pharmacy.deliveryTime} mins`}
 
                         </div>
 
@@ -372,7 +372,7 @@ export default function CartContent() {
                             className="text-[#2EB68F]"
                           />
 
-                          {item.pharmacy.distance} km
+                          {item.pharmacy.distance === null ? "Distance unavailable" : `${item.pharmacy.distance} km`}
 
                         </div>
 
@@ -516,3 +516,4 @@ export default function CartContent() {
     </div>
   );
 }
+

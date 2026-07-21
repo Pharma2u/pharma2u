@@ -87,6 +87,20 @@ export async function uploadProductImage(file: KycFile): Promise<string> {
   }
 }
 
+/** Uploads a public-facing pharmacy logo or banner image. */
+export async function uploadPharmacyImage(file: KycFile, imageType: "logo" | "banner"): Promise<string> {
+  const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : "png";
+  const customId = `pharmacy-${imageType}-${randomUUID()}`;
+  try {
+    const result = await utapi.uploadFiles([new UTFile([file.buffer], `${customId}.${ext}`, { type: file.mimetype, customId })]);
+    if (result[0]?.error || !result[0]?.data?.key) throw uploadError("Pharmacy image upload failed.");
+    return result[0].data.key;
+  } catch (error) {
+    if ((error as { status?: number }).status === 502) throw error;
+    console.error(`UploadThing pharmacy ${imageType} upload failed: ${uploadthingErrorDetail(error)}`);
+    throw uploadError("Pharmacy image upload failed. Check UploadThing configuration.");
+  }
+}
 /** Best-effort cleanup for files uploaded before a database write failed. */
 export async function deleteUploadedFiles(
   keys: string[],
@@ -111,3 +125,5 @@ export function productImageUrl(key: string): string {
   if (key.startsWith("http://") || key.startsWith("https://")) return key;
   return `https://utfs.io/f/${key}`;
 }
+
+export const pharmacyImageUrl = productImageUrl;
