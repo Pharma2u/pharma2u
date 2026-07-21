@@ -29,7 +29,19 @@ export default function ProductCard({
   const [imageFailed, setImageFailed] = useState(false);
 
   const handleAddToCart = () => {
-    addItem(product);
+    const deliveryMinutes = Number.parseInt(product.deliveryTime, 10);
+    addItem(product, {
+      pharmacy: product.pharmacyId && product.pharmacyName
+        ? {
+            id: product.pharmacyId,
+            name: product.pharmacyName,
+            address: product.pharmacyAddress ?? "",
+            deliveryTime: Number.isFinite(deliveryMinutes) ? deliveryMinutes : null,
+            distance: null,
+          }
+        : null,
+      availableStock: product.stock ?? null,
+    });
 
     setJustAdded(true);
 
@@ -119,12 +131,12 @@ export default function ProductCard({
 
           <div>
             <p className="text-base font-bold text-[#17212B]">
-              ₹{product.price}
+              {String.fromCharCode(8377)}{product.price}
             </p>
 
             {product.mrp > product.price && (
               <p className="mt-0.5 text-xs text-[#9CA3AF] line-through">
-                MRP ₹{product.mrp}
+                MRP {String.fromCharCode(8377)}{product.mrp}
               </p>
             )}
           </div>
@@ -159,3 +171,4 @@ export default function ProductCard({
     </div>
   );
 }
+

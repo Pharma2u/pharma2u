@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { Product } from "@/src/data/products";
@@ -7,8 +7,8 @@ export interface CartPharmacy {
   id: string;
   name: string;
   address: string;
-  deliveryTime: number;
-  distance: number;
+  deliveryTime: number | null;
+  distance: number | null;
 }
 
 export interface CartItem {

@@ -1,3 +1,5 @@
+import { notifyAdminSessionExpired } from "./sessionEvents";
+
 export type PharmacyApplication = {
   id: string;
   ownerName: string;
@@ -33,6 +35,7 @@ async function api<T>(path: string, token: string, init: RequestInit = {}) {
     },
   });
   const d = (await r.json().catch(() => ({}))) as T & Failure;
+  if (r.status === 401) notifyAdminSessionExpired();
   if (!r.ok) throw new Error(d.error ?? d.message ?? "Request failed.");
   return d;
 }

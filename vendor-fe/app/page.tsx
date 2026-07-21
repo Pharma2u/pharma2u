@@ -11,13 +11,13 @@ import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedVendorSession } from "@/store/usePersistedSession";
 
-type Workspace = "inventory" | "products" | "add-product" | "orders";
+type Workspace = "inventory" | "products" | "add-product" | "orders" | "pharmacy";
 
 export default function VendorPortal() {
   const dispatch = useAppDispatch();
   const { session, hydrated } = usePersistedVendorSession();
   const [error, setError] = useState("");
-  const [workspace, setWorkspace] = useState<Workspace>("inventory");
+  const [workspace, setWorkspace] = useState<Workspace>("products");
 
   async function login(phone: string, password: string) {
     setError("");
@@ -55,6 +55,7 @@ export default function VendorPortal() {
   const addingProduct = workspace === "add-product";
   const viewingProducts = workspace === "products";
   const viewingOrders = workspace === "orders";
+  const viewingPharmacy = workspace === "pharmacy";
 
   return (
     <main className="min-h-screen bg-[#f4f7f6] text-slate-900">
@@ -104,11 +105,11 @@ export default function VendorPortal() {
               onClick={() => setWorkspace("orders")}
             />
             <NavItem
-              active={workspace === "inventory"}
-              icon={<span className="text-base">[]</span>}
-              label="Inventory"
-              detail="Stock overview"
-              onClick={() => setWorkspace("inventory")}
+              active={viewingPharmacy}
+              icon={<span className="text-base">+</span>}
+              label="My pharmacy"
+              detail="Profile, hours and store status"
+              onClick={() => setWorkspace("pharmacy")}
             />
             <NavItem
               active={viewingProducts}
@@ -139,7 +140,9 @@ export default function VendorPortal() {
             <p className="text-xs font-bold tracking-[0.18em] text-teal-300">
               {viewingOrders
                 ? "ORDER OPERATIONS"
-                : addingProduct || viewingProducts
+                : viewingPharmacy
+                  ? "MY PHARMACY"
+                  : addingProduct || viewingProducts
                   ? "CATALOGUE MANAGEMENT"
                   : "INVENTORY OVERVIEW"}
             </p>
@@ -169,7 +172,8 @@ export default function VendorPortal() {
               key={workspace}
               token={session.token}
               startAdding={addingProduct}
-              showCatalogue={!addingProduct}
+              showCatalogue={!addingProduct && !viewingPharmacy}
+              showPharmacyProfile={viewingPharmacy}
             />
           )}
         </section>

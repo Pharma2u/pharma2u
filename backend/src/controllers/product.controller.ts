@@ -1,6 +1,7 @@
 // Implements vendor-scoped inventory operations with multi-image support.
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
+import { pharmacyImageUrl } from "../utils/uploadthing";
 import {
   validateProductCreate,
   validateProductUpdate,
@@ -115,26 +116,39 @@ export async function createProduct(req: Request, res: Response) {
   res.status(201).json(await serialize(product));
 }
 
-export async function listPublicProducts(_req: Request, res: Response) {
+export async function listPublicProducts(req: Request, res: Response) {
+  const pharmacyId =
+    typeof req.query.pharmacyId === "string"
+      ? req.query.pharmacyId.trim()
+      : "";
+
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
       stock: { gt: 0 },
       OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+      ...(pharmacyId
+        ? { pharmacyId }
+        : { pharmacy: { isOpen: true } }),
     },
     orderBy: { createdAt: "desc" },
     include: {
-      pharmacy: { select: { name: true } },
+      pharmacy: {
+        select: { id: true, name: true, address: true, isOpen: true, logoPath: true, bannerPath: true, openingTime: true, closingTime: true },
+      },
       images: { orderBy: { sortOrder: "asc" }, take: 1 },
     },
   });
 
   res.json({
     items: await Promise.all(
-      products.map(async (p) => ({
-        ...(await serialize(p)),
-        prescriptionRequired: p.category !== "otc",
-        pharmacyName: p.pharmacy.name,
+      products.map(async (product) => ({
+        ...(await serialize(product)),
+        prescriptionRequired: product.category !== "otc",
+        pharmacyId: product.pharmacy.id,
+        pharmacyName: product.pharmacy.name,
+        pharmacyAddress: product.pharmacy.address,
+        pharmacyIsOpen: product.pharmacy.isOpen,
       })),
     ),
   });
@@ -262,7 +276,7 @@ export async function listProductAvailability(req: Request, res: Response) {
     },
     include: {
       pharmacy: {
-        select: { id: true, name: true, address: true, isOpen: true },
+        select: { id: true, name: true, address: true, isOpen: true, logoPath: true, bannerPath: true, openingTime: true, closingTime: true },
       },
     },
     orderBy: [{ deliveryTime: "asc" }, { price: "asc" }],
@@ -274,6 +288,10 @@ export async function listProductAvailability(req: Request, res: Response) {
       name: product.pharmacy.name,
       address: product.pharmacy.address,
       isOpen: product.pharmacy.isOpen,
+      logoPath: product.pharmacy.logoPath ? pharmacyImageUrl(product.pharmacy.logoPath) : null,
+      bannerPath: product.pharmacy.bannerPath ? pharmacyImageUrl(product.pharmacy.bannerPath) : null,
+      openingTime: product.pharmacy.openingTime,
+      closingTime: product.pharmacy.closingTime,
       deliveryTime: product.deliveryTime ?? 30,
       distance: null,
       rating: null,
@@ -289,3 +307,5 @@ export async function listProductAvailability(req: Request, res: Response) {
     })),
   });
 }
+
+

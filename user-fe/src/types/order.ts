@@ -1,4 +1,4 @@
-import type { Product } from "@/src/data/products";
+﻿import type { Product } from "@/src/data/products";
 
 export type OrderStatus =
   | "placed"
@@ -19,8 +19,8 @@ export interface OrderPharmacy {
   id: string;
   name: string;
   address: string;
-  deliveryTime: number;
-  distance: number;
+  deliveryTime: number | null;
+  distance: number | null;
 }
 
 

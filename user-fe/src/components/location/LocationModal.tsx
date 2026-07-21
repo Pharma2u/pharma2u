@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useState } from "react";
 
@@ -30,6 +30,8 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState("");
   const [pincode, setPincode] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const [coordinates, setCoordinates] = useState<{
     latitude: number;
     longitude: number;
@@ -56,8 +58,10 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
       !fullAddress.trim() ||
       !city.trim() ||
       !stateName.trim() ||
-      !pincode.trim()
+      !pincode.trim() ||
+      !coordinates
     ) {
+      setLocationError("Please pin the exact delivery location on the map.");
       return;
     }
 
@@ -80,36 +84,81 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
     onClose();
   };
 
+
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) {
-      window.alert("Location services are not supported by your browser.");
-
+      setLocationError("Location services are not supported by your browser.");
       return;
     }
 
+    setLocating(true);
+    setLocationError("");
+
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const currentAddress: Address = {
+      async (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        let fullAddressValue = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        let cityValue = "Current location";
+        let stateValue = "";
+        let pincodeValue = "";
+
+        try {
+          const params = new URLSearchParams({
+            format: "jsonv2",
+            lat: String(latitude),
+            lon: String(longitude),
+            addressdetails: "1",
+          });
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?${params}`,
+          );
+          if (response.ok) {
+            const result = (await response.json()) as {
+              display_name?: string;
+              address?: {
+                city?: string;
+                town?: string;
+                village?: string;
+                suburb?: string;
+                state?: string;
+                postcode?: string;
+              };
+            };
+            fullAddressValue = result.display_name ?? fullAddressValue;
+            cityValue =
+              result.address?.city ??
+              result.address?.town ??
+              result.address?.village ??
+              result.address?.suburb ??
+              cityValue;
+            stateValue = result.address?.state ?? "";
+            pincodeValue = result.address?.postcode ?? "";
+          }
+        } catch {
+          // Coordinates remain a truthful fallback when reverse geocoding is unavailable.
+        }
+
+        addAddress({
           id: crypto.randomUUID(),
           label: "Current location",
-          fullAddress: "Current GPS location",
-          city: "Location detected",
-          state: "",
-          pincode: "",
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-
-        addAddress(currentAddress);
-
+          fullAddress: fullAddressValue,
+          city: cityValue,
+          state: stateValue,
+          pincode: pincodeValue,
+          latitude,
+          longitude,
+        });
+        setLocating(false);
         onClose();
       },
-
       () => {
-        window.alert(
-          "Unable to access your location. Please allow location permission or add an address manually.",
+        setLocating(false);
+        setLocationError(
+          "Unable to access your location. Allow location permission or pin an address on the map.",
         );
       },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   };
 
@@ -151,6 +200,7 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
           <button
             type="button"
             onClick={handleCurrentLocation}
+            disabled={locating}
             className="flex w-full items-center gap-4 rounded-2xl border border-[#45C9A5] bg-[#F4FCF9] p-4 text-left transition hover:bg-[#EAFAF5]"
           >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#2EB68F]">
@@ -159,7 +209,7 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
 
             <div className="flex-1">
               <p className="text-sm font-bold text-[#17212B]">
-                Use current location
+                {locating ? "Finding your address..." : "Use current location"}
               </p>
 
               <p className="mt-1 text-xs text-[#64717D]">
@@ -167,6 +217,12 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
               </p>
             </div>
           </button>
+
+          {locationError && (
+            <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+              {locationError}
+            </p>
+          )}
 
           {/* SAVED ADDRESSES */}
 
@@ -392,3 +448,5 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
     </div>
   );
 }
+
+

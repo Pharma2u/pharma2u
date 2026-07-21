@@ -75,6 +75,11 @@ export type Pharmacy = {
   drugLicenseNumber: string;
   pharmacistName: string;
   pharmacistLicenseNumber: string;
+  logoPath: string | null;
+  bannerPath: string | null;
+  openingTime: string | null;
+  closingTime: string | null;
+  operatingDays: string[];
 };
 
 export async function loginVendor(
@@ -102,6 +107,31 @@ export function changePassword(
 export function getMyPharmacy(token: string) {
   return request<Pharmacy>("/vendor/pharmacy/me", token);
 }
+export type PharmacyProfileInput = {
+  name?: string;
+  address?: string;
+  openingTime?: string;
+  closingTime?: string;
+  operatingDays?: string[];
+  logo?: File;
+  banner?: File;
+};
+export function updateMyPharmacyProfile(
+  token: string,
+  data: PharmacyProfileInput,
+) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(data)) {
+    if (value instanceof File) form.set(key, value);
+    else if (Array.isArray(value)) form.set(key, value.join(","));
+    else if (value) form.set(key, value);
+  }
+  return request<Pharmacy>("/vendor/pharmacy/me/profile", token, {
+    method: "PATCH",
+    body: form,
+  });
+}
+
 export function setMyPharmacyOpenStatus(token: string, isOpen: boolean) {
   return request<Pharmacy>("/vendor/pharmacy/me", token, {
     method: "PATCH",
