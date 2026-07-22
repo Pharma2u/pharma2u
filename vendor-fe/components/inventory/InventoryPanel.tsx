@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ChangeEvent, Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { ProductImage, ProductImageGallery, ProductRow } from "./ProductDisplay";
 import { productCategories as categories, productCategoryLabels as labels } from "./productConfig";
@@ -23,13 +24,11 @@ export function InventoryPanel({
   token,
   startAdding = false,
   showCatalogue = true,
-  profileOnly = false,
   showPharmacyProfile = true,
 }: {
   token: string;
   startAdding?: boolean;
   showCatalogue?: boolean;
-  profileOnly?: boolean;
   showPharmacyProfile?: boolean;
 }) {
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
@@ -361,8 +360,8 @@ export function InventoryPanel({
           <label className="grid gap-1 text-sm font-semibold text-slate-700">Address<input name="pharmacyAddress" required defaultValue={pharmacy.address} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
           <label className="grid gap-1 text-sm font-semibold text-slate-700">Opening time<input name="openingTime" required type="time" defaultValue={pharmacy.openingTime ?? "09:00"} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
           <label className="grid gap-1 text-sm font-semibold text-slate-700">Closing time<input name="closingTime" required type="time" defaultValue={pharmacy.closingTime ?? "21:00"} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>
-          <label className="grid gap-1 text-sm font-semibold text-slate-700">Pharmacy logo{pharmacy.logoPath && <img src={pharmacy.logoPath} alt="Current pharmacy logo" className="h-16 w-16 rounded-xl border border-slate-200 object-cover" />}<input name="logo" type="file" accept="image/jpeg,image/png,image/webp" className="rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>
-          <label className="grid gap-1 text-sm font-semibold text-slate-700">Cover image{pharmacy.bannerPath && <img src={pharmacy.bannerPath} alt="Current pharmacy cover" className="h-20 w-full rounded-xl border border-slate-200 object-cover" />}<input name="banner" type="file" accept="image/jpeg,image/png,image/webp" className="rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Pharmacy logo{pharmacy.logoPath && <Image unoptimized src={pharmacy.logoPath} alt="Current pharmacy logo" width={64} height={64} className="h-16 w-16 rounded-xl border border-slate-200 object-cover" />}<input name="logo" type="file" accept="image/jpeg,image/png,image/webp" className="rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-700">Cover image{pharmacy.bannerPath && <Image unoptimized src={pharmacy.bannerPath} alt="Current pharmacy cover" width={800} height={160} className="h-20 w-full rounded-xl border border-slate-200 object-cover" />}<input name="banner" type="file" accept="image/jpeg,image/png,image/webp" className="rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>
           <fieldset className="md:col-span-2"><legend className="text-sm font-semibold text-slate-700">Operating days</legend><div className="mt-2 flex flex-wrap gap-3">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day) => <label key={day} className="flex items-center gap-1.5 text-sm text-slate-600"><input name="operatingDays" type="checkbox" value={day} defaultChecked={pharmacy.operatingDays?.includes(day) ?? ["Mon","Tue","Wed","Thu","Fri","Sat"].includes(day)} />{day}</label>)}</div></fieldset>
           <div className="flex justify-end md:col-span-2"><button disabled={savingProfile} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingProfile ? "Saving..." : "Save pharmacy profile"}</button></div>
         </form>

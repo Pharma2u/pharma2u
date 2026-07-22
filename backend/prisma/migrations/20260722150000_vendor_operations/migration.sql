@@ -1,0 +1,18 @@
+CREATE TABLE "counter_bills" ("id" TEXT NOT NULL, "pharmacyId" TEXT NOT NULL, "billNumber" TEXT NOT NULL, "customerReference" TEXT, "paymentMethod" TEXT NOT NULL, "subtotal" DOUBLE PRECISION NOT NULL, "discount" DOUBLE PRECISION NOT NULL DEFAULT 0, "total" DOUBLE PRECISION NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "counter_bills_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "counter_bills_billNumber_key" ON "counter_bills"("billNumber");
+CREATE INDEX "counter_bills_pharmacyId_createdAt_idx" ON "counter_bills"("pharmacyId", "createdAt");
+ALTER TABLE "counter_bills" ADD CONSTRAINT "counter_bills_pharmacyId_fkey" FOREIGN KEY ("pharmacyId") REFERENCES "pharmacies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "counter_bill_items" ("id" TEXT NOT NULL, "counterBillId" TEXT NOT NULL, "productId" TEXT NOT NULL, "name" TEXT NOT NULL, "qty" INTEGER NOT NULL, "price" DOUBLE PRECISION NOT NULL, CONSTRAINT "counter_bill_items_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "counter_bill_items_counterBillId_idx" ON "counter_bill_items"("counterBillId");
+ALTER TABLE "counter_bill_items" ADD CONSTRAINT "counter_bill_items_counterBillId_fkey" FOREIGN KEY ("counterBillId") REFERENCES "counter_bills"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "counter_bill_items" ADD CONSTRAINT "counter_bill_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE TABLE "vendor_promotions" ("id" TEXT NOT NULL, "pharmacyId" TEXT NOT NULL, "title" TEXT NOT NULL, "code" TEXT NOT NULL, "amountOff" DOUBLE PRECISION NOT NULL, "minimumOrder" DOUBLE PRECISION NOT NULL DEFAULT 0, "startsAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "expiresAt" TIMESTAMP(3), "isActive" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "vendor_promotions_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "vendor_promotions_pharmacyId_code_key" ON "vendor_promotions"("pharmacyId", "code");
+CREATE INDEX "vendor_promotions_pharmacyId_isActive_idx" ON "vendor_promotions"("pharmacyId", "isActive");
+ALTER TABLE "vendor_promotions" ADD CONSTRAINT "vendor_promotions_pharmacyId_fkey" FOREIGN KEY ("pharmacyId") REFERENCES "pharmacies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "payout_requests" ("id" TEXT NOT NULL, "pharmacyId" TEXT NOT NULL, "amount" DOUBLE PRECISION NOT NULL, "note" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'open', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "payout_requests_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "payout_requests_pharmacyId_createdAt_idx" ON "payout_requests"("pharmacyId", "createdAt");
+ALTER TABLE "payout_requests" ADD CONSTRAINT "payout_requests_pharmacyId_fkey" FOREIGN KEY ("pharmacyId") REFERENCES "pharmacies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE TABLE "vendor_settings" ("id" TEXT NOT NULL, "pharmacyId" TEXT NOT NULL, "printerUrl" TEXT, "autoPrint" BOOLEAN NOT NULL DEFAULT true, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "vendor_settings_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "vendor_settings_pharmacyId_key" ON "vendor_settings"("pharmacyId");
+ALTER TABLE "vendor_settings" ADD CONSTRAINT "vendor_settings_pharmacyId_fkey" FOREIGN KEY ("pharmacyId") REFERENCES "pharmacies"("id") ON DELETE CASCADE ON UPDATE CASCADE;

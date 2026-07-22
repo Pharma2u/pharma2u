@@ -59,7 +59,10 @@ function pickupOtpMatches(expected: string | null, supplied: string | null) {
   if (!expected || !supplied || !/^\d{6}$/.test(supplied)) return false;
   const expectedBytes = Buffer.from(expected);
   const suppliedBytes = Buffer.from(supplied);
-  return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
+  return (
+    expectedBytes.length === suppliedBytes.length &&
+    timingSafeEqual(expectedBytes, suppliedBytes)
+  );
 }
 
 function deliveryOtpMatches(expected: string | null, supplied: string | null) {
@@ -314,7 +317,9 @@ export async function vendorOrderQueue(req: Request, res: Response) {
         isPrimaryPharmacy &&
         !order.pickupOtp &&
         ["awaiting_rider", "rider_assigned"].includes(order.status);
-      const pickupOtp = needsLegacyPickupOtp ? createPickupOtp() : order.pickupOtp;
+      const pickupOtp = needsLegacyPickupOtp
+        ? createPickupOtp()
+        : order.pickupOtp;
 
       if (needsLegacyPickupOtp) {
         await prisma.order.update({
@@ -323,8 +328,20 @@ export async function vendorOrderQueue(req: Request, res: Response) {
         });
       }
 
+      const {
+        customer: _customer,
+        dropAddress: _dropAddress,
+        dropLat: _dropLat,
+        dropLng: _dropLng,
+        deliveryInstructions: _deliveryInstructions,
+        prescriptionPath: _prescriptionPath,
+        ...safeOrder
+      } = order;
+
       return {
-        ...order,
+        ...safeOrder,
+        customer: { name: "Customer" },
+        customerMasked: true,
         pickupOtp,
         fulfilmentLeg: isRelayPharmacy ? "relay" : "primary",
         canPackRelay:
@@ -601,10 +618,12 @@ export async function riderMyTasks(req: Request, res: Response) {
   });
 
   res.json({
-    items: items.map(({ deliveryOtp: _deliveryOtp, pickupOtp: _pickupOtp, ...order }) => ({
-      ...order,
-      leg: order.relayRiderId === req.user!.id ? "relay" : "primary",
-    })),
+    items: items.map(
+      ({ deliveryOtp: _deliveryOtp, pickupOtp: _pickupOtp, ...order }) => ({
+        ...order,
+        leg: order.relayRiderId === req.user!.id ? "relay" : "primary",
+      }),
+    ),
   });
 }
 
@@ -714,7 +733,10 @@ export async function updateRiderDelivery(req: Request, res: Response) {
 
   const suppliedDeliveryOtp = optionalText(input.deliveryOtp);
   const suppliedPickupOtp = optionalText(input.pickupOtp);
-  if (nextStatus === "picked_up" && !pickupOtpMatches(order.pickupOtp, suppliedPickupOtp)) {
+  if (
+    nextStatus === "picked_up" &&
+    !pickupOtpMatches(order.pickupOtp, suppliedPickupOtp)
+  ) {
     return void res.status(400).json({
       error: order.pickupOtp
         ? "Enter the 6-digit pickup code provided by the pharmacy."
@@ -751,7 +773,8 @@ export async function updateRiderDelivery(req: Request, res: Response) {
           ? (order.deliveryOtpIssuedAt ?? new Date())
           : undefined,
       pickupOtpVerifiedAt: nextStatus === "picked_up" ? new Date() : undefined,
-      deliveryOtpVerifiedAt: nextStatus === "delivered" ? new Date() : undefined,
+      deliveryOtpVerifiedAt:
+        nextStatus === "delivered" ? new Date() : undefined,
       events: {
         create: {
           status: orderStatus,
