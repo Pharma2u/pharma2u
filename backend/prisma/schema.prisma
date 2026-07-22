@@ -76,6 +76,7 @@ model User {
   passwordHash       String
   address            String? // legacy; use savedAddresses for new data
   mustChangePassword Boolean  @default(false)
+  isActive           Boolean  @default(true)
   applicationStatus  String?
   rejectionReason    String?
   createdAt          DateTime @default(now())
@@ -151,6 +152,91 @@ model CounterBill {
 
   @@index([pharmacyId, createdAt])
   @@map("counter_bills")
+}
+
+model CompanyProfile {
+  id String @id @default("default")
+  name String
+  legalName String
+  phone String
+  email String
+  address String
+  city String
+  state String
+  pincode String
+  gstin String
+  registrationNumber String
+  logoDataUrl String?
+  updatedAt DateTime @updatedAt
+  @@map("company_profiles")
+}
+
+model LedgerEntry {
+  id String @id @default(uuid())
+  reference String @unique
+  description String
+  division String
+  type String
+  amount Float
+  status String @default("pending")
+  entryDate DateTime @default(now())
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([division, entryDate])
+  @@map("ledger_entries")
+}
+
+model AdminAnnouncement {
+  id String @id @default(uuid())
+  title String
+  message String
+  audience String
+  publishedBy String
+  publishedAt DateTime @default(now())
+  @@index([publishedAt])
+  @@map("admin_announcements")
+}
+
+model Employee {
+  id String @id @default(uuid())
+  employeeCode String @unique
+  name String
+  jobRole String
+  department String
+  monthlySalary Float
+  status String @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([department, status])
+  @@map("employees")
+}
+
+model SupportTicket {
+  id String @id @default(uuid())
+  ticketCode String @unique
+  subject String
+  requester String
+  category String
+  priority String @default("medium")
+  status String @default("open")
+  assignedTo String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, priority])
+  @@map("support_tickets")
+}
+
+model PharmacySubscription {
+  id String @id @default(uuid())
+  pharmacyId String @unique
+  plan String @default("Unconfigured")
+  amount Float @default(0)
+  nextBilling DateTime?
+  autopay Boolean @default(false)
+  status String @default("attention")
+  updatedAt DateTime @updatedAt
+  @@map("pharmacy_subscriptions")
 }
 
 model CounterBillItem {

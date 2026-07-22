@@ -1055,3 +1055,11 @@ small {
 .delivery-card { transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
 .delivery-card:hover { transform: translateY(-2px); border-color: #b8d9cd; box-shadow: 0 14px 32px rgb(24 61 49 / 8%); }
 @media (max-width: 680px) { .brand-logo { width: 112px; } .brand-divider { display: none; } .auth-logo { width: 138px; } }
+
+.rider-notifications { position: relative; }
+.rider-notifications summary { position: relative; display: grid; place-items: center; width: 40px; height: 40px; cursor: pointer; list-style: none; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.rider-notifications summary i { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: #e5484d; }
+.rider-notifications > div { position: absolute; right: 0; top: 48px; z-index: 20; width: min(330px, 85vw); max-height: 360px; overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 14px 32px rgba(15, 23, 42, .18); }
+.rider-notifications article { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--line); font-size: .84rem; }
+.rider-notifications article span { color: var(--muted); }
+.rider-notifications article small { font-size: .72rem; }

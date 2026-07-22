@@ -29,8 +29,8 @@ export function OperationsPanel({ token }: { token: string }) {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
+  const loadDashboard = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
 
     try {
@@ -47,15 +47,19 @@ export function OperationsPanel({ token }: { token: string }) {
           : "Unable to load dashboard data.",
       );
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [token]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      void loadDashboard();
-    }, 0);
-    return () => window.clearTimeout(timeout);
+    const initial = window.setTimeout(() => void loadDashboard(), 0);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadDashboard(true);
+    }, 10_000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [loadDashboard]);
 
   async function approve(id: string) {

@@ -30,14 +30,19 @@ export function HomepageBannersPanel({ token }: { token: string }) {
     }
   }, [token]);
   useEffect(() => {
-    const timer = window.setTimeout(() => { void load(); }, 0);
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
   async function uploadImage(file: File) {
     setError("");
     setUploading(true);
     try {
-      const imageUrl = await adminOperations.uploadHomepageBannerImage(token, file);
+      const imageUrl = await adminOperations.uploadHomepageBannerImage(
+        token,
+        file,
+      );
       field("imageUrl", imageUrl);
       setNotice("Image uploaded. Save the banner to publish it.");
     } catch (cause) {
@@ -79,8 +84,10 @@ export function HomepageBannersPanel({ token }: { token: string }) {
       );
     }
   }
-  const field = (key: keyof HomepageBannerInput, value: string | number | boolean) =>
-    setForm((current) => ({ ...current, [key]: value }));
+  const field = (
+    key: keyof HomepageBannerInput,
+    value: string | number | boolean,
+  ) => setForm((current) => ({ ...current, [key]: value }));
   return (
     <section className="space-y-6">
       <div>
@@ -134,18 +141,52 @@ export function HomepageBannersPanel({ token }: { token: string }) {
         />
         <div className="sm:col-span-2 rounded-xl border border-dashed border-slate-300 p-4">
           <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <b>Homepage banner size:</b> full-width hero, shown at approximately 1240 x 420 px on desktop (3:1 ratio).
-            <span className="block mt-1 text-xs text-emerald-800">Upload a landscape image at least 1600 x 540 px for the best result. The image is cropped to fill this wide banner area.</span>
+            <b>Homepage banner size:</b> full-width hero, shown at approximately
+            1240 x 420 px on desktop (3:1 ratio).
+            <span className="block mt-1 text-xs text-emerald-800">
+              Upload a landscape image at least 1600 x 540 px for the best
+              result. The image is cropped to fill this wide banner area.
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            {form.imageUrl ? <img src={form.imageUrl} alt="Banner preview" className="h-28 w-full max-w-[420px] rounded-lg object-cover" /> : <div className="grid h-28 w-full max-w-[420px] place-items-center rounded-lg bg-slate-100 text-xs text-slate-500">No image selected</div>}
+            {form.imageUrl ? (
+              <Image unoptimized width={420} height={112}
+                src={form.imageUrl}
+                alt="Banner preview"
+                className="h-28 w-full max-w-[420px] rounded-lg object-cover"
+              />
+            ) : (
+              <div className="grid h-28 w-full max-w-[420px] place-items-center rounded-lg bg-slate-100 text-xs text-slate-500">
+                No image selected
+              </div>
+            )}
             <label className="cursor-pointer rounded-xl border px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
               {uploading ? "Uploading image..." : "Upload banner image"}
-              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadImage(file); }} className="sr-only" />
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadImage(file);
+                }}
+                className="sr-only"
+              />
             </label>
-            {form.imageUrl && <button type="button" onClick={() => field("imageUrl", "")} className="text-sm font-bold text-red-700">Remove image</button>}
+            {form.imageUrl && (
+              <button
+                type="button"
+                onClick={() => field("imageUrl", "")}
+                className="text-sm font-bold text-red-700"
+              >
+                Remove image
+              </button>
+            )}
           </div>
-          <p className="mt-2 text-xs text-slate-500">Upload JPG, PNG, or WebP up to 5 MB. You can also use the image URL field above.</p>
+          <p className="mt-2 text-xs text-slate-500">
+            Upload JPG, PNG, or WebP up to 5 MB. You can also use the image URL
+            field above.
+          </p>
         </div>
 
         <label className="flex items-center gap-3 text-sm font-medium">
@@ -223,3 +264,4 @@ export function HomepageBannersPanel({ token }: { token: string }) {
     </section>
   );
 }
+import Image from 'next/image';
