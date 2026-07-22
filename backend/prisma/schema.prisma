@@ -131,6 +131,21 @@ model Pharmacy {
   @@map("pharmacies")
 }
 
+
+model HomepageBanner {
+  id        String   @id @default(uuid())
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  linkUrl   String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("homepage_banners")
+}
 model Product {
   id                  String             @id @default(uuid())
   pharmacyId          String

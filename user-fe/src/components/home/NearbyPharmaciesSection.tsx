@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -172,8 +172,8 @@ export default function NearbyPharmaciesSection({
               >
                 <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-[#EAFBF5] to-[#F1EDFF] text-[#6238E4]">
                   {pharmacy.bannerPath ? <img src={pharmacy.bannerPath} alt={`${pharmacy.name} cover`} className="absolute inset-0 h-full w-full object-cover" /> : <Store size={42} strokeWidth={1.7} />}
-                  <span className="absolute left-3 top-3 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#109D70] shadow-sm">
-                    Open
+                  <span className={`absolute left-3 top-3 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold shadow-sm ${pharmacy.isOpen ? "text-[#109D70]" : "text-red-700"}`}>
+                    {pharmacy.isOpen ? "Open" : "Offline"}
                   </span>
                   {pharmacy.deliveryTime !== null && (
                     <span className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg bg-[#242033] px-2.5 py-1.5 text-[10px] font-bold text-white">
@@ -204,7 +204,7 @@ export default function NearbyPharmaciesSection({
           <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-[#DCD6EC] bg-[#FAF9FE] px-6 text-center">
             <MapPin className="mb-3 text-[#6A3EE6]" size={28} />
             <p className="text-sm font-bold text-[#28243A]">
-              No open pharmacies within 10 km
+              No pharmacies within 10 km
             </p>
             <p className="mt-1 text-xs text-[#777386]">
               Try another delivery location or check again later.

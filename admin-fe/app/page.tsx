@@ -11,6 +11,7 @@ import { RiderApplicationsPanel } from "@/components/admin/RiderApplicationsPane
 import { RiderKycOnboardingPanel } from "@/components/admin/RiderKycOnboardingPanel";
 import { PharmacyApplicationsPanel } from "@/components/admin/PharmacyApplicationsPanel";
 import { ProvisioningPanel } from "@/components/admin/ProvisioningPanel";
+import { HomepageBannersPanel } from "@/components/admin/HomepageBannersPanel";
 import {
   changePassword,
   loginAdmin,
@@ -31,7 +32,7 @@ export default function AdminPortal() {
   const { session, hydrated } = usePersistedAdminSession();
   const [error, setError] = useState("");
   const [section, setSection] = useState<
-    "overview" | "pharmacy" | "applications" | "riders" | "rider-onboarding" | "fleet" | "accounts"
+    "overview" | "pharmacy" | "applications" | "riders" | "rider-onboarding" | "fleet" | "accounts" | "banners"
   >("overview");
 
   useEffect(() => {
@@ -141,6 +142,12 @@ export default function AdminPortal() {
           </button>
 
           <button
+            onClick={() => setSection("banners")}
+            className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "banners" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+          >
+            Homepage ads & banners
+          </button>
+          <button
             onClick={() => setSection("pharmacy")}
             className={`mt-1 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold ${section === "pharmacy" ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
           >
@@ -159,6 +166,8 @@ export default function AdminPortal() {
             <PharmacyApplicationsPanel token={session.token} />
           ) : section === "pharmacy" ? (
             <PharmacyOnboardingPanel token={session.token} />
+          ) : section === "banners" ? (
+            <HomepageBannersPanel token={session.token} />
           ) : section === "overview" ? (
             <OperationsPanel token={session.token} />
           ) : (

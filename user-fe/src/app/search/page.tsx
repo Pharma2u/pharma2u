@@ -1,5 +1,6 @@
 import SearchResults from "@/src/components/search/SearchResults";
 import { getPublicProducts } from "@/src/lib/products";
+import { getPublicPharmacies } from "@/src/lib/pharmacy";
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -8,7 +9,7 @@ interface SearchPageProps {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = params.q?.trim() || "";
-  const products = await getPublicProducts();
+  const [products, pharmacies] = await Promise.all([getPublicProducts(), getPublicPharmacies()]);
 
   return (
     <main className="min-h-screen bg-[#F8FBFA]">
@@ -22,7 +23,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             Compare currently available products from registered pharmacies.
           </p>
         </div>
-        <div className="mt-8"><SearchResults query={query} products={products} /></div>
+        <div className="mt-8"><SearchResults query={query} products={products} pharmacies={pharmacies} /></div>
       </div>
     </main>
   );
