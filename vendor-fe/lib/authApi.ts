@@ -272,3 +272,118 @@ export function markVendorOrderPacked(token: string, id: string) {
     method: "POST",
   });
 }
+
+export type VendorFinancialSummary = {
+  onlineRevenue: number;
+  offlineRevenue: number;
+  cashRevenue: number;
+  receivable: number;
+  stockPayable: number;
+  availableBalance: number;
+  heldBalance: number;
+  platformEarnings: number;
+  upcomingPayout: number;
+  pharmacyDiscounts: number;
+  totalRevenue: number;
+};
+
+export type CounterBill = {
+  id: string;
+  billNumber: string;
+  customerReference: string | null;
+  paymentMethod: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  createdAt: string;
+  items: {
+    id: string;
+    productId: string;
+    name: string;
+    qty: number;
+    price: number;
+  }[];
+};
+
+export type VendorPromotion = {
+  id: string;
+  title: string;
+  code: string;
+  amountOff: number;
+  minimumOrder: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
+export type PayoutRequest = {
+  id: string;
+  amount: number;
+  note: string;
+  status: string;
+  createdAt: string;
+};
+export type VendorSettings = {
+  pharmacyId: string;
+  printerUrl: string | null;
+  autoPrint: boolean;
+};
+
+export function getVendorFinancialSummary(token: string) {
+  return request<VendorFinancialSummary>("/vendor/operations/summary", token);
+}
+export function createCounterBill(
+  token: string,
+  data: {
+    customerReference?: string;
+    paymentMethod: string;
+    discount: number;
+    items: { productId: string; qty: number }[];
+  },
+) {
+  return request<CounterBill>("/vendor/counter-bills", token, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function listVendorPromotions(token: string) {
+  return request<{ items: VendorPromotion[] }>("/vendor/promotions", token);
+}
+export function createVendorPromotion(
+  token: string,
+  data: {
+    title: string;
+    code: string;
+    amountOff: number;
+    minimumOrder: number;
+    expiresAt?: string;
+  },
+) {
+  return request<VendorPromotion>("/vendor/promotions", token, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function listPayoutRequests(token: string) {
+  return request<{ items: PayoutRequest[] }>("/vendor/payout-requests", token);
+}
+export function createPayoutRequest(
+  token: string,
+  data: { amount: number; note: string },
+) {
+  return request<PayoutRequest>("/vendor/payout-requests", token, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export function getVendorSettings(token: string) {
+  return request<VendorSettings>("/vendor/settings", token);
+}
+export function updateVendorSettings(
+  token: string,
+  data: { printerUrl: string; autoPrint: boolean },
+) {
+  return request<VendorSettings>("/vendor/settings", token, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}

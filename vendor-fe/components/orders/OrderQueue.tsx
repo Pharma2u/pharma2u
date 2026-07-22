@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   listVendorOrders,
   markVendorOrderPacked,
@@ -38,7 +38,7 @@ export function OrderQueue({ token }: { token: string }) {
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  async function loadOrders() {
+  const loadOrders = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -51,7 +51,7 @@ export function OrderQueue({ token }: { token: string }) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [token]);
 
   useEffect(() => {
     let active = true;
@@ -76,7 +76,7 @@ export function OrderQueue({ token }: { token: string }) {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [token]);
+  }, [token, loadOrders]);
 
   async function runOrderAction(orderId: string, action: OrderAction) {
     setBusyOrderId(orderId);
@@ -152,7 +152,7 @@ export function OrderQueue({ token }: { token: string }) {
                   <div>
                     <p className="font-bold">{order.orderCode}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {order.customer.name} - INR {order.total}
+                      Customer details protected - INR {order.total}
                     </p>
                     <p className="mt-2 text-sm">{orderItemsLabel(order)}</p>
                     {order.rider && (
@@ -190,7 +190,7 @@ export function OrderQueue({ token }: { token: string }) {
                       <span
                         className={`rounded-full px-2.5 py-1 ${order.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-700" : order.paymentStatus === "failed" ? "bg-red-50 text-red-700" : order.paymentStatus === "refunded" ? "bg-violet-50 text-violet-700" : "bg-amber-50 text-amber-700"}`}
                       >
-                        {order.paymentMethod.toUpperCase()} ·{" "}
+                        {order.paymentMethod.toUpperCase()} Â·{" "}
                         {order.paymentStatus}
                       </span>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
@@ -200,7 +200,7 @@ export function OrderQueue({ token }: { token: string }) {
                         <span
                           className={`rounded-full px-2.5 py-1 ${order.refund.status === "completed" ? "bg-violet-50 text-violet-700" : order.refund.status === "failed" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}
                         >
-                          Refund {order.refund.status} · INR{" "}
+                          Refund {order.refund.status} Â· INR{" "}
                           {order.refund.amount}
                         </span>
                       )}

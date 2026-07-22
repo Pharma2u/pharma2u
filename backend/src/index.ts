@@ -10,6 +10,7 @@ import pharmacyRoutes from "./routes/pharmacy.routes";
 import riderRoutes from "./routes/rider.routes";
 import productRoutes from "./routes/product.routes";
 import orderRoutes from "./routes/order.routes";
+import vendorOperationsRoutes from "./routes/vendor-operations.routes";
 import addressRoutes from "./routes/address.routes";
 import pharmacyApplicationRoutes from "./routes/pharmacy-application.routes";
 import { razorpayWebhook } from "./controllers/order.controller";
@@ -47,6 +48,7 @@ app.use("/api", pharmacyRoutes);
 app.use("/api", riderRoutes);
 app.use("/api", productRoutes);
 app.use("/api", orderRoutes);
+app.use("/api", vendorOperationsRoutes);
 app.use("/api", addressRoutes);
 app.use("/api", pharmacyApplicationRoutes);
 

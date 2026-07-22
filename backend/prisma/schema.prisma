@@ -126,12 +126,88 @@ model Pharmacy {
   orders                  Order[]                               @relation("PrimaryPharmacyOrders")
   relayOrders             Order[]                               @relation("RelayPharmacyOrders")
   createdAt               DateTime                              @default(now())
+  counterBills            CounterBill[]
+  promotions              VendorPromotion[]
+  payoutRequests          PayoutRequest[]
+  vendorSettings          VendorSettings?
 
   @@index([vendorUserId])
   @@map("pharmacies")
 }
 
 
+model CounterBill {
+  id                String            @id @default(uuid())
+  pharmacyId        String
+  pharmacy          Pharmacy          @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  billNumber        String            @unique
+  customerReference String?
+  paymentMethod     String
+  subtotal          Float
+  discount          Float             @default(0)
+  total             Float
+  createdAt         DateTime          @default(now())
+  items             CounterBillItem[]
+
+  @@index([pharmacyId, createdAt])
+  @@map("counter_bills")
+}
+
+model CounterBillItem {
+  id            String      @id @default(uuid())
+  counterBillId String
+  counterBill   CounterBill @relation(fields: [counterBillId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  name          String
+  qty           Int
+  price         Float
+
+  @@index([counterBillId])
+  @@map("counter_bill_items")
+}
+
+model VendorPromotion {
+  id           String   @id @default(uuid())
+  pharmacyId   String
+  pharmacy     Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  title        String
+  code         String
+  amountOff    Float
+  minimumOrder Float     @default(0)
+  startsAt     DateTime  @default(now())
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  @@unique([pharmacyId, code])
+  @@index([pharmacyId, isActive])
+  @@map("vendor_promotions")
+}
+
+model PayoutRequest {
+  id         String   @id @default(uuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  amount     Float
+  note       String
+  status     String   @default("open")
+  createdAt  DateTime @default(now())
+
+  @@index([pharmacyId, createdAt])
+  @@map("payout_requests")
+}
+
+model VendorSettings {
+  id         String   @id @default(uuid())
+  pharmacyId String   @unique
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  printerUrl String?
+  autoPrint  Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+
+  @@map("vendor_settings")
+}
 model HomepageBanner {
   id        String   @id @default(uuid())
   title     String
@@ -173,6 +249,7 @@ model Product {
   stockReservations   StockReservation[]
   images              ProductImage[]
   reviews             ProductReview[]
+  counterBillItems    CounterBillItem[]
 
   @@index([pharmacyId, genericName])
   @@map("products")
