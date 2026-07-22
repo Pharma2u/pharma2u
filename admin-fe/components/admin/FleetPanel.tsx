@@ -31,9 +31,12 @@ export function FleetPanel({ token }: { token: string }) {
   }, [token]);
 
   useEffect(() => {
-    void loadFleet();
+    const initialLoadId = window.setTimeout(loadFleet, 0);
     const intervalId = window.setInterval(loadFleet, 15_000);
-    return () => window.clearInterval(intervalId);
+    return () => {
+      window.clearTimeout(initialLoadId);
+      window.clearInterval(intervalId);
+    };
   }, [loadFleet]);
 
   const online = riders.filter(

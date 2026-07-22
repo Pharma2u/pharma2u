@@ -41,7 +41,8 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
   }, [token]);
 
   useEffect(() => {
-    void load();
+    const initialLoadId = window.setTimeout(load, 0);
+    return () => window.clearTimeout(initialLoadId);
   }, [load]);
 
   async function approve(id: string) {

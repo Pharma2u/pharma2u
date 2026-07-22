@@ -3,8 +3,9 @@
 import { Menu } from "lucide-react";
 import Image from "next/image";
 import { vendorStyles as styles } from "./vendorStyles";
+import { VendorNotifications } from "./VendorNotifications";
 
-export function VendorHeader({ name, onSignOut, onMenuOpen }: { name: string; onSignOut: () => void; onMenuOpen: () => void }) {
+export function VendorHeader({ name, token, onSignOut, onMenuOpen }: { name: string; token: string; onSignOut: () => void; onMenuOpen: () => void }) {
   return (
     <header className={styles.header}>
       <div className={styles.headerInner}>
@@ -14,7 +15,7 @@ export function VendorHeader({ name, onSignOut, onMenuOpen }: { name: string; on
           <div className={styles.brandCopy}><p className={styles.kicker}>Vendor portal</p><strong>Pharmacy workspace</strong></div>
         </div>
         <div className={styles.account}>
-          <span className={styles.accountName}>{name}</span>
+          <VendorNotifications token={token} /><span className={styles.accountName}>{name}</span>
           <button type="button" onClick={onSignOut} className={styles.secondaryButton}>Sign out</button>
         </div>
       </div>

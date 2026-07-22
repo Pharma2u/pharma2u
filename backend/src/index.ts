@@ -13,6 +13,8 @@ import orderRoutes from "./routes/order.routes";
 import vendorOperationsRoutes from "./routes/vendor-operations.routes";
 import addressRoutes from "./routes/address.routes";
 import pharmacyApplicationRoutes from "./routes/pharmacy-application.routes";
+import adminWorkspaceRoutes from "./routes/admin-workspace.routes";
+import notificationRoutes from "./routes/notification.routes";
 import { razorpayWebhook } from "./controllers/order.controller";
 import { assertJwtSecret } from "./utils/jwt";
 import { ValidationError } from "./validators/auth.validator";
@@ -51,6 +53,8 @@ app.use("/api", orderRoutes);
 app.use("/api", vendorOperationsRoutes);
 app.use("/api", addressRoutes);
 app.use("/api", pharmacyApplicationRoutes);
+app.use("/api", adminWorkspaceRoutes);
+app.use("/api", notificationRoutes);
 
 app.use(
   (

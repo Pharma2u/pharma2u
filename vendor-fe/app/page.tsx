@@ -49,7 +49,7 @@ function AuthenticatedPortal({ token, name, workspace, onWorkspaceChange, onSign
   const inventoryWorkspace = workspace === "products" || workspace === "add-product" || workspace === "pharmacy";
 
   return <main className={styles.shell}>
-    <VendorHeader name={name} onSignOut={onSignOut} onMenuOpen={() => setNavigationOpen(true)} />
+    <VendorHeader name={name} token={token} onSignOut={onSignOut} onMenuOpen={() => setNavigationOpen(true)} />
     {navigationOpen && <button type="button" className="fixed inset-0 z-40 bg-slate-950/35 min-[921px]:hidden" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
     <div className={styles.layout}>
       <VendorSidebar active={workspace} onChange={onWorkspaceChange} open={navigationOpen} onClose={() => setNavigationOpen(false)} />

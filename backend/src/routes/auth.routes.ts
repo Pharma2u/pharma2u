@@ -6,6 +6,7 @@ import {
   login,
   me,
   provisionAdmin,
+  provisionStaff,
   register,
 } from "../controllers/auth.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -14,14 +15,15 @@ import { requirePasswordChanged } from "../middleware/requirePasswordChanged.mid
 const router = Router();
 const credentialLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 5,
+  limit: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many attempts. Please retry after one minute." },
 });
+
 const provisioningLimiter = rateLimit({
   windowMs: 15 * 60_000,
-  limit: 10,
+  limit: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many provisioning attempts. Please retry later." },
@@ -33,6 +35,13 @@ router.post("/change-password", authMiddleware(), changePassword);
 router.get("/me", authMiddleware(), me);
 
 
+router.post(
+  "/admin/provision-staff",
+  provisioningLimiter,
+  authMiddleware("admin"),
+  requirePasswordChanged,
+  provisionStaff,
+);
 router.post(
   "/admin/provision-admin",
   provisioningLimiter,

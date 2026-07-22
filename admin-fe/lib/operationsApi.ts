@@ -49,13 +49,22 @@ async function api<T>(path: string, token: string, init: RequestInit = {}) {
 }
 export const adminOperations = {
   uploadHomepageBannerImage: async (t: string, image: File) => {
-    const form = new FormData(); form.append("image", image);
-    const r = await fetch(base + "/admin/homepage-banners/image", { method: "POST", headers: { Authorization: `Bearer ${t}` }, body: form });
-    const d = (await r.json().catch(() => ({}))) as { imageUrl?: string } & Failure;
+    const form = new FormData();
+    form.append("image", image);
+    const r = await fetch(base + "/admin/homepage-banners/image", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${t}` },
+      body: form,
+    });
+    const d = (await r.json().catch(() => ({}))) as {
+      imageUrl?: string;
+    } & Failure;
     if (r.status === 401) notifyAdminSessionExpired();
-    if (!r.ok || !d.imageUrl) throw new Error(d.error ?? d.message ?? "Image upload failed.");
+    if (!r.ok || !d.imageUrl)
+      throw new Error(d.error ?? d.message ?? "Image upload failed.");
     return d.imageUrl;
-  },  homepageBanners: (t: string) =>
+  },
+  homepageBanners: (t: string) =>
     api<{ items: (HomepageBannerInput & { id: string })[] }>(
       "/admin/homepage-banners",
       t,

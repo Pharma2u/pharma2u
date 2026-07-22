@@ -23,10 +23,14 @@ export function authMiddleware(...allowedRoles: Role[]) {
 
       const currentUser = await prisma.user.findUnique({
         where: { id: payload.userId },
-        select: { role: true },
+        select: { role: true, isActive: true },
       });
       if (!currentUser) {
         response.status(401).json({ message: "Account no longer exists." });
+        return;
+      }
+      if (!currentUser.isActive) {
+        response.status(403).json({ message: "This account has been revoked." });
         return;
       }
       if (allowedRoles.length && !allowedRoles.includes(currentUser.role)) {

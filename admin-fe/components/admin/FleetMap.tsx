@@ -52,10 +52,11 @@ export function FleetMap({ riders }: { riders: FleetMapRider[] }) {
     });
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
     map.current = instance;
+    const currentMarkers = markers.current;
 
     return () => {
-      markers.current.forEach((marker) => marker.remove());
-      markers.current.clear();
+      currentMarkers.forEach((marker) => marker.remove());
+      currentMarkers.clear();
       instance.remove();
       map.current = null;
     };

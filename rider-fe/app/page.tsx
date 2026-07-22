@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ApplicationForm } from "@/components/auth/ApplicationForm";
 import { PasswordInput } from "@/components/auth/PasswordInput";
@@ -11,6 +11,51 @@ import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedRiderSession } from "@/store/usePersistedSession";
 
+type Notice = {
+  id: string;
+  title: string;
+  message: string;
+  publishedAt: string;
+};
+function RiderNotifications({ token }: { token: string }) {
+  const [items, setItems] = useState<Notice[]>([]);
+  useEffect(() => {
+    const load = async () => {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/notifications`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (response.ok) setItems((await response.json()).items ?? []);
+    };
+    void load();
+    const id = window.setInterval(() => void load(), 30_000);
+    return () => window.clearInterval(id);
+  }, [token]);
+  return (
+    <details className="rider-notifications">
+      <summary aria-label="Notifications">
+        <span aria-hidden="true">🔔</span>
+        {items.length > 0 && <i />}
+      </summary>
+      <div>
+        <b>Admin notifications</b>
+        {items.length ? (
+          items.map((item) => (
+            <article key={item.id}>
+              <strong>{item.title}</strong>
+              <span>{item.message}</span>
+              <small>
+                {new Date(item.publishedAt).toLocaleDateString("en-IN")}
+              </small>
+            </article>
+          ))
+        ) : (
+          <p>No notifications yet.</p>
+        )}
+      </div>
+    </details>
+  );
+}
 export default function RiderPortal() {
   const dispatch = useAppDispatch();
   const { session, hydrated } = usePersistedRiderSession();
@@ -97,10 +142,21 @@ export default function RiderPortal() {
       <main className="shell dashboard-shell">
         <nav className="dashboard-topbar" aria-label="Rider account">
           <div className="dashboard-brandmark">
-            <Image src="/images/logo/logo.png" alt="Pharma2U" width={132} height={44} className="brand-logo" priority />
-            <div className="brand-divider"><strong>Rider partner</strong><small>Delivery operations</small></div>
+            <Image
+              src="/images/logo/logo.png"
+              alt="Pharma2U"
+              width={132}
+              height={44}
+              className="brand-logo"
+              priority
+            />
+            <div className="brand-divider">
+              <strong>Rider partner</strong>
+              <small>Delivery operations</small>
+            </div>
           </div>
           <div className="rider-account">
+            <RiderNotifications token={session.token} />
             <span className="rider-avatar">{initials}</span>
             <div>
               <strong>{session.name}</strong>
@@ -133,7 +189,14 @@ export default function RiderPortal() {
     <main className="shell auth-shell">
       <header className="auth-hero">
         <div>
-          <Image src="/images/logo/logo.png" alt="Pharma2U" width={160} height={54} className="auth-logo" priority />
+          <Image
+            src="/images/logo/logo.png"
+            alt="Pharma2U"
+            width={160}
+            height={54}
+            className="auth-logo"
+            priority
+          />
           <h1>Deliver care, faster.</h1>
           <p className="muted">
             Apply to join our rider network or sign in to your approved account.
