@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
@@ -91,7 +91,7 @@ export default async function PharmacyPage({
             <span className="flex items-center gap-3 font-semibold text-[#262238]">
               <Clock3 className="text-[#6238E4]" size={19} />
               {pharmacy.openingTime && pharmacy.closingTime
-                ? `${pharmacy.openingTime} – ${pharmacy.closingTime}`
+                ? `${pharmacy.openingTime} â€“ ${pharmacy.closingTime}`
                 : "Store hours not provided"}
             </span>
           </div>
@@ -147,7 +147,7 @@ export default async function PharmacyPage({
               No products are currently available
             </h2>
             <p className="mt-1 text-xs text-[#777386]">
-              This pharmacy's live catalogue will appear when stock is added.
+              This pharmacy&apos;s live catalogue will appear when stock is added.
             </p>
           </div>
         )}

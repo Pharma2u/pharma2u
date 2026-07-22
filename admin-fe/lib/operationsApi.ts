@@ -12,6 +12,14 @@ export type PharmacyApplication = {
   drugLicenseUrl: string;
   pharmacistLicenseUrl: string;
 };
+export type HomepageBannerInput = {
+  title: string;
+  subtitle: string | null;
+  imageUrl: string | null;
+  linkUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+};
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 type Failure = { error?: string; message?: string };
 export type PharmacyOnboardingInput = {
@@ -40,6 +48,31 @@ async function api<T>(path: string, token: string, init: RequestInit = {}) {
   return d;
 }
 export const adminOperations = {
+  uploadHomepageBannerImage: async (t: string, image: File) => {
+    const form = new FormData(); form.append("image", image);
+    const r = await fetch(base + "/admin/homepage-banners/image", { method: "POST", headers: { Authorization: `Bearer ${t}` }, body: form });
+    const d = (await r.json().catch(() => ({}))) as { imageUrl?: string } & Failure;
+    if (r.status === 401) notifyAdminSessionExpired();
+    if (!r.ok || !d.imageUrl) throw new Error(d.error ?? d.message ?? "Image upload failed.");
+    return d.imageUrl;
+  },  homepageBanners: (t: string) =>
+    api<{ items: (HomepageBannerInput & { id: string })[] }>(
+      "/admin/homepage-banners",
+      t,
+    ),
+  createHomepageBanner: (t: string, input: HomepageBannerInput) =>
+    api<HomepageBannerInput & { id: string }>("/admin/homepage-banners", t, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateHomepageBanner: (t: string, id: string, input: HomepageBannerInput) =>
+    api<HomepageBannerInput & { id: string }>(
+      `/admin/homepage-banners/${id}`,
+      t,
+      { method: "PATCH", body: JSON.stringify(input) },
+    ),
+  deleteHomepageBanner: (t: string, id: string) =>
+    api<void>(`/admin/homepage-banners/${id}`, t, { method: "DELETE" }),
   createPharmacy: (t: string, input: PharmacyOnboardingInput) =>
     api<{ pharmacyId: string; vendorPhone: string; temporaryPassword: string }>(
       "/admin/pharmacies",

@@ -1,16 +1,14 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import {
   ArrowRight,
-  Clock3,
   FileUp,
   PackageSearch,
-  Search,
-  ShieldCheck,
-  Truck,
 } from "lucide-react";
 import ProductCard from "@/src/components/medicine/ProductCard";
 import NearbyPharmaciesSection from "@/src/components/home/NearbyPharmaciesSection";
 import { getPublicProducts } from "@/src/lib/products";
+import { getHomepageBanners } from "@/src/lib/homepageBanners";
+import HomepageBannerCarousel from "@/src/components/home/HomepageBannerCarousel";
 import type { Product } from "@/src/data/products";
 
 const categoryLabel = (value: string) =>
@@ -65,7 +63,7 @@ function ProductShelf({
 }
 
 export default async function LandingPage() {
-  const products = await getPublicProducts();
+  const [products, banners] = await Promise.all([getPublicProducts(), getHomepageBanners()]);
 
   const categories = Array.from(
     new Set(products.map((product) => product.category).filter(Boolean)),
@@ -78,59 +76,7 @@ export default async function LandingPage() {
   return (
     <main className="bg-white text-[#201C35]">
       <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6">
-        <section className="relative mt-4 grid overflow-hidden rounded-3xl bg-gradient-to-br from-[#EFE9FF] via-[#F8F6FF] to-[#E8FFF6] lg:grid-cols-[1.08fr_.92fr]">
-          <div className="relative z-10 px-5 py-9 sm:px-10 sm:py-12 lg:px-14">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#E2D9FA] bg-white px-3 py-2 text-xs font-extrabold text-[#5932D5]">
-              <Clock3 size={16} /> Fast delivery from local pharmacies
-            </span>
-            <h1 className="mt-5 text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-5xl">
-              Your pharmacy,
-              <br />
-              <span className="text-[#6238E4]">delivered fast.</span>
-            </h1>
-            <p className="mt-4 max-w-lg text-sm leading-6 text-[#6D697B]">
-              Search live inventory from verified pharmacies and order what is
-              available right now.
-            </p>
-            <form
-              action="/search"
-              className="mt-6 flex h-14 max-w-xl items-center rounded-2xl border border-[#DDD6EA] bg-white pl-4 shadow-[0_10px_30px_rgba(74,49,145,0.08)]"
-            >
-              <Search size={19} className="shrink-0 text-[#673DE3]" />
-              <input
-                name="q"
-                placeholder="Search medicines, products and brands"
-                className="min-w-0 flex-1 bg-transparent px-3 text-sm"
-              />
-              <button className="mr-1.5 h-11 rounded-xl bg-[#6238E4] px-4 text-xs font-bold text-white sm:px-6">
-                Search
-              </button>
-            </form>
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#5F5A6C]">
-              <Link href="/prescriptions" className="flex items-center gap-1.5">
-                <FileUp size={15} className="text-[#6238E4]" /> Upload prescription
-              </Link>
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck size={15} className="text-[#159D79]" /> Genuine stock
-              </span>
-            </div>
-          </div>
-          <div className="relative hidden min-h-[350px] items-center justify-center lg:flex">
-            <div className="grid h-56 w-56 place-items-center rounded-full bg-white/70 text-8xl shadow-[0_30px_70px_rgba(57,35,121,0.14)]">
-              🛍️
-            </div>
-            <div className="absolute left-8 top-14 flex items-center gap-3 rounded-2xl border border-white bg-white px-4 py-3 shadow-xl">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#E7FAF3] text-[#119A70]">
-                <Truck size={20} />
-              </span>
-              <div className="flex flex-col">
-                <small className="text-[9px] text-[#777386]">Live inventory</small>
-                <b className="text-xs">{products.length} products available</b>
-              </div>
-            </div>
-          </div>
-        </section>
-
+        <HomepageBannerCarousel banners={banners} />
         <section className="mt-10">
           <div className="mb-5 flex items-end justify-between">
             <div>
@@ -210,7 +156,7 @@ export default async function LandingPage() {
         <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-4 text-xs text-[#777386] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div><b className="text-lg text-[#6238E4]">Pharma2U</b><p>Medicines delivered from real local inventory.</p></div>
           <div className="flex flex-wrap gap-5"><Link href="/pharmacies">Pharmacies</Link><Link href="/orders">Orders</Link><Link href="/prescriptions">Prescriptions</Link><Link href="/profile">Account</Link></div>
-          <p>© 2026 Pharma2U</p>
+          <p>Ã‚Â© 2026 Pharma2U</p>
         </div>
       </footer>
     </main>

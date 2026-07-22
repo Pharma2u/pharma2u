@@ -1,4 +1,4 @@
-// Implements admin pharmacy onboarding and vendor pharmacy retrieval.
+﻿// Implements admin pharmacy onboarding and vendor pharmacy retrieval.
 import bcrypt from "bcrypt";
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma/client";
