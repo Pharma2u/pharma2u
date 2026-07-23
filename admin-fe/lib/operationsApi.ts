@@ -149,6 +149,9 @@ export const adminOperations = {
           aadharImageUrl: string;
           panImageUrl: string;
           dlImageUrl: string;
+          identityStatus: string;
+          licenceStatus: string;
+          logisticsStatus: string;
         };
       }[];
     }>("/admin/riders/pending", t),
@@ -162,5 +165,10 @@ export const adminOperations = {
     api(`/admin/riders/${id}/reject`, t, {
       method: "POST",
       body: JSON.stringify({ reason }),
+    }),
+  reviewRiderChannel: (t: string, id: string, channel: "identity" | "licence" | "logistics", status: "approved" | "rejected", reason = "") =>
+    api(`/admin/riders/${id}/review-channel`, t, {
+      method: "POST",
+      body: JSON.stringify({ channel, status, reason }),
     }),
 };

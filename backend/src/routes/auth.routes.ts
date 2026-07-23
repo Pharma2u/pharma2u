@@ -11,6 +11,10 @@ import {
 } from "../controllers/auth.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requirePasswordChanged } from "../middleware/requirePasswordChanged.middleware";
+import {
+  requestRiderOtp,
+  verifyRiderOtp,
+} from "../controllers/rider-auth.controller";
 
 const router = Router();
 const credentialLimiter = rateLimit({
@@ -31,9 +35,10 @@ const provisioningLimiter = rateLimit({
 
 router.post("/register", credentialLimiter, register);
 router.post("/login", credentialLimiter, login);
+router.post("/rider/request-otp", credentialLimiter, requestRiderOtp);
+router.post("/rider/verify-otp", credentialLimiter, verifyRiderOtp);
 router.post("/change-password", authMiddleware(), changePassword);
 router.get("/me", authMiddleware(), me);
-
 
 router.post(
   "/admin/provision-staff",

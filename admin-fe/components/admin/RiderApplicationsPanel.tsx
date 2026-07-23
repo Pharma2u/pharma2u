@@ -16,6 +16,9 @@ type Rider = {
     aadharImageUrl: string;
     panImageUrl: string;
     dlImageUrl: string;
+    identityStatus: string;
+    licenceStatus: string;
+    logisticsStatus: string;
   };
 };
 
@@ -36,7 +39,11 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
         result.items.some((rider) => rider.id === current) ? current : null,
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to load rider applications.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to load rider applications.",
+      );
     }
   }, [token]);
 
@@ -49,10 +56,14 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
     setBusy(id);
     try {
       const rider = await adminOperations.approve(token, id);
-      setNotice(`Rider approved. Phone: ${rider.phone}. Temporary password: ${rider.temporaryPassword}`);
+      setNotice(
+        `Rider approved. Phone: ${rider.phone}. Temporary password: ${rider.temporaryPassword}`,
+      );
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to approve rider.");
+      setError(
+        caught instanceof Error ? caught.message : "Unable to approve rider.",
+      );
     } finally {
       setBusy("");
     }
@@ -70,7 +81,32 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
       setNotice("Rider application rejected.");
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to reject rider.");
+      setError(
+        caught instanceof Error ? caught.message : "Unable to reject rider.",
+      );
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function approveChannel(
+    id: string,
+    channel: "identity" | "licence" | "logistics",
+  ) {
+    setBusy(`${id}-${channel}`);
+    setError("");
+    try {
+      await adminOperations.reviewRiderChannel(token, id, channel, "approved");
+      setNotice(
+        `${channel[0].toUpperCase() + channel.slice(1)} channel approved.`,
+      );
+      await load();
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to update verification channel.",
+      );
     } finally {
       setBusy("");
     }
@@ -82,27 +118,53 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
         <div>
           <p className="text-sm font-bold text-emerald-600">COMPLIANCE QUEUE</p>
           <h2 className="mt-2 text-2xl font-bold">Rider applications</h2>
-          <p className="mt-2 text-sm text-slate-500">Open an application to review the rider, vehicle, and KYC documents before making a decision.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Open an application to review the rider, vehicle, and KYC documents
+            before making a decision.
+          </p>
         </div>
-        <button onClick={() => void load()} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Refresh</button>
+        <button
+          onClick={() => void load()}
+          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold"
+        >
+          Refresh
+        </button>
       </div>
 
-      {(error || notice) && <p className={`rounded-xl p-4 text-sm ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>{error || notice}</p>}
-      {items.length === 0 && <p className="rounded-2xl bg-white p-6 text-sm text-slate-500">No pending rider applications.</p>}
+      {(error || notice) && (
+        <p
+          className={`rounded-xl p-4 text-sm ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}
+        >
+          {error || notice}
+        </p>
+      )}
+      {items.length === 0 && (
+        <p className="rounded-2xl bg-white p-6 text-sm text-slate-500">
+          No pending rider applications.
+        </p>
+      )}
 
       <div className="space-y-3">
         {items.map((rider) => {
           const isOpen = selectedId === rider.id;
           return (
-            <article key={rider.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <article
+              key={rider.id}
+              className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-bold">{rider.name}</h3>
                   <p className="mt-1 text-sm text-slate-500">{rider.phone}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Pending review</span>
-                  <button onClick={() => setSelectedId(isOpen ? null : rider.id)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                    Pending review
+                  </span>
+                  <button
+                    onClick={() => setSelectedId(isOpen ? null : rider.id)}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                  >
                     {isOpen ? "Hide details" : "View application"}
                   </button>
                 </div>
@@ -110,27 +172,132 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
 
               {isOpen && (
                 <div className="mt-6 border-t border-slate-100 pt-6">
-                  {rider.kyc ? <>
-                    <dl className="grid gap-4 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                      <Detail label="Aadhaar number" value={rider.kyc.aadharNumber} />
-                      <Detail label="PAN number" value={rider.kyc.panNumber} />
-                      <Detail label="Driving licence" value={rider.kyc.drivingLicenseNumber} />
-                      <Detail label="Vehicle type" value={rider.kyc.vehicleType} />
-                      <Detail label="Vehicle number" value={rider.kyc.vehicleNumber} />
-                    </dl>
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold text-emerald-700">
-                      <a target="_blank" rel="noreferrer" href={rider.kyc.aadharImageUrl}>View Aadhaar</a>
-                      <a target="_blank" rel="noreferrer" href={rider.kyc.panImageUrl}>View PAN</a>
-                      <a target="_blank" rel="noreferrer" href={rider.kyc.dlImageUrl}>View driving licence</a>
-                    </div>
-                  </> : <p className="text-sm text-red-700">KYC details are missing.</p>}
+                  {rider.kyc ? (
+                    <>
+                      <dl className="grid gap-4 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                        <Detail
+                          label="Aadhaar number"
+                          value={rider.kyc.aadharNumber}
+                        />
+                        <Detail
+                          label="PAN number"
+                          value={rider.kyc.panNumber}
+                        />
+                        <Detail
+                          label="Driving licence"
+                          value={rider.kyc.drivingLicenseNumber}
+                        />
+                        <Detail
+                          label="Vehicle type"
+                          value={rider.kyc.vehicleType}
+                        />
+                        <Detail
+                          label="Vehicle number"
+                          value={rider.kyc.vehicleNumber}
+                        />
+                      </dl>
+                      <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold text-emerald-700">
+                        <a
+                          target="_blank"
+                          rel="noreferrer"
+                          href={rider.kyc.aadharImageUrl}
+                        >
+                          View Aadhaar
+                        </a>
+                        <a
+                          target="_blank"
+                          rel="noreferrer"
+                          href={rider.kyc.panImageUrl}
+                        >
+                          View PAN
+                        </a>
+                        <a
+                          target="_blank"
+                          rel="noreferrer"
+                          href={rider.kyc.dlImageUrl}
+                        >
+                          View driving licence
+                        </a>
+                      </div>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        {(["identity", "licence", "logistics"] as const).map(
+                          (channel) => {
+                            const status = rider.kyc![`${channel}Status`];
+                            return (
+                              <div
+                                key={channel}
+                                className="rounded-2xl border border-slate-200 p-3"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <strong className="text-xs capitalize text-slate-700">
+                                    {channel} review
+                                  </strong>
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${status === "approved" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                                  >
+                                    {status}
+                                  </span>
+                                </div>
+                                {status !== "approved" && (
+                                  <button
+                                    disabled={busy === `${rider.id}-${channel}`}
+                                    onClick={() =>
+                                      void approveChannel(rider.id, channel)
+                                    }
+                                    className="mt-3 w-full rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                                  >
+                                    Approve channel
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          },
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-red-700">
+                      KYC details are missing.
+                    </p>
+                  )}
 
-                  <label className="mt-5 block text-sm font-medium">Rejection reason <span className="text-red-600">*</span>
-                    <textarea value={reasons[rider.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [rider.id]: event.target.value }))} className="mt-2 min-h-20 w-full rounded-xl border p-3" placeholder="Required only when rejecting" />
+                  <label className="mt-5 block text-sm font-medium">
+                    Rejection reason <span className="text-red-600">*</span>
+                    <textarea
+                      value={reasons[rider.id] ?? ""}
+                      onChange={(event) =>
+                        setReasons((current) => ({
+                          ...current,
+                          [rider.id]: event.target.value,
+                        }))
+                      }
+                      className="mt-2 min-h-20 w-full rounded-xl border p-3"
+                      placeholder="Required only when rejecting"
+                    />
                   </label>
                   <div className="mt-4 flex gap-3">
-                    <button disabled={busy === rider.id} onClick={() => void approve(rider.id)} className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-slate-950 disabled:opacity-60">Approve</button>
-                    <button disabled={busy === rider.id} onClick={() => void reject(rider.id)} className="rounded-xl border border-red-200 px-4 py-2 font-semibold text-red-700 disabled:opacity-60">Reject</button>
+                    <button
+                      disabled={
+                        busy === rider.id ||
+                        !rider.kyc ||
+                        [
+                          rider.kyc.identityStatus,
+                          rider.kyc.licenceStatus,
+                          rider.kyc.logisticsStatus,
+                        ].some((status) => status !== "approved")
+                      }
+                      onClick={() => void approve(rider.id)}
+                      className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-slate-950 disabled:opacity-40"
+                    >
+                      Create rider account
+                    </button>
+                    <button
+                      disabled={busy === rider.id}
+                      onClick={() => void reject(rider.id)}
+                      className="rounded-xl border border-red-200 px-4 py-2 font-semibold text-red-700 disabled:opacity-60"
+                    >
+                      Reject
+                    </button>
                   </div>
                 </div>
               )}
@@ -143,5 +310,12 @@ export function RiderApplicationsPanel({ token }: { token: string }) {
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <div><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 font-semibold text-slate-900">{value}</dd></div>;
+  return (
+    <div>
+      <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1 font-semibold text-slate-900">{value}</dd>
+    </div>
+  );
 }

@@ -128,7 +128,11 @@ export type CustomerOrder = {
   paymentMethod: "upi" | "card" | "cod";
   createdAt: string;
   estimatedDeliveryTime: string | null;
-  pharmacy: { name: string; address: string };
+  pharmacy: {
+    name: string;
+    address: string;
+    location?: { lat: number; lng: number } | null;
+  };
   deliveryOtp?: string | null;
   dropLat?: number | null;
   dropLng?: number | null;

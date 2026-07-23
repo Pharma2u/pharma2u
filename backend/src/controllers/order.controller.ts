@@ -58,9 +58,15 @@ export async function getMyOrder(req: Request, res: Response) {
     res.status(404).json({ error: "Order not found." });
     return;
   }
+  const pharmacyLocation = await prisma.$queryRaw<{ lat: number; lng: number }[]>`
+    SELECT ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+    FROM pharmacies
+    WHERE id = ${order.pharmacyId} AND location IS NOT NULL
+  `;
   const { deliveryOtp, ...orderDetails } = order;
   res.json({
     ...orderDetails,
+    pharmacy: { ...orderDetails.pharmacy, location: pharmacyLocation[0] ?? null },
     deliveryOtp: order.status === "on_the_way" ? deliveryOtp : null,
   });
 

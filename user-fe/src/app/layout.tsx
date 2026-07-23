@@ -2,7 +2,7 @@
 import Header from "@/src/components/layout/Header";
 import AuthProvider from "@/src/components/auth/AuthProvider";
 import "./globals.css";
-import "maplibre-gl/dist/maplibre-gl.css";
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 export const metadata: Metadata = {
   title: { default: "Pharma2u", template: "%s | Pharma2u" },
