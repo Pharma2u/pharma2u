@@ -166,6 +166,10 @@ export default function OrderDetailsContent({
     lat: number;
     lng: number;
   } | null>(null);
+  const [liveOrigin, setLiveOrigin] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const [deliveryOtp, setDeliveryOtp] = useState<string | null>(null);
   /*
@@ -187,6 +191,15 @@ export default function OrderDetailsContent({
         setDeliveryOtp(liveOrder.deliveryOtp ?? null);
         setLiveStatus(liveOrder.status);
         setLastUpdated(new Date());
+        if (
+          Number.isFinite(liveOrder.pharmacy.location?.lat) &&
+          Number.isFinite(liveOrder.pharmacy.location?.lng)
+        ) {
+          setLiveOrigin({
+            lat: liveOrder.pharmacy.location!.lat,
+            lng: liveOrder.pharmacy.location!.lng,
+          });
+        }
         if (
           Number.isFinite(liveOrder.dropLat) &&
           Number.isFinite(liveOrder.dropLng)
@@ -372,6 +385,7 @@ export default function OrderDetailsContent({
             orderId={orderId}
             token={session.token}
             destination={liveDestination}
+            origin={liveOrigin}
           />
         </div>
       )}
@@ -389,11 +403,11 @@ export default function OrderDetailsContent({
             {deliveryOtp}
           </p>
           <p className="mt-3 text-sm text-[#64717D]">
-            The delivery partner will enter this 6-digit OTP to complete your delivery.
+            The delivery partner will enter this 6-digit OTP to complete your
+            delivery.
           </p>
         </section>
       )}
-
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* ================= LEFT ================= */}
@@ -566,7 +580,8 @@ export default function OrderDetailsContent({
                         </p>
 
                         <p className="text-sm font-bold text-[#17212B]">
-                          {"\u20B9"}{item.unitPrice * item.quantity}
+                          {"\u20B9"}
+                          {item.unitPrice * item.quantity}
                         </p>
                       </div>
                     </div>
@@ -584,7 +599,9 @@ export default function OrderDetailsContent({
                       </p>
 
                       <p className="mt-1 text-[11px] text-[#8B949E]">
-                        {item.pharmacy.distance === null ? "Distance unavailable" : String(item.pharmacy.distance) + " km away"}
+                        {item.pharmacy.distance === null
+                          ? "Distance unavailable"
+                          : String(item.pharmacy.distance) + " km away"}
                       </p>
                     </div>
                   </div>
@@ -652,7 +669,9 @@ export default function OrderDetailsContent({
 
                   <span className="flex items-center gap-1.5">
                     <MapPin size={13} className="text-[#2EB68F]" />
-                    {firstPharmacy.distance === null ? "Distance unavailable" : `${firstPharmacy.distance} km`}
+                    {firstPharmacy.distance === null
+                      ? "Distance unavailable"
+                      : `${firstPharmacy.distance} km`}
                   </span>
                 </div>
               </div>
@@ -681,7 +700,8 @@ export default function OrderDetailsContent({
                 <span className="text-xs text-[#64717D]">Total MRP</span>
 
                 <span className="text-xs font-semibold text-[#17212B]">
-                  {"\u20B9"}{order.totalMRP}
+                  {"\u20B9"}
+                  {order.totalMRP}
                 </span>
               </div>
 
@@ -689,7 +709,8 @@ export default function OrderDetailsContent({
                 <span className="text-xs text-[#64717D]">Product discount</span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  - {"\u20B9"}{order.savings}
+                  - {"\u20B9"}
+                  {order.savings}
                 </span>
               </div>
 
@@ -697,7 +718,9 @@ export default function OrderDetailsContent({
                 <span className="text-xs text-[#64717D]">Delivery fee</span>
 
                 <span className="text-xs font-semibold text-[#2EB68F]">
-                  {order.deliveryFee === 0 ? "FREE" : `\u20B9${order.deliveryFee}`}
+                  {order.deliveryFee === 0
+                    ? "FREE"
+                    : `\u20B9${order.deliveryFee}`}
                 </span>
               </div>
 
@@ -706,7 +729,8 @@ export default function OrderDetailsContent({
                   <span className="font-bold text-[#17212B]">Total amount</span>
 
                   <span className="text-xl font-bold text-[#17212B]">
-                    {"\u20B9"}{order.totalAmount}
+                    {"\u20B9"}
+                    {order.totalAmount}
                   </span>
                 </div>
               </div>
@@ -751,4 +775,3 @@ export default function OrderDetailsContent({
     </div>
   );
 }
-

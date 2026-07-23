@@ -91,6 +91,7 @@ model User {
   reviews            ProductReview[]
   prescriptions      Prescription[]
   notifications      NotificationLog[]
+  riderLedger        RiderLedgerEntry[]
 
   @@map("users")
 }
@@ -361,6 +362,7 @@ model Order {
   ocrConfidence         Float?
   subtotal              Float
   deliveryFee           Float
+  riderEarning          Float              @default(0)
   total                 Float
   paymentStatus         PaymentStatus      @default(pending)
   paymentMethod         PaymentMethod      @default(cod)
@@ -392,6 +394,7 @@ model Order {
   reservations          StockReservation[]
   payment               Payment?
   refund                Refund?
+  riderLedgerEntries    RiderLedgerEntry[]
 
   @@index([status])
   @@index([customerId])
@@ -466,8 +469,44 @@ model RiderKyc {
   submittedAt          DateTime  @default(now())
   reviewedAt           DateTime?
   reviewedBy           String?
+  identityStatus       String    @default("pending")
+  licenceStatus        String    @default("pending")
+  logisticsStatus      String    @default("pending")
+  identityReviewedAt   DateTime?
+  licenceReviewedAt    DateTime?
+  logisticsReviewedAt  DateTime?
 
   @@map("rider_kyc")
+}
+
+model RiderLedgerEntry {
+  id            String   @id @default(uuid())
+  riderId       String
+  rider         User     @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type          String
+  amount        Float
+  description   String
+  paymentMethod PaymentMethod?
+  createdAt     DateTime @default(now())
+
+  @@unique([riderId, orderId, type])
+  @@index([riderId, createdAt])
+  @@map("rider_ledger_entries")
+}
+
+model RiderLoginOtp {
+  id         String    @id @default(uuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@map("rider_login_otps")
 }
 
 

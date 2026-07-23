@@ -181,6 +181,8 @@ export async function placeMatchedOrder(req: Request, res: Response) {
       0,
     );
     const deliveryFee = Math.max(0, Number(input.deliveryFee) || 0);
+    // Promotions can make delivery free for a customer, but never erase rider pay.
+    const riderEarning = Math.max(35, deliveryFee);
     const estimatedMinutes = Math.max(1, Number(input.estimatedMinutes) || 30);
 
     return tx.order.create({
@@ -198,6 +200,7 @@ export async function placeMatchedOrder(req: Request, res: Response) {
         requiresPrescription,
         subtotal,
         deliveryFee,
+        riderEarning,
         total: subtotal + deliveryFee,
         paymentMethod,
         dropAddress,
@@ -571,6 +574,10 @@ export async function riderAvailableTasks(req: Request, res: Response) {
     items: [
       ...primaryTasks.map(
         ({
+          subtotal: _subtotal,
+          deliveryFee: _deliveryFee,
+          total: collectionAmount,
+          customerId: _customerId,
           dropAddress: _dropAddress,
           dropLat: _dropLat,
           dropLng: _dropLng,
@@ -579,12 +586,28 @@ export async function riderAvailableTasks(req: Request, res: Response) {
           pickupOtp: _pickupOtp,
           ...order
         }) => ({
-          ...order,
+          id: order.id,
+          orderCode: order.orderCode,
+          status: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          isRelay: order.isRelay,
+          relayStatus: order.relayStatus,
+          pharmacy: order.pharmacy,
+          relayPharmacy: order.relayPharmacy,
+          collectionAmount:
+            order.paymentMethod === "cod" ? collectionAmount : 0,
+          riderEarning: order.riderEarning * (order.isRelay ? 0.7 : 1),
+          items: order.items.map(({ id, name, qty }) => ({ id, name, qty })),
           leg: "primary" as const,
         }),
       ),
       ...relayTasks.map(
         ({
+          subtotal: _subtotal,
+          deliveryFee: _deliveryFee,
+          total: _total,
+          customerId: _customerId,
           dropAddress: _dropAddress,
           dropLat: _dropLat,
           dropLng: _dropLng,
@@ -593,7 +616,18 @@ export async function riderAvailableTasks(req: Request, res: Response) {
           pickupOtp: _pickupOtp,
           ...order
         }) => ({
-          ...order,
+          id: order.id,
+          orderCode: order.orderCode,
+          status: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          isRelay: order.isRelay,
+          relayStatus: order.relayStatus,
+          pharmacy: order.pharmacy,
+          relayPharmacy: order.relayPharmacy,
+          collectionAmount: 0,
+          riderEarning: order.riderEarning * 0.3,
+          items: order.items.map(({ id, name, qty }) => ({ id, name, qty })),
           leg: "relay" as const,
         }),
       ),
@@ -618,12 +652,41 @@ export async function riderMyTasks(req: Request, res: Response) {
   });
 
   res.json({
-    items: items.map(
-      ({ deliveryOtp: _deliveryOtp, pickupOtp: _pickupOtp, ...order }) => ({
-        ...order,
-        leg: order.relayRiderId === req.user!.id ? "relay" : "primary",
-      }),
-    ),
+    items: items.map((item) => {
+      const {
+        deliveryOtp: _deliveryOtp,
+        pickupOtp: _pickupOtp,
+        subtotal: _subtotal,
+        deliveryFee: _deliveryFee,
+        total,
+        customerId: _customerId,
+        ...order
+      } = item;
+      const leg = order.relayRiderId === req.user!.id ? "relay" : "primary";
+      return {
+        id: order.id,
+        orderCode: order.orderCode,
+        status: order.status,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        isRelay: order.isRelay,
+        relayStatus: order.relayStatus,
+        pharmacy: order.pharmacy,
+        relayPharmacy: order.relayPharmacy,
+        dropAddress: order.dropAddress,
+        dropLat: order.dropLat,
+        dropLng: order.dropLng,
+        deliveryInstructions: order.deliveryInstructions,
+        collectionAmount:
+          leg === "primary" && order.paymentMethod === "cod" ? total : 0,
+        riderEarning:
+          leg === "relay"
+            ? order.riderEarning * 0.3
+            : order.riderEarning * (order.isRelay ? 0.7 : 1),
+        items: order.items.map(({ id, name, qty }) => ({ id, name, qty })),
+        leg,
+      };
+    }),
   });
 }
 
@@ -801,6 +864,75 @@ export async function updateRiderDelivery(req: Request, res: Response) {
         data: { paymentStatus: "paid" },
       }),
     ]);
+  }
+
+  if (nextStatus === "delivered") {
+    const primaryEarning = order.riderEarning * (order.isRelay ? 0.7 : 1);
+    const ledgerWrites = [
+      prisma.riderLedgerEntry.upsert({
+        where: {
+          riderId_orderId_type: {
+            riderId: req.user!.id,
+            orderId: order.id,
+            type: "delivery_earning",
+          },
+        },
+        update: {},
+        create: {
+          riderId: req.user!.id,
+          orderId: order.id,
+          type: "delivery_earning",
+          amount: primaryEarning,
+          description: `Delivery earning for ${order.orderCode}`,
+          paymentMethod: order.paymentMethod,
+        },
+      }),
+    ];
+    if (order.paymentMethod === "cod") {
+      ledgerWrites.push(
+        prisma.riderLedgerEntry.upsert({
+          where: {
+            riderId_orderId_type: {
+              riderId: req.user!.id,
+              orderId: order.id,
+              type: "cod_collected",
+            },
+          },
+          update: {},
+          create: {
+            riderId: req.user!.id,
+            orderId: order.id,
+            type: "cod_collected",
+            amount: -order.total,
+            description: `COD cash collected for ${order.orderCode}`,
+            paymentMethod: "cod",
+          },
+        }),
+      );
+    }
+    if (order.isRelay && order.relayRiderId) {
+      ledgerWrites.push(
+        prisma.riderLedgerEntry.upsert({
+          where: {
+            riderId_orderId_type: {
+              riderId: order.relayRiderId,
+              orderId: order.id,
+              type: "relay_earning",
+            },
+          },
+          update: {},
+          create: {
+            riderId: order.relayRiderId,
+            orderId: order.id,
+            type: "relay_earning",
+            amount: order.riderEarning * 0.3,
+            description: `Relay earning for ${order.orderCode}`,
+            paymentMethod: order.paymentMethod,
+          },
+        }),
+      );
+    }
+    await prisma.$transaction(ledgerWrites);
   }
 
   res.json({ id: order.id, status: orderStatus });

@@ -84,7 +84,6 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
     onClose();
   };
 
-
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) {
       setLocationError("Location services are not supported by your browser.");
@@ -448,5 +447,3 @@ export default function LocationModal({ open, onClose }: LocationModalProps) {
     </div>
   );
 }
-
-

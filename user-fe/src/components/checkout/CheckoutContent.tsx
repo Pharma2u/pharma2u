@@ -339,7 +339,7 @@ export default function CheckoutContent() {
       }
       addOrder({ ...localOrder, id: created.id });
       clearCart();
-      router.push(`/order-success/${created.id}`);
+      router.push(`/orders/${created.id}`);
     } catch (caught) {
       setOrderError(
         caught instanceof Error

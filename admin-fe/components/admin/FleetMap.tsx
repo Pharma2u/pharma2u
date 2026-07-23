@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 export type FleetMapRider = {
   id: string;
@@ -23,34 +23,24 @@ export type FleetMapRider = {
 };
 
 const fallbackCenter: [number, number] = [78.4867, 17.385];
-const mapStyle: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "OpenStreetMap contributors",
-    },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-};
+const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 export function FleetMap({ riders }: { riders: FleetMapRider[] }) {
   const container = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const markers = useRef(new Map<string, maplibregl.Marker>());
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef(new Map<string, mapboxgl.Marker>());
 
   useEffect(() => {
-    if (!container.current || map.current) return;
+    if (!container.current || map.current || !mapboxToken) return;
 
-    const instance = new maplibregl.Map({
+    mapboxgl.accessToken = mapboxToken;
+    const instance = new mapboxgl.Map({
       container: container.current,
-      style: mapStyle,
+      style: "mapbox://styles/mapbox/streets-v12",
       center: fallbackCenter,
       zoom: 11,
     });
-    instance.addControl(new maplibregl.NavigationControl(), "top-right");
+    instance.addControl(new mapboxgl.NavigationControl(), "top-right");
     map.current = instance;
     const currentMarkers = markers.current;
 
@@ -74,13 +64,13 @@ export function FleetMap({ riders }: { riders: FleetMapRider[] }) {
       }
     });
 
-    const bounds = new maplibregl.LngLatBounds();
+    const bounds = new mapboxgl.LngLatBounds();
     for (const rider of visibleRiders) {
       const location = rider.riderLocation!;
       const point: [number, number] = [location.lng, location.lat];
       const color = rider.availability === "online" ? "#059669" : "#64748b";
       const delivery = rider.ordersAsRider[0];
-      const popup = new maplibregl.Popup({ offset: 20 }).setHTML(
+      const popup = new mapboxgl.Popup({ offset: 20 }).setHTML(
         `<strong>${escapeHtml(rider.name)}</strong><br/>${rider.availability}<br/>${delivery ? `${escapeHtml(delivery.orderCode)} - ${escapeHtml(delivery.status.replaceAll("_", " "))}` : "No active delivery"}`,
       );
       const existing = markers.current.get(rider.id);
@@ -89,7 +79,7 @@ export function FleetMap({ riders }: { riders: FleetMapRider[] }) {
       } else {
         markers.current.set(
           rider.id,
-          new maplibregl.Marker({ color })
+          new mapboxgl.Marker({ color })
             .setLngLat(point)
             .setPopup(popup)
             .addTo(map.current),

@@ -23,9 +23,9 @@ export function googleMapsSearch(query?: string) {
     : null;
 }
 
-export function googleMapsDirections(destination?: string) {
+export function googleMapsDirections(destination?: string, origin?: string) {
   return destination
-    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}${origin ? `&origin=${encodeURIComponent(origin)}` : ""}&travelmode=driving&dir_action=navigate`
     : null;
 }
 

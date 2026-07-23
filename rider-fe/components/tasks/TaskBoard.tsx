@@ -13,10 +13,10 @@ export function TaskBoard({ token }: { token: string }) {
   const tasks = useRiderTasks(token, availability.isOnline);
   const codTotal = tasks.activeTasks
     .filter((task) => task.paymentMethod === "cod")
-    .reduce((total, task) => total + task.total, 0);
+    .reduce((total, task) => total + task.collectionAmount, 0);
 
   return (
-    <div className="rider-dashboard">
+    <div className="space-y-5">
       <DashboardSummary
         activeCount={tasks.activeTasks.length}
         availableCount={tasks.availableTasks.length}
@@ -30,12 +30,12 @@ export function TaskBoard({ token }: { token: string }) {
       />
 
       {tasks.error && (
-        <p role="alert" className="dashboard-alert">
+        <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
           {tasks.error}
         </p>
       )}
 
-      <section className="delivery-columns">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TaskList
           title="Active deliveries"
           description={

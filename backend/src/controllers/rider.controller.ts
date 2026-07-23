@@ -135,6 +135,9 @@ export async function pending(req: Request, res: Response) {
           vehicleType: string;
           vehicleNumber: string;
           submittedAt: Date;
+          identityStatus: string;
+          licenceStatus: string;
+          logisticsStatus: string;
         } | null;
       }) => {
         const kyc = rider.riderKyc;
@@ -161,6 +164,9 @@ export async function pending(req: Request, res: Response) {
             drivingLicenseNumber: kyc.drivingLicenseNumber,
             vehicleType: kyc.vehicleType,
             vehicleNumber: kyc.vehicleNumber,
+            identityStatus: kyc.identityStatus,
+            licenceStatus: kyc.licenceStatus,
+            logisticsStatus: kyc.logisticsStatus,
             submittedAt: kyc.submittedAt,
             aadharImageUrl,
             panImageUrl,
@@ -176,7 +182,13 @@ export async function pending(req: Request, res: Response) {
 export async function approve(req: Request, res: Response) {
   const target = await prisma.user.findUnique({
     where: { id: String(req.params.id) },
-    select: { id: true, phone: true, role: true, applicationStatus: true },
+    select: {
+      id: true,
+      phone: true,
+      role: true,
+      applicationStatus: true,
+      riderKyc: { select: { identityStatus: true, licenceStatus: true, logisticsStatus: true } },
+    },
   });
   if (
     !target ||
@@ -184,6 +196,10 @@ export async function approve(req: Request, res: Response) {
     target.applicationStatus !== "pending"
   ) {
     res.status(400).json({ error: "Rider application is not pending." });
+    return;
+  }
+  if (!target.riderKyc || [target.riderKyc.identityStatus, target.riderKyc.licenceStatus, target.riderKyc.logisticsStatus].some((status) => status !== "approved")) {
+    res.status(409).json({ error: "Identity, licence, and logistics channels must approve first." });
     return;
   }
   const temporaryPassword = generateTempPassword();
@@ -194,6 +210,19 @@ export async function approve(req: Request, res: Response) {
       mustChangePassword: true,
       applicationStatus: "approved",
       rejectionReason: null,
+    },
+  });
+  await prisma.riderKyc.update({
+    where: { userId: target.id },
+    data: {
+      identityStatus: "approved",
+      licenceStatus: "approved",
+      logisticsStatus: "approved",
+      identityReviewedAt: new Date(),
+      licenceReviewedAt: new Date(),
+      logisticsReviewedAt: new Date(),
+      reviewedAt: new Date(),
+      reviewedBy: req.user!.id,
     },
   });
   res.json({ id: target.id, phone: target.phone, temporaryPassword });
@@ -259,6 +288,62 @@ export async function fleet(req: Request, res: Response) {
           : "offline",
     })),
   });
+}
+
+export async function reviewChannel(req: Request, res: Response) {
+  const channel = req.body?.channel;
+  const status = req.body?.status;
+  const reason =
+    typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+  if (!(["identity", "licence", "logistics"] as const).includes(channel)) {
+    res
+      .status(400)
+      .json({ error: "channel must be identity, licence, or logistics." });
+    return;
+  }
+  if (status !== "approved" && status !== "rejected") {
+    res.status(400).json({ error: "status must be approved or rejected." });
+    return;
+  }
+  if (status === "rejected" && !reason) {
+    res.status(400).json({ error: "A rejection reason is required." });
+    return;
+  }
+  const target = await prisma.user.findFirst({
+    where: {
+      id: String(req.params.id),
+      role: "rider",
+      applicationStatus: "pending",
+    },
+    select: { id: true },
+  });
+  if (!target) {
+    res.status(404).json({ error: "Pending rider application not found." });
+    return;
+  }
+  const statusField = `${channel}Status` as
+    "identityStatus" | "licenceStatus" | "logisticsStatus";
+  const reviewedField = `${channel}ReviewedAt` as
+    "identityReviewedAt" | "licenceReviewedAt" | "logisticsReviewedAt";
+  await prisma.$transaction([
+    prisma.riderKyc.update({
+      where: { userId: target.id },
+      data: {
+        [statusField]: status,
+        [reviewedField]: new Date(),
+        reviewedBy: req.user!.id,
+      },
+    }),
+    ...(status === "rejected"
+      ? [
+          prisma.user.update({
+            where: { id: target.id },
+            data: { applicationStatus: "rejected", rejectionReason: reason },
+          }),
+        ]
+      : []),
+  ]);
+  res.json({ id: target.id, channel, status });
 }
 
 export async function updateMyLocation(req: Request, res: Response) {

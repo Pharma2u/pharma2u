@@ -8,8 +8,10 @@ import {
   fleet,
   pending,
   reject,
+  reviewChannel,
   updateMyLocation,
 } from "../controllers/rider.controller";
+import { riderFinance } from "../controllers/rider-finance.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requirePasswordChanged } from "../middleware/requirePasswordChanged.middleware";
 
@@ -46,6 +48,12 @@ router.post(
   requirePasswordChanged,
   updateMyLocation,
 );
+router.get(
+  "/riders/finance",
+  authMiddleware("rider"),
+  requirePasswordChanged,
+  riderFinance,
+);
 
 router.get(
   "/admin/riders/fleet",
@@ -70,6 +78,12 @@ router.post(
   authMiddleware("admin"),
   requirePasswordChanged,
   reject,
+);
+router.post(
+  "/admin/riders/:id/review-channel",
+  authMiddleware("admin"),
+  requirePasswordChanged,
+  reviewChannel,
 );
 
 export default router;

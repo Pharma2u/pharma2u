@@ -1,24 +1,38 @@
-import { RiderIcon } from "@/components/ui/RiderIcon";
+"use client";
 import { useState } from "react";
+import {
+  Banknote,
+  Bike,
+  ChevronDown,
+  ChevronUp,
+  CircleDollarSign,
+  MapPin,
+  Navigation,
+  Package,
+  Route,
+  ShieldCheck,
+} from "lucide-react";
 import type { RiderTask } from "@/lib/api";
 import {
   formatMoney,
   getDestination,
   getPickup,
-  googleMapsDirections,
-  googleMapsSearch,
   nextTaskAction,
   taskStatusLabel,
 } from "./taskHelpers";
+import { MapboxNavigationPanel } from "./MapboxNavigationPanel";
 
 type Props = {
   task: RiderTask;
   isActive?: boolean;
   isBusy: boolean;
   onAccept: (task: RiderTask) => void;
-  onAdvance: (task: RiderTask, deliveryOtp?: string, pickupOtp?: string) => void;
+  onAdvance: (
+    task: RiderTask,
+    deliveryOtp?: string,
+    pickupOtp?: string,
+  ) => void;
 };
-
 export function TaskCard({
   task,
   isActive = false,
@@ -26,130 +40,137 @@ export function TaskCard({
   onAccept,
   onAdvance,
 }: Props) {
+  const [pickupOtp, setPickupOtp] = useState("");
+  const [deliveryOtp, setDeliveryOtp] = useState("");
+  const [mapOpen, setMapOpen] = useState(false);
   const pickup = getPickup(task);
   const destination = getDestination(task);
-  const pickupMapUrl = googleMapsSearch(pickup?.address);
-  const [pickupOtp, setPickupOtp] = useState("");
-  const navigationUrl = googleMapsDirections(destination);
-  const [deliveryOtp, setDeliveryOtp] = useState("");
   const nextAction = nextTaskAction(task);
-
   return (
-    <article className="delivery-card">
-      <div className="delivery-card-top">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <span className={`delivery-status status-${task.status}`}>
+          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
             {taskStatusLabel(task)}
           </span>
-          <h3>{task.orderCode}</h3>
+          <h3 className="mt-2 font-bold text-slate-950">{task.orderCode}</h3>
         </div>
-        <div className="delivery-price">
-          <strong>{formatMoney(task.total)}</strong>
-          <small>
-            {task.paymentMethod === "cod" ? "Cash on delivery" : "Prepaid"}
-          </small>
+        <div className="text-right">
+          <span className="text-[10px] font-bold text-slate-400">YOU EARN</span>
+          <strong className="block text-lg text-emerald-700">
+            {formatMoney(task.riderEarning)}
+          </strong>
         </div>
       </div>
-
-      <div className="delivery-route">
-        <RouteStop
-          kind="pickup"
-          label="Pickup from"
+      {task.paymentMethod === "cod" ? (
+        <div className="mt-4 flex items-center justify-between rounded-xl bg-amber-50 p-3">
+          <span className="flex items-center gap-2 text-xs font-semibold text-amber-800">
+            <Banknote size={17} />
+            Cash to collect
+          </span>
+          <strong className="text-sm text-amber-900">
+            {formatMoney(task.collectionAmount)}
+          </strong>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-xs font-semibold text-blue-800">
+          <CircleDollarSign size={17} />
+          Prepaid · collect no cash
+        </div>
+      )}
+      <div className="relative mt-5 space-y-5 before:absolute before:bottom-3 before:left-[7px] before:top-3 before:w-px before:border-l before:border-dashed before:border-slate-300">
+        <Stop
+          icon={<Bike size={14} />}
+          label="PICKUP"
           title={pickup?.name ?? "Pickup pharmacy"}
           detail={pickup?.address}
+          tone="bg-emerald-600"
         />
-        <RouteStop
-          kind="drop"
-          label="Deliver to"
+        <Stop
+          icon={<MapPin size={14} />}
+          label="DELIVER"
           title={
             isActive
-              ? (task.dropAddress ?? "Customer address unavailable")
-              : "Address shown after acceptance"
+              ? (task.dropAddress ?? "Delivery location")
+              : "Address protected until acceptance"
           }
-          detail={isActive ? task.deliveryInstructions : undefined}
+          detail={
+            isActive
+              ? task.deliveryInstructions
+              : "Customer identity and contact details are hidden"
+          }
+          tone="bg-slate-950"
         />
       </div>
-
-      <div className="delivery-items">
-        <div className="delivery-items-title">
-          <RiderIcon name="package" />
-          <span>
-            {task.items.length} order item{task.items.length === 1 ? "" : "s"}
-          </span>
+      <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+          <Package size={16} />
+          Sealed order · {task.items.reduce(
+            (sum, item) => sum + item.qty,
+            0,
+          )}{" "}
+          unit(s)
         </div>
-        <p>
-          {task.items.map((item) => `${item.name} x ${item.qty}`).join(", ")}
+        <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+          {task.items.map((item) => `${item.name} × ${item.qty}`).join(", ")}
+        </p>
+        <p className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+          <ShieldCheck size={13} />
+          Medicine prices and customer personal details are redacted
         </p>
       </div>
-
       {task.isRelay && (
-        <p className="relay-note">
-          <RiderIcon name="route" />
+        <p className="mt-3 flex items-center gap-2 rounded-xl bg-violet-50 p-3 text-xs font-semibold text-violet-700">
+          <Route size={16} />
           Multi-pharmacy relay delivery
         </p>
       )}
-
       {isActive && destination && (
-        <div className="destination-strip">
-          <span>
-            <RiderIcon name="map" />
-          </span>
-          <div>
-            <strong>Navigation is ready</strong>
-            <small>
-              {task.dropLat != null && task.dropLng != null
-                ? `${task.dropLat.toFixed(5)}, ${task.dropLng.toFixed(5)}`
-                : "Using the customer delivery address"}
-            </small>
-          </div>
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setMapOpen((v) => !v)}
+            className="flex w-full items-center justify-between bg-white p-3 text-left"
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <Navigation size={17} className="text-emerald-600" />
+              Live route & navigation
+            </span>
+            {mapOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {mapOpen && task.dropLat != null && task.dropLng != null && (
+            <MapboxNavigationPanel
+              destination={{ lat: task.dropLat, lng: task.dropLng }}
+            />
+          )}
         </div>
       )}
-
-      <div className="delivery-actions">
       {isActive && task.leg !== "relay" && task.status === "rider_assigned" && (
-        <div className="delivery-otp-entry">
-          <label htmlFor={`pickup-otp-${task.id}`}>Pharmacy pickup code</label>
-          <input
-            id={`pickup-otp-${task.id}`}
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="Enter 6-digit code"
-            value={pickupOtp}
-            onChange={(event) => setPickupOtp(event.target.value.replace(/\D/g, ""))}
-          />
-          <small>Get this code from the pharmacy after they hand over the package.</small>
-        </div>
+        <OtpField
+          id={`pickup-${task.id}`}
+          label="Pharmacy pickup code"
+          value={pickupOtp}
+          onChange={setPickupOtp}
+          hint="Get the 6-digit code from pharmacy staff."
+        />
       )}
-
       {isActive && task.leg !== "relay" && task.status === "on_the_way" && (
-        <div className="delivery-otp-entry">
-          <label htmlFor={`delivery-otp-${task.id}`}>Customer delivery OTP</label>
-          <input
-            id={`delivery-otp-${task.id}`}
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="Enter 6-digit OTP"
-            value={deliveryOtp}
-            onChange={(event) => setDeliveryOtp(event.target.value.replace(/\D/g, ""))}
-          />
-          <small>Ask the customer for this code before marking delivered.</small>
-        </div>
+        <OtpField
+          id={`delivery-${task.id}`}
+          label="Customer delivery OTP"
+          value={deliveryOtp}
+          onChange={setDeliveryOtp}
+          hint="Ask for the OTP before handing over the sealed package."
+        />
       )}
-
-        {isActive && pickupMapUrl && (
-          <MapLink href={pickupMapUrl} label="Pickup map" icon="map" />
-
-        )}
-        {isActive && navigationUrl && (
-          <MapLink href={navigationUrl} label="Navigate" icon="navigation" />
-        )}
+      <div className="mt-4 flex flex-wrap gap-2">
         {isActive ? (
           nextAction && (
             <button
               type="button"
-              className="delivery-primary-action"
               disabled={isBusy}
               onClick={() => onAdvance(task, deliveryOtp, pickupOtp)}
+              className="min-w-36 flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
             >
               {isBusy ? "Updating..." : nextAction}
             </button>
@@ -157,11 +178,13 @@ export function TaskCard({
         ) : (
           <button
             type="button"
-            className="delivery-primary-action"
             disabled={isBusy}
             onClick={() => onAccept(task)}
+            className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {isBusy ? "Accepting..." : "Accept delivery"}
+            {isBusy
+              ? "Accepting..."
+              : `Accept · earn ${formatMoney(task.riderEarning)}`}
           </button>
         )}
       </div>
@@ -169,47 +192,71 @@ export function TaskCard({
   );
 }
 
-function RouteStop({
-  kind,
+function Stop({
+  icon,
   label,
   title,
   detail,
+  tone,
 }: {
-  kind: "pickup" | "drop";
+  icon: React.ReactNode;
   label: string;
   title: string;
   detail?: string | null;
+  tone: string;
 }) {
   return (
-    <div className={`route-stop ${kind}`}>
-      <span className="route-marker" />
-      <div>
-        <small>{label}</small>
-        <strong>{title}</strong>
-        {detail && <p>{kind === "drop" ? `Note: ${detail}` : detail}</p>}
+    <div className="relative flex gap-3">
+      <span
+        className={`z-10 grid h-4 w-4 shrink-0 place-items-center rounded-full text-white ${tone}`}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <small className="text-[9px] font-bold tracking-[0.12em] text-slate-400">
+          {label}
+        </small>
+        <strong className="block truncate text-sm text-slate-800">
+          {title}
+        </strong>
+        {detail && (
+          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500">
+            {detail}
+          </p>
+        )}
       </div>
     </div>
   );
 }
-
-function MapLink({
-  href,
+function OtpField({
+  id,
   label,
-  icon,
+  value,
+  onChange,
+  hint,
 }: {
-  href: string;
+  id: string;
   label: string;
-  icon: "map" | "navigation";
+  value: string;
+  onChange: (value: string) => void;
+  hint: string;
 }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="delivery-map-action"
+    <label
+      htmlFor={id}
+      className="mt-4 block rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-700"
     >
-      <RiderIcon name={icon} />
       {label}
-    </a>
+      <input
+        id={id}
+        inputMode="numeric"
+        maxLength={6}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-lg tracking-[0.35em] outline-none focus:border-emerald-500"
+        placeholder="000000"
+      />
+      <small className="mt-1 block font-normal text-slate-400">{hint}</small>
+    </label>
   );
 }

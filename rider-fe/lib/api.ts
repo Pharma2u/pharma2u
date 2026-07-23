@@ -34,6 +34,25 @@ export async function loginRider(
   return data;
 }
 
+export function requestRiderOtp(phone: string) {
+  return request<{ message: string; developmentOtp?: string }>(
+    "/auth/rider/request-otp",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    },
+  );
+}
+
+export function verifyRiderOtp(phone: string, otp: string) {
+  return request<RiderSession>("/auth/rider/verify-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, otp }),
+  });
+}
+
 export function changePassword(
   token: string,
   currentPassword: string,
@@ -60,7 +79,8 @@ export type RiderTask = {
   id: string;
   orderCode: string;
   status: string;
-  total: number;
+  collectionAmount: number;
+  riderEarning: number;
   paymentMethod: "upi" | "card" | "cod";
   paymentStatus: string;
   dropAddress?: string;
@@ -73,6 +93,40 @@ export type RiderTask = {
   relayPharmacy?: { name: string; address: string } | null;
   items: { id: string; name: string; qty: number }[];
 };
+
+export type RiderFinance = {
+  summary: {
+    totalEarnings: number;
+    codCollected: number;
+    onlineEarnings: number;
+    balance: number;
+    settlementDirection: "platform_owes_rider" | "rider_owes_platform" | "settled";
+    settlementAmount: number;
+  };
+  entries: {
+    id: string;
+    orderCode: string | null;
+    type: string;
+    amount: number;
+    description: string;
+    paymentMethod: "upi" | "card" | "cod" | null;
+    createdAt: string;
+  }[];
+  deliveries: {
+    id: string;
+    orderCode: string;
+    deliveredAt: string | null;
+    paymentMethod: "upi" | "card" | "cod";
+    pharmacyName: string;
+    earning: number;
+  }[];
+};
+
+export function getRiderFinance(token: string) {
+  return request<RiderFinance>("/riders/finance", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
 
 export function listRiderTasks(token: string) {
   return request<{ items: RiderTask[] }>("/orders/rider/available", {
