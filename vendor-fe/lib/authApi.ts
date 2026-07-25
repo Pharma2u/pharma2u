@@ -273,7 +273,17 @@ export function markVendorOrderPacked(token: string, id: string) {
   });
 }
 
+type TodayOrderMetrics = {
+  received: number;
+  pending: number;
+  packed: number;
+  outForDelivery: number;
+  delivered: number;
+  failed: number;
+};
 export type VendorFinancialSummary = {
+  today: TodayOrderMetrics;
+  allTime: TodayOrderMetrics;
   onlineRevenue: number;
   offlineRevenue: number;
   cashRevenue: number;

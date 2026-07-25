@@ -1,11 +1,13 @@
 "use client";
+
 import { useState } from "react";
 import {
   Banknote,
   Bike,
+  Check,
   ChevronDown,
   ChevronUp,
-  CircleDollarSign,
+  ExternalLink,
   MapPin,
   Navigation,
   Package,
@@ -15,8 +17,8 @@ import {
 import type { RiderTask } from "@/lib/api";
 import {
   formatMoney,
-  getDestination,
   getPickup,
+  googleMapsDirections,
   nextTaskAction,
   taskStatusLabel,
 } from "./taskHelpers";
@@ -33,6 +35,7 @@ type Props = {
     pickupOtp?: string,
   ) => void;
 };
+
 export function TaskCard({
   task,
   isActive = false,
@@ -44,147 +47,244 @@ export function TaskCard({
   const [deliveryOtp, setDeliveryOtp] = useState("");
   const [mapOpen, setMapOpen] = useState(false);
   const pickup = getPickup(task);
-  const destination = getDestination(task);
+  const relay = task.leg === "relay";
   const nextAction = nextTaskAction(task);
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-            {taskStatusLabel(task)}
-          </span>
-          <h3 className="mt-2 font-bold text-slate-950">{task.orderCode}</h3>
-        </div>
-        <div className="text-right">
-          <span className="text-[10px] font-bold text-slate-400">YOU EARN</span>
-          <strong className="block text-lg text-emerald-700">
-            {formatMoney(task.riderEarning)}
-          </strong>
-        </div>
-      </div>
-      {task.paymentMethod === "cod" ? (
-        <div className="mt-4 flex items-center justify-between rounded-xl bg-amber-50 p-3">
-          <span className="flex items-center gap-2 text-xs font-semibold text-amber-800">
-            <Banknote size={17} />
-            Cash to collect
-          </span>
-          <strong className="text-sm text-amber-900">
-            {formatMoney(task.collectionAmount)}
-          </strong>
-        </div>
-      ) : (
-        <div className="mt-4 flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-xs font-semibold text-blue-800">
-          <CircleDollarSign size={17} />
-          Prepaid · collect no cash
-        </div>
-      )}
-      <div className="relative mt-5 space-y-5 before:absolute before:bottom-3 before:left-[7px] before:top-3 before:w-px before:border-l before:border-dashed before:border-slate-300">
-        <Stop
-          icon={<Bike size={14} />}
-          label="PICKUP"
-          title={pickup?.name ?? "Pickup pharmacy"}
-          detail={pickup?.address}
-          tone="bg-emerald-600"
-        />
-        <Stop
-          icon={<MapPin size={14} />}
-          label="DELIVER"
-          title={
-            isActive
-              ? (task.dropAddress ?? "Delivery location")
-              : "Address protected until acceptance"
-          }
-          detail={
-            isActive
-              ? task.deliveryInstructions
-              : "Customer identity and contact details are hidden"
-          }
-          tone="bg-slate-950"
-        />
-      </div>
-      <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <Package size={16} />
-          Sealed order · {task.items.reduce(
-            (sum, item) => sum + item.qty,
-            0,
-          )}{" "}
-          unit(s)
-        </div>
-        <p className="mt-1 line-clamp-2 text-xs text-slate-400">
-          {task.items.map((item) => `${item.name} × ${item.qty}`).join(", ")}
-        </p>
-        <p className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-          <ShieldCheck size={13} />
-          Medicine prices and customer personal details are redacted
-        </p>
-      </div>
-      {task.isRelay && (
-        <p className="mt-3 flex items-center gap-2 rounded-xl bg-violet-50 p-3 text-xs font-semibold text-violet-700">
-          <Route size={16} />
-          Multi-pharmacy relay delivery
-        </p>
-      )}
-      {isActive && destination && (
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-          <button
-            type="button"
-            onClick={() => setMapOpen((v) => !v)}
-            className="flex w-full items-center justify-between bg-white p-3 text-left"
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <Navigation size={17} className="text-emerald-600" />
-              Live route & navigation
+  const needsPickupOtp = isActive && !relay && task.status === "rider_assigned";
+  const needsDeliveryOtp = isActive && !relay && task.status === "on_the_way";
+  const otpReady =
+    (!needsPickupOtp && !needsDeliveryOtp) ||
+    pickupOtp.length === 6 ||
+    deliveryOtp.length === 6;
+  const destination =
+    relay || task.status === "rider_assigned"
+      ? pickup?.address
+      : task.dropLat != null && task.dropLng != null
+        ? `${task.dropLat},${task.dropLng}`
+        : task.dropAddress;
+  const mapsUrl = googleMapsDirections(destination ?? undefined);
+
+  if (!isActive) {
+    return (
+      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_25px_rgba(15,23,42,.04)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-700">
+              {relay ? "Relay job" : "New delivery"}
             </span>
-            {mapOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          {mapOpen && task.dropLat != null && task.dropLng != null && (
-            <MapboxNavigationPanel
-              destination={{ lat: task.dropLat, lng: task.dropLng }}
-            />
+            <h3 className="mt-1 truncate text-base font-extrabold text-slate-950">
+              {pickup?.name ?? "Pickup pharmacy"}
+            </h3>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+              {pickup?.address}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <small className="text-[9px] font-bold text-slate-400">EARN</small>
+            <strong className="block text-lg text-emerald-700">
+              {formatMoney(task.riderEarning)}
+            </strong>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold">
+          <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-slate-600">
+            <Package className="mr-1 inline" size={13} />
+            {task.items.reduce((sum, item) => sum + item.qty, 0)} items
+          </span>
+          <span
+            className={`rounded-lg px-2.5 py-1.5 ${task.paymentMethod === "cod" ? "bg-amber-50 text-amber-800" : "bg-blue-50 text-blue-700"}`}
+          >
+            {task.paymentMethod === "cod"
+              ? `${formatMoney(task.collectionAmount)} COD`
+              : "Prepaid"}
+          </span>
+          {relay && (
+            <span className="rounded-lg bg-violet-50 px-2.5 py-1.5 text-violet-700">
+              Relay handoff
+            </span>
           )}
         </div>
-      )}
-      {isActive && task.leg !== "relay" && task.status === "rider_assigned" && (
-        <OtpField
-          id={`pickup-${task.id}`}
-          label="Pharmacy pickup code"
-          value={pickupOtp}
-          onChange={setPickupOtp}
-          hint="Get the 6-digit code from pharmacy staff."
-        />
-      )}
-      {isActive && task.leg !== "relay" && task.status === "on_the_way" && (
-        <OtpField
-          id={`delivery-${task.id}`}
-          label="Customer delivery OTP"
-          value={deliveryOtp}
-          onChange={setDeliveryOtp}
-          hint="Ask for the OTP before handing over the sealed package."
-        />
-      )}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {isActive ? (
-          nextAction && (
-            <button
-              type="button"
-              disabled={isBusy}
-              onClick={() => onAdvance(task, deliveryOtp, pickupOtp)}
-              className="min-w-36 flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        <button
+          type="button"
+          disabled={isBusy}
+          onClick={() => onAccept(task)}
+          className="mt-4 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        >
+          {isBusy ? "Accepting job..." : "Accept delivery"}
+        </button>
+        <p className="mt-2 text-center text-[10px] text-slate-400">
+          Customer details unlock only after acceptance
+        </p>
+      </article>
+    );
+  }
+
+  const stage = relay
+    ? task.status === "relay_pending"
+      ? 1
+      : 0
+    : task.status === "rider_assigned"
+      ? 0
+      : task.status === "on_the_way"
+        ? 2
+        : 1;
+  const stages = relay
+    ? ["Reach relay point", "Confirm handoff"]
+    : ["Pick up", "Start trip", "Deliver"];
+
+  return (
+    <article className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,.07)]">
+      <header className="bg-slate-950 p-5 text-white">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-[.16em] text-emerald-300">
+              {taskStatusLabel(task)}
+            </span>
+            <h3 className="mt-1 text-xl font-extrabold">{task.orderCode}</h3>
+          </div>
+          <div className="text-right">
+            <small className="text-[9px] font-bold text-slate-400">
+              YOUR EARNING
+            </small>
+            <strong className="block text-lg text-emerald-300">
+              {formatMoney(task.riderEarning)}
+            </strong>
+          </div>
+        </div>
+        <ol className="mt-5 flex" aria-label="Delivery progress">
+          {stages.map((label, index) => (
+            <li
+              key={label}
+              className="relative flex flex-1 flex-col gap-1.5 text-[9px] font-semibold text-slate-400 last:flex-none"
             >
-              {isBusy ? "Updating..." : nextAction}
-            </button>
-          )
-        ) : (
+              <span
+                className={`z-10 grid h-6 w-6 place-items-center rounded-full border ${index < stage ? "border-emerald-400 bg-emerald-400 text-slate-950" : index === stage ? "border-white bg-white text-slate-950" : "border-slate-600 bg-slate-900"}`}
+              >
+                {index < stage ? <Check size={13} /> : index + 1}
+              </span>
+              <span className={index === stage ? "text-white" : ""}>
+                {label}
+              </span>
+              {index < stages.length - 1 && (
+                <i
+                  className={`absolute left-6 right-0 top-3 h-px ${index < stage ? "bg-emerald-400" : "bg-slate-700"}`}
+                />
+              )}
+            </li>
+          ))}
+        </ol>
+      </header>
+      <div className="p-4 sm:p-5">
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400">
+            {relay
+              ? "Relay point"
+              : task.status === "rider_assigned"
+                ? "Go to pickup"
+                : "Deliver to"}
+          </p>
+          <div className="mt-2 flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm">
+              {relay || task.status === "rider_assigned" ? (
+                <Bike size={18} />
+              ) : (
+                <MapPin size={18} />
+              )}
+            </span>
+            <div className="min-w-0">
+              <strong className="block text-sm text-slate-900">
+                {relay || task.status === "rider_assigned"
+                  ? pickup?.name
+                  : task.dropAddress}
+              </strong>
+              <p className="mt-0.5 text-xs leading-5 text-slate-500">
+                {relay || task.status === "rider_assigned"
+                  ? pickup?.address
+                  : task.deliveryInstructions ||
+                    "Hand the sealed package to the customer."}
+              </p>
+            </div>
+          </div>
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200"
+            >
+              <Navigation size={17} className="text-emerald-600" />
+              Open in Maps
+              <ExternalLink size={14} />
+            </a>
+          )}
+        </div>
+        {task.paymentMethod === "cod" && !relay && (
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+            <span className="flex items-center gap-2 font-semibold">
+              <Banknote size={17} />
+              Collect cash
+            </span>
+            <strong>{formatMoney(task.collectionAmount)}</strong>
+          </div>
+        )}
+        {relay && task.status === "rider_assigned" && (
+          <p className="mt-3 flex items-center gap-2 rounded-xl bg-violet-50 p-3 text-xs leading-5 text-violet-700">
+            <Route size={17} className="shrink-0" />
+            Wait here. The handoff button will unlock when the primary rider
+            arrives.
+          </p>
+        )}
+        {(needsPickupOtp || needsDeliveryOtp) && (
+          <OtpField
+            id={`${needsPickupOtp ? "pickup" : "delivery"}-${task.id}`}
+            label={
+              needsPickupOtp
+                ? "Pickup verification code"
+                : "Customer delivery OTP"
+            }
+            value={needsPickupOtp ? pickupOtp : deliveryOtp}
+            onChange={needsPickupOtp ? setPickupOtp : setDeliveryOtp}
+            hint={
+              needsPickupOtp
+                ? "Ask pharmacy staff for the 6-digit code."
+                : "Verify the code before handing over the medicine."
+            }
+          />
+        )}
+        {!relay &&
+          task.status !== "rider_assigned" &&
+          task.dropLat != null &&
+          task.dropLng != null && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setMapOpen((value) => !value)}
+                className="flex w-full items-center justify-between p-3 text-left text-xs font-bold text-slate-700"
+              >
+                <span className="flex items-center gap-2">
+                  <Navigation size={16} className="text-emerald-600" />
+                  Live route preview
+                </span>
+                {mapOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {mapOpen && (
+                <MapboxNavigationPanel
+                  destination={{ lat: task.dropLat, lng: task.dropLng }}
+                />
+              )}
+            </div>
+          )}
+        <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400">
+          <ShieldCheck size={14} />
+          Only share customer details for this delivery.
+        </div>
+        {nextAction && (
           <button
             type="button"
-            disabled={isBusy}
-            onClick={() => onAccept(task)}
-            className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            disabled={isBusy || !otpReady}
+            onClick={() => onAdvance(task, deliveryOtp, pickupOtp)}
+            className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-extrabold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {isBusy
-              ? "Accepting..."
-              : `Accept · earn ${formatMoney(task.riderEarning)}`}
+            {isBusy ? "Updating delivery..." : nextAction}
           </button>
         )}
       </div>
@@ -192,42 +292,6 @@ export function TaskCard({
   );
 }
 
-function Stop({
-  icon,
-  label,
-  title,
-  detail,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  title: string;
-  detail?: string | null;
-  tone: string;
-}) {
-  return (
-    <div className="relative flex gap-3">
-      <span
-        className={`z-10 grid h-4 w-4 shrink-0 place-items-center rounded-full text-white ${tone}`}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <small className="text-[9px] font-bold tracking-[0.12em] text-slate-400">
-          {label}
-        </small>
-        <strong className="block truncate text-sm text-slate-800">
-          {title}
-        </strong>
-        {detail && (
-          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500">
-            {detail}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
 function OtpField({
   id,
   label,
@@ -244,19 +308,20 @@ function OtpField({
   return (
     <label
       htmlFor={id}
-      className="mt-4 block rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-700"
+      className="mt-3 block rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-xs font-bold text-slate-800"
     >
       {label}
       <input
         id={id}
+        autoComplete="one-time-code"
         inputMode="numeric"
         maxLength={6}
         value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-lg tracking-[0.35em] outline-none focus:border-emerald-500"
+        onChange={(event) => onChange(event.target.value.replace(/\D/g, ""))}
+        className="mt-2 w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-center text-xl tracking-[.4em] outline-none focus:border-emerald-500"
         placeholder="000000"
       />
-      <small className="mt-1 block font-normal text-slate-400">{hint}</small>
+      <small className="mt-2 block font-normal text-slate-500">{hint}</small>
     </label>
   );
 }

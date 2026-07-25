@@ -37,7 +37,7 @@ export function MapboxNavigationPanel({
     requestedAt: number;
   } | null>(null);
   const [route, setRoute] = useState<RouteData | null>(null);
-  const [message, setMessage] = useState("Getting your live locationâ€¦");
+  const [message, setMessage] = useState("Getting your live location...");
 
   useEffect(() => {
     if (!container.current || !mapboxToken) return;
@@ -60,10 +60,7 @@ export function MapboxNavigationPanel({
   }, [destination.lat, destination.lng]);
 
   useEffect(() => {
-    if (!mapboxToken || !navigator.geolocation) {
-      setMessage("Location permission is required to show the route.");
-      return;
-    }
+    if (!mapboxToken || !("geolocation" in navigator)) return;
     let cancelled = false;
     const updateRoute = async (lat: number, lng: number) => {
       const previous = lastRoute.current;

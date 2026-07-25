@@ -1,17 +1,327 @@
-﻿"use client";
-import { useMemo, useState } from "react";
-import { ChevronRight, Clock3, PackageCheck, RefreshCw, ShieldCheck, X } from "lucide-react";
-import { markVendorOrderPacked, verifyVendorOrder, type VendorOrder } from "@/lib/authApi";
+"use client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronRight,
+  Clock3,
+  PackageCheck,
+  RefreshCw,
+  ShieldCheck,
+  X,
+} from "lucide-react";
+import {
+  markVendorOrderPacked,
+  verifyVendorOrder,
+  type VendorOrder,
+} from "@/lib/authApi";
 import { filterOrders, readableStatus, rupees } from "./vendorUtils";
 import { vendorStyles as styles } from "./vendorStyles";
 
-const filters = ["Pending", "Out for Delivery", "Failed", "Return Orders"];
-const tone: Record<VendorOrder["status"], string> = { pending_verification:"bg-amber-50 text-amber-800", verified:"bg-sky-50 text-sky-800", rejected:"bg-rose-50 text-rose-700", awaiting_rider:"bg-violet-50 text-violet-700", rider_assigned:"bg-indigo-50 text-indigo-700", picked_up:"bg-cyan-50 text-cyan-800", relay_pending:"bg-orange-50 text-orange-800", relay_failed:"bg-rose-50 text-rose-700", on_the_way:"bg-blue-50 text-blue-800", delivered:"bg-emerald-50 text-emerald-800", cancelled:"bg-slate-100 text-slate-700", disputed:"bg-rose-50 text-rose-700" };
-const date = (v: string) => new Intl.DateTimeFormat("en-IN", { day:"numeric", month:"short", hour:"numeric", minute:"2-digit" }).format(new Date(v));
+const filters = ["Pending", "Out for Delivery", "Delivered", "Failed", "Return Orders"];
+const tone: Record<VendorOrder["status"], string> = {
+  pending_verification: "bg-amber-50 text-amber-800",
+  verified: "bg-sky-50 text-sky-800",
+  rejected: "bg-rose-50 text-rose-700",
+  awaiting_rider: "bg-violet-50 text-violet-700",
+  rider_assigned: "bg-indigo-50 text-indigo-700",
+  picked_up: "bg-cyan-50 text-cyan-800",
+  relay_pending: "bg-orange-50 text-orange-800",
+  relay_failed: "bg-rose-50 text-rose-700",
+  on_the_way: "bg-blue-50 text-blue-800",
+  delivered: "bg-emerald-50 text-emerald-800",
+  cancelled: "bg-slate-100 text-slate-700",
+  disputed: "bg-rose-50 text-rose-700",
+};
+const date = (v: string) =>
+  new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(v));
 
-export function OrderStatusQueue({ token, orders, loading, error, onChanged }: { token:string; orders:VendorOrder[]; loading:boolean; error:string; onChanged:()=>Promise<void> }) {
- const [filter,setFilter]=useState("Pending"), [selected,setSelected]=useState<VendorOrder|null>(null), [busy,setBusy]=useState(false), [message,setMessage]=useState(""), [reason,setReason]=useState("");
- const shown=useMemo(()=>filterOrders(orders,filter),[orders,filter]);
- async function run(action:()=>Promise<unknown>){setBusy(true);setMessage("");try{await action();await onChanged();setSelected(null);setReason("");}catch(e){setMessage(e instanceof Error?e.message:"Could not update this order.");}finally{setBusy(false);}}
- return <section className={`${styles.section} ${styles.card}`}><div className={styles.cardHeader}><div><p className={styles.eyebrow}>Order operations</p><h2 className={styles.cardTitle}>Orders</h2><p className={styles.muted}>Select any order to review items, payment and fulfilment actions.</p></div><button type="button" onClick={()=>void onChanged()} disabled={loading} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200" aria-label="Refresh orders"><RefreshCw size={17} className={loading?"animate-spin":""}/></button></div><div className={styles.filters}>{filters.map(f=><button key={f} type="button" onClick={()=>setFilter(f)} className={`${styles.filter} ${filter===f?styles.filterActive:""}`}>{f} <span className="opacity-60">{filterOrders(orders,f).length}</span></button>)}</div>{(error||message)&&<p className={styles.error} role="alert">{error||message}</p>}<div className={styles.privacyNote}><ShieldCheck size={16}/><span><strong>Customer privacy protected.</strong> Personal contact and delivery details are not shown here.</span></div><div className="mt-5 grid gap-3">{loading?<p className={styles.empty}>Loading orders…</p>:shown.length===0?<div className={styles.empty}><PackageCheck size={24} className="mx-auto mb-2 text-teal-700"/>No {filter.toLowerCase()} orders.</div>:shown.map(o=><button key={o.id} type="button" onClick={()=>{setMessage("");setReason("");setSelected(o)}} className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-200 p-4 text-left transition hover:border-teal-300 hover:bg-teal-50/30"><div className="min-w-0"><div className="flex flex-wrap gap-2"><b>{o.orderCode}</b><span className={`rounded-full px-2 py-1 text-[10px] font-bold capitalize ${tone[o.status]}`}>{readableStatus(o.status)}</span></div><p className="mt-2 truncate text-xs text-slate-600">{o.items.map(i=>`${i.name} × ${i.qty}`).join(", ")}</p><p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400"><Clock3 size={12}/>{date(o.createdAt)}</p></div><div className="flex items-center gap-3"><b>{rupees.format(o.total)}</b><ChevronRight size={18}/></div></button>)}</div>{selected&&<div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/45 sm:items-center sm:p-5" onMouseDown={()=>!busy&&setSelected(null)}><div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl" role="dialog" aria-modal="true" onMouseDown={e=>e.stopPropagation()}><div className="sticky top-0 flex justify-between border-b bg-white p-6"><div><p className={styles.eyebrow}>Order details</p><h3 className="mt-1 text-xl font-bold">{selected.orderCode}</h3><p className="text-xs text-slate-500">Placed {date(selected.createdAt)}</p></div><button onClick={()=>setSelected(null)} disabled={busy} aria-label="Close"><X/></button></div><div className="space-y-5 p-6"><div className="flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${tone[selected.status]}`}>{readableStatus(selected.status)}</span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{selected.paymentMethod} · {selected.paymentStatus}</span><b className="ml-auto">{rupees.format(selected.total)}</b></div><div className="overflow-hidden rounded-2xl border">{selected.items.map(i=><div key={i.id} className="flex justify-between border-b p-4 last:border-0"><span><b className="block text-sm">{i.name}</b><small className="text-slate-500">{rupees.format(i.price)} each</small></span><b>× {i.qty}</b></div>)}</div>{selected.status==="rider_assigned"&&selected.pickupOtp&&<div className="rounded-2xl bg-amber-50 p-4 text-amber-950"><b>Rider pickup code</b><p className="mt-2 font-mono text-3xl font-bold tracking-[.25em]">{selected.pickupOtp}</p><small>Share only when the assigned rider collects the package.</small></div>}{selected.rider&&<p className="rounded-xl bg-slate-50 p-3 text-xs">Assigned rider: <b>{selected.rider.name}</b></p>}{selected.status==="pending_verification"&&<><textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Rejection reason (only needed if rejecting)" className="w-full rounded-xl border p-3 text-sm" rows={2}/><div className="flex justify-end gap-2"><button disabled={busy||!reason.trim()} onClick={()=>void run(()=>verifyVendorOrder(token,selected.id,false,reason.trim()))} className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700">Reject</button><button disabled={busy} onClick={()=>void run(()=>verifyVendorOrder(token,selected.id,true))} className={styles.primaryButton}>{busy?"Saving…":"Approve order"}</button></div></>}{(selected.status==="verified"||selected.canPackRelay)&&<div className="flex justify-end"><button disabled={busy} onClick={()=>void run(()=>markVendorOrderPacked(token,selected.id))} className={styles.primaryButton}>{busy?"Saving…":"Mark as packed"}</button></div>}</div></div></div>}</section>;
+export function OrderStatusQueue({
+  token,
+  orders,
+  loading,
+  error,
+  onChanged,
+}: {
+  token: string;
+  orders: VendorOrder[];
+  loading: boolean;
+  error: string;
+  onChanged: () => Promise<void>;
+}) {
+  const [filter, setFilter] = useState("Pending"),
+    [selected, setSelected] = useState<VendorOrder | null>(null),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [reason, setReason] = useState("");
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const shown = useMemo(() => filterOrders(orders, filter), [orders, filter]);
+
+  useEffect(() => {
+    if (!selected) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) setSelected(null);
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    closeButtonRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selected, busy]);
+  async function run(action: () => Promise<unknown>) {
+    setBusy(true);
+    setMessage("");
+    try {
+      await action();
+      await onChanged();
+      setSelected(null);
+      setReason("");
+    } catch (e) {
+      setMessage(
+        e instanceof Error ? e.message : "Could not update this order.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className={`${styles.section} ${styles.card}`}>
+      <div className={styles.cardHeader}>
+        <div>
+          <p className={styles.eyebrow}>Order operations</p>
+          <h2 className={styles.cardTitle}>Orders</h2>
+          <p className={styles.muted}>
+            Select any order to review items, payment and fulfilment actions.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void onChanged()}
+          disabled={loading}
+          className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200"
+          aria-label="Refresh orders"
+        >
+          <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
+      <div className={styles.filters}>
+        {filters.map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={`${styles.filter} ${filter === f ? styles.filterActive : ""}`}
+          >
+            {f}{" "}
+            <span className="opacity-60">{filterOrders(orders, f).length}</span>
+          </button>
+        ))}
+      </div>
+      {(error || message) && (
+        <p className={styles.error} role="alert">
+          {error || message}
+        </p>
+      )}
+      <div className={styles.privacyNote}>
+        <ShieldCheck size={16} />
+        <span>
+          <strong>Customer privacy protected.</strong> Personal contact and
+          delivery details are not shown here.
+        </span>
+      </div>
+      <div className="mt-5 grid gap-3">
+        {loading ? (
+          <p className={styles.empty}>Loading ordersâ€¦</p>
+        ) : shown.length === 0 ? (
+          <div className={styles.empty}>
+            <PackageCheck size={24} className="mx-auto mb-2 text-teal-700" />
+            No {filter.toLowerCase()} orders.
+          </div>
+        ) : (
+          shown.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => {
+                setMessage("");
+                setReason("");
+                setSelected(o);
+              }}
+              className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-200 p-4 text-left transition hover:border-teal-300 hover:bg-teal-50/30"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <b>{o.orderCode}</b>
+                  <span
+                    className={`rounded-full px-2 py-1 text-[10px] font-bold capitalize ${tone[o.status]}`}
+                  >
+                    {readableStatus(o.status)}
+                  </span>
+                </div>
+                <p className="mt-2 truncate text-xs text-slate-600">
+                  {o.items.map((i) => `${i.name} Ã— ${i.qty}`).join(", ")}
+                </p>
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
+                  <Clock3 size={12} />
+                  {date(o.createdAt)}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <b>{rupees.format(o.total)}</b>
+                <ChevronRight size={18} />
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+      {selected && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/45 sm:items-center sm:p-5"
+          onMouseDown={() => !busy && setSelected(null)}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-h-[calc(100vh-2.5rem)] sm:rounded-3xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-details-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5 sm:p-6">
+              <div className="min-w-0">
+                <p className={styles.eyebrow}>Order details</p>
+                <h3
+                  id="order-details-title"
+                  className="mt-1 break-words text-xl font-bold"
+                >
+                  {selected.orderCode}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Placed {date(selected.createdAt)}
+                </p>
+              </div>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={() => setSelected(null)}
+                disabled={busy}
+                aria-label="Close"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-600/30"
+              >
+                <X />
+              </button>
+            </div>
+            <div className="space-y-5 p-5 sm:p-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${tone[selected.status]}`}
+                >
+                  {readableStatus(selected.status)}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">
+                  {selected.paymentMethod} Â· {selected.paymentStatus}
+                </span>
+                <b className="ml-auto whitespace-nowrap">
+                  {rupees.format(selected.total)}
+                </b>
+              </div>
+              <div className="overflow-hidden rounded-2xl border">
+                {selected.items.map((i) => (
+                  <div
+                    key={i.id}
+                    className="flex items-start justify-between gap-4 border-b p-4 last:border-0"
+                  >
+                    <span>
+                      <b className="block text-sm">{i.name}</b>
+                      <small className="text-slate-500">
+                        {rupees.format(i.price)} each
+                      </small>
+                    </span>
+                    <b>Ã— {i.qty}</b>
+                  </div>
+                ))}
+              </div>
+              {selected.status === "rider_assigned" && selected.pickupOtp && (
+                <div className="rounded-2xl bg-amber-50 p-4 text-amber-950">
+                  <b>Rider pickup code</b>
+                  <p className="mt-2 break-all font-mono text-3xl font-bold tracking-[.16em] sm:tracking-[.25em]">
+                    {selected.pickupOtp}
+                  </p>
+                  <small>
+                    Share only when the assigned rider collects the package.
+                  </small>
+                </div>
+              )}
+              {selected.rider && (
+                <p className="rounded-xl bg-slate-50 p-3 text-xs">
+                  Assigned rider: <b>{selected.rider.name}</b>
+                </p>
+              )}
+              {selected.status === "pending_verification" && (
+                <>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Rejection reason (only needed if rejecting)"
+                    className="w-full rounded-xl border p-3 text-sm"
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      disabled={busy || !reason.trim()}
+                      onClick={() =>
+                        void run(() =>
+                          verifyVendorOrder(
+                            token,
+                            selected.id,
+                            false,
+                            reason.trim(),
+                          ),
+                        )
+                      }
+                      className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() =>
+                          verifyVendorOrder(token, selected.id, true),
+                        )
+                      }
+                      className={styles.primaryButton}
+                    >
+                      {busy ? "Savingâ€¦" : "Approve order"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {(selected.status === "verified" || selected.canPackRelay) && (
+                <div className="flex justify-end">
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void run(() => markVendorOrderPacked(token, selected.id))
+                    }
+                    className={styles.primaryButton}
+                  >
+                    {busy ? "Savingâ€¦" : "Mark as packed"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }

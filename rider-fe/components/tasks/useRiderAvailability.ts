@@ -112,6 +112,7 @@ export function useRiderAvailability(token: string) {
 
   return {
     isOnline,
+    isStarting: isSharingLocation && !isOnline,
     message,
     toggleAvailability: isSharingLocation ? goOffline : goOnline,
   };

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -9,6 +9,8 @@ import {
 import type { FinancialSummary, VendorData } from "./types";
 
 const emptyFinancials: FinancialSummary = {
+  today: { received: 0, pending: 0, packed: 0, outForDelivery: 0, delivered: 0, failed: 0 },
+  allTime: { received: 0, pending: 0, packed: 0, outForDelivery: 0, delivered: 0, failed: 0 },
   onlineRevenue: 0,
   cashRevenue: 0,
   receivable: 0,
