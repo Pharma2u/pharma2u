@@ -1,4 +1,4 @@
-﻿import type { VendorOrder } from "@/lib/authApi";
+import type { VendorOrder } from "@/lib/authApi";
 import type { FinancialSummary } from "./types";
 
 export const rupees = new Intl.NumberFormat("en-IN", {
@@ -23,6 +23,9 @@ export function filterOrders(orders: VendorOrder[], filter: string) {
     if (filter === "Out for Delivery") {
       return ["picked_up", "relay_pending", "on_the_way"].includes(order.status);
     }
+    if (filter === "Delivered") {
+      return order.status === "delivered";
+    }
     if (filter === "Failed") {
       return order.paymentStatus === "failed" || ["rejected", "cancelled", "relay_failed", "disputed"].includes(order.status);
     }
@@ -40,6 +43,8 @@ export function calculateFinancials(orders: VendorOrder[]): FinancialSummary {
   const availableBalance = Math.max(0, onlineRevenue - heldBalance - pharmacyDiscounts);
 
   return {
+    today: { received: 0, pending: 0, packed: 0, outForDelivery: 0, delivered: 0, failed: 0 },
+    allTime: { received: orders.length, pending: 0, packed: 0, outForDelivery: 0, delivered: orders.filter((order) => order.status === "delivered").length, failed: 0 },
     onlineRevenue,
     cashRevenue,
     receivable,

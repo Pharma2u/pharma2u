@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
 
@@ -49,6 +49,8 @@ async function summary(vendorId: string) {
         status: true,
         paymentStatus: true,
         paymentMethod: true,
+        createdAt: true,
+        deliveredAt: true,
       },
     }),
     prisma.counterBill.findMany({
@@ -78,13 +80,31 @@ async function summary(vendorId: string) {
     .filter((order) => order.status !== "delivered")
     .reduce((sum, order) => sum + order.total, 0);
   const pharmacyDiscounts = bills.reduce((sum, bill) => sum + bill.discount, 0);
-  const committedPayouts = openPayouts._sum.amount ?? 0;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const ordersCreatedToday = orders.filter((order) => order.createdAt >= todayStart);
+  const metricsFor = (items: typeof orders) => ({
+    received: items.length,
+    pending: items.filter((order) => ["pending_verification", "verified"].includes(order.status)).length,
+    packed: items.filter((order) => ["awaiting_rider", "rider_assigned"].includes(order.status)).length,
+    outForDelivery: items.filter((order) => ["picked_up", "relay_pending", "on_the_way"].includes(order.status)).length,
+    delivered: items.filter((order) => order.status === "delivered").length,
+    failed: items.filter((order) => ["rejected", "cancelled", "relay_failed", "disputed"].includes(order.status)).length,
+  });
+  const today = {
+    ...metricsFor(ordersCreatedToday),
+    delivered: orders.filter(
+      (order) => order.status === "delivered" && order.deliveredAt && order.deliveredAt >= todayStart,
+    ).length,
+  };
+  const allTime = metricsFor(orders);  const committedPayouts = openPayouts._sum.amount ?? 0;
   const availableBalance = Math.max(
     0,
     onlineRevenue - heldBalance - committedPayouts,
   );
   return {
     pharmacyId: pharmacy.id,
+    today,
     onlineRevenue,
     offlineRevenue,
     cashRevenue: cashCounterRevenue + codRevenue,

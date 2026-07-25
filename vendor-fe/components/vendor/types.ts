@@ -1,4 +1,4 @@
-﻿import type { VendorOrder } from "@/lib/authApi";
+import type { VendorOrder } from "@/lib/authApi";
 
 export type Workspace =
   | "dashboard"
@@ -15,7 +15,17 @@ export type Workspace =
 export type OperationsWorkspace = Exclude<Workspace, "products" | "add-product" | "pharmacy">;
 export type FinanceMode = "online" | "offline" | "merged";
 
+type TodayOrderMetrics = {
+  received: number;
+  pending: number;
+  packed: number;
+  outForDelivery: number;
+  delivered: number;
+  failed: number;
+};
 export type FinancialSummary = {
+  today: TodayOrderMetrics;
+  allTime: TodayOrderMetrics;
   onlineRevenue: number;
   cashRevenue: number;
   receivable: number;
