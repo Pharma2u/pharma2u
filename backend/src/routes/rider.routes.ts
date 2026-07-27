@@ -1,4 +1,4 @@
-// Registers the public multipart rider application and protected review endpoints.
+// Registers rider application, workspace, and protected review endpoints.
 import { Router } from "express";
 import multer from "multer";
 import rateLimit from "express-rate-limit";
@@ -12,6 +12,7 @@ import {
   updateMyLocation,
 } from "../controllers/rider.controller";
 import { riderFinance } from "../controllers/rider-finance.controller";
+import { riderDashboard } from "../controllers/rider-dashboard.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requirePasswordChanged } from "../middleware/requirePasswordChanged.middleware";
 
@@ -47,6 +48,12 @@ router.post(
   authMiddleware("rider"),
   requirePasswordChanged,
   updateMyLocation,
+);
+router.get(
+  "/riders/dashboard",
+  authMiddleware("rider"),
+  requirePasswordChanged,
+  riderDashboard,
 );
 router.get(
   "/riders/finance",
