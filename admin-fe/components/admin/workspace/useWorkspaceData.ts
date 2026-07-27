@@ -28,6 +28,7 @@ const emptyData: WorkspaceData = {
   customers: [],
   customerSummary: { members: 0, points: 0 },
   permissions: [],
+  profileTypes: [],
   dashboard: {
     grossVolume: 0,
     activePharmacies: 0,
@@ -191,5 +192,22 @@ export function useWorkspaceData(token: string) {
     [load, token],
   );
 
-  return { data, setData, toggleSubscription, loading, error, reload: load };
+  const saveCompany = useCallback(
+    async (company: CompanyProfile) => {
+      const saved = await adminWorkspaceApi.saveCompany(token, company);
+      updateData((current) => ({ ...current, company: saved }));
+      setError("");
+    },
+    [token],
+  );
+
+  return {
+    data,
+    setData,
+    saveCompany,
+    toggleSubscription,
+    loading,
+    error,
+    reload: load,
+  };
 }

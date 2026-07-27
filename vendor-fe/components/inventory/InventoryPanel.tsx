@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { ChangeEvent, Dispatch, FormEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { AddProductForm } from "./AddProductForm";
 import { ProductImage, ProductImageGallery, ProductRow } from "./ProductDisplay";
 import { productCategories as categories, productCategoryLabels as labels } from "./productConfig";
 import { Dialog, FormActions } from "./shared/Dialog";
@@ -163,6 +164,19 @@ export function InventoryPanel({
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const price = Number(form.get("price"));
+    const mrpValue = String(form.get("mrp") ?? "").trim();
+    const mrp = mrpValue ? Number(mrpValue) : undefined;
+    const expiryDate = String(form.get("expiryDate") ?? "");
+
+    if (mrp !== undefined && mrp < price) {
+      setError("MRP must be equal to or higher than the selling price.");
+      return;
+    }
+    if (expiryDate && new Date(`${expiryDate}T00:00:00`).getTime() <= Date.now()) {
+      setError("Expiry date must be in the future.");
+      return;
+    }
     setAdding(true);
     setError("");
     try {
@@ -170,14 +184,14 @@ export function InventoryPanel({
         name: String(form.get("name")).trim(),
         genericName: String(form.get("genericName")).trim(),
         category: String(form.get("category")) as ProductCategory,
-        price: Number(form.get("price")),
+        price,
         stock: Number(form.get("stock")),
         unit: String(form.get("unit")).trim(),
         description: String(form.get("description") ?? "").trim() || undefined,
         manufacturer:
           String(form.get("manufacturer") ?? "").trim() || undefined,
         packSize: String(form.get("packSize") ?? "").trim() || undefined,
-        mrp: form.get("mrp") ? Number(form.get("mrp")) : undefined,
+        mrp,
         discount: form.get("discount")
           ? Number(form.get("discount"))
           : undefined,
@@ -197,6 +211,7 @@ export function InventoryPanel({
           ),
       });
       setNewProductImages([]);
+      event.currentTarget.reset();
       setShowForm(false);
       setNotice("Product added to inventory.");
       await load();
@@ -317,6 +332,15 @@ export function InventoryPanel({
     }
   }
 
+  const dedicatedAddProduct = startAdding && !showCatalogue && !showPharmacyProfile;
+
+  if (dedicatedAddProduct) {
+    return <section className="mt-6 space-y-4">
+      {(error || notice) && <div role="status" className={`rounded-xl border px-4 py-3 text-sm font-medium ${error ? "border-red-100 bg-red-50 text-red-700" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}>{error || notice}</div>}
+      <AddProductForm adding={adding} images={newProductImages} onSubmit={add} onImagesSelected={(event) => selectProductImages(event, setNewProductImages)} onReset={() => { setNewProductImages([]); setError(""); }} />
+    </section>;
+  }
+
 
 
   return (
@@ -404,12 +428,25 @@ export function InventoryPanel({
               Search products, update stock, and edit catalogue details.
             </p>
           </div>
+          {!showForm && (
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2"
+            >
+              + Add product
+            </button>
+          )}
         </div>
         {showForm && (
           <form
             onSubmit={add}
             className="grid gap-3 border-y border-slate-100 bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-3"
           >
+            <div className="sm:col-span-2 lg:col-span-3 rounded-2xl border border-teal-100 bg-teal-50/70 px-4 py-3">
+              <p className="font-bold text-teal-950">Create a catalogue item</p>
+              <p className="mt-1 text-sm text-teal-800">Add the medicine, selling price and opening stock first. Batch, expiry, images and customer-facing details can be added when available.</p>
+            </div>
             <InputField
               name="name"
               label="Product name"

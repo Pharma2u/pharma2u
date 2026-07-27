@@ -1,17 +1,17 @@
 "use client";
-import Image from "next/image";
 import { useState } from "react";
 import { Bike, CheckCircle2, ShieldCheck, WalletCards } from "lucide-react";
 import type { RiderSession } from "@/store/authSlice";
 import { ApplicationForm } from "@/components/auth/ApplicationForm";
 import { RiderLoginForm } from "@/components/auth/RiderLoginForm";
+import { CompanyLogo } from "@/components/branding/CompanyLogo";
 
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: RiderSession) => void }) {
   const [mode, setMode] = useState<"login" | "apply">("login");
   return <main className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[0.9fr_1.1fr]">
     <section className="relative overflow-hidden bg-slate-950 px-6 py-8 text-white sm:px-10 lg:flex lg:min-h-screen lg:flex-col lg:justify-between lg:p-14">
       <div className="absolute -right-24 top-20 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
-      <Image src="/images/logo/logo.png" alt="Pharma2U" width={150} height={50} className="relative h-auto w-32 brightness-0 invert sm:w-36" priority />
+      <CompanyLogo width={150} height={50} className="relative h-auto w-32 brightness-0 invert sm:w-36" priority />
       <div className="relative mt-12 max-w-xl lg:my-auto"><span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-emerald-300"><Bike size={15} />RIDER PARTNER</span><h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">Deliver healthcare.<br /><span className="text-emerald-400">Earn with clarity.</span></h1><p className="mt-5 max-w-lg text-sm leading-7 text-slate-300 sm:text-base">A secure rider workspace for verified deliveries, live navigation, and transparent settlement accounting.</p><div className="mt-8 grid gap-3 sm:grid-cols-3">{[[ShieldCheck, "Verified onboarding"], [WalletCards, "Clear earnings"], [CheckCircle2, "Protected data"]].map(([Icon, label]) => { const C = Icon as typeof ShieldCheck; return <div key={String(label)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs font-semibold"><C size={17} className="text-emerald-400" />{String(label)}</div>; })}</div></div>
       <p className="relative mt-10 text-xs text-slate-500">Sensitive customer details remain protected at every step.</p>
     </section>

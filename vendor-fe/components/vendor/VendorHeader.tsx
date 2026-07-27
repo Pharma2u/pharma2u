@@ -1,9 +1,9 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import Image from "next/image";
 import { vendorStyles as styles } from "./vendorStyles";
 import { VendorNotifications } from "./VendorNotifications";
+import { CompanyLogo } from "../branding/CompanyLogo";
 
 export function VendorHeader({ name, token, onSignOut, onMenuOpen }: { name: string; token: string; onSignOut: () => void; onMenuOpen: () => void }) {
   return (
@@ -11,7 +11,7 @@ export function VendorHeader({ name, token, onSignOut, onMenuOpen }: { name: str
       <div className={styles.headerInner}>
         <div className={styles.brand}>
           <button type="button" onClick={onMenuOpen} className={styles.mobileMenu} aria-label="Open navigation"><Menu size={21} aria-hidden="true" /></button>
-          <Image src="/images/logo/logo.png" alt="Pharma2U" width={118} height={38} className={styles.logo} priority />
+          <CompanyLogo width={118} height={38} className={styles.logo} priority />
           <div className={styles.brandCopy}><p className={styles.kicker}>Vendor portal</p><strong>Pharmacy workspace</strong></div>
         </div>
         <div className={styles.account}>

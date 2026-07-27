@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LocationModal from "@/src/components/location/LocationModal";
@@ -15,7 +14,7 @@ import {
   Search,
   ShoppingCart,
 } from "lucide-react";
-import image from "../../../public/images/logo/logo.png";
+import { CompanyLogo } from "@/src/components/branding/CompanyLogo";
 
 import { useCartStore } from "@/src/store/cartStore";
 import { AccountMenu } from "@/src/components/account/AccountMenu";
@@ -64,9 +63,7 @@ export default function Header() {
           {/* LOGO */}
 
           <Link href="/" className="flex shrink-0 items-center">
-            <Image
-              src={image}
-              alt="Pharma2u"
+            <CompanyLogo
               width={190}
               height={70}
               priority
@@ -175,9 +172,7 @@ export default function Header() {
               {/* MOBILE LOGO */}
 
               <Link href="/" className="flex shrink-0 items-center">
-                <Image
-                  src={image}
-                  alt="Pharma2u"
+                <CompanyLogo
                   width={150}
                   height={65}
                   priority

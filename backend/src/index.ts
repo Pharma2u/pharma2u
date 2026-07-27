@@ -15,6 +15,7 @@ import addressRoutes from "./routes/address.routes";
 import pharmacyApplicationRoutes from "./routes/pharmacy-application.routes";
 import adminWorkspaceRoutes from "./routes/admin-workspace.routes";
 import notificationRoutes from "./routes/notification.routes";
+import companyBrandingRoutes from "./routes/company-branding.routes";
 import { razorpayWebhook } from "./controllers/order.controller";
 import { assertJwtSecret } from "./utils/jwt";
 import { ValidationError } from "./validators/auth.validator";
@@ -43,7 +44,7 @@ app.post(
   razorpayWebhook,
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api", pharmacyRoutes);
@@ -55,6 +56,7 @@ app.use("/api", addressRoutes);
 app.use("/api", pharmacyApplicationRoutes);
 app.use("/api", adminWorkspaceRoutes);
 app.use("/api", notificationRoutes);
+app.use("/api", companyBrandingRoutes);
 
 app.use(
   (

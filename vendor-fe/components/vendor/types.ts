@@ -10,9 +10,13 @@ export type Workspace =
   | "finance"
   | "reports"
   | "promotions"
-  | "payouts";
+  | "payouts"
+  | "settings";
 
-export type OperationsWorkspace = Exclude<Workspace, "products" | "add-product" | "pharmacy">;
+export type OperationsWorkspace = Exclude<
+  Workspace,
+  "products" | "add-product" | "pharmacy" | "settings"
+>;
 export type FinanceMode = "online" | "offline" | "merged";
 
 type TodayOrderMetrics = {

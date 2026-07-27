@@ -1,11 +1,14 @@
 import { useState } from "react";
 
 import {
+  ArrowUpRight,
   CheckCircle2,
   ClipboardList,
   Clock3,
+  IndianRupee,
   PackageCheck,
   Truck,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import type { VendorOrder } from "@/lib/authApi";
@@ -59,10 +62,31 @@ export function VendorDashboard({
     ? Math.round((metrics.delivered / metrics.received) * 100)
     : 0;
 
+  const highlights = [
+    { label: "Online sales revenue", value: rupees.format(financials.onlineRevenue), detail: "Paid online orders", icon: IndianRupee },
+    { label: "Orders received", value: String(metrics.received), detail: periodLabel, icon: ClipboardList },
+    { label: "Orders delivered", value: String(metrics.delivered), detail: "Completed fulfilments", icon: CheckCircle2 },
+    { label: "Available balance", value: rupees.format(financials.availableBalance), detail: "Ready for payout", icon: Wallet },
+  ];
+
   return (
     <div className={styles.section}>
       <section className={`${styles.card} border-teal-100`}>
         <div className={styles.cardHeader}>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {highlights.map(({ label, value, detail, icon: Icon }) => (
+          <article key={label} className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgba(15,38,50,.035)]">
+            <div className="flex items-start justify-between">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Icon size={20} /></span>
+              <span className="flex items-center gap-1 text-xs font-bold text-emerald-600"><ArrowUpRight size={14} />Live</span>
+            </div>
+            <strong className="mt-5 block truncate text-2xl font-extrabold tracking-tight text-slate-950">{loading ? "-" : value}</strong>
+            <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
+            <p className="mt-2 text-[11px] text-slate-400">{detail}</p>
+          </article>
+        ))}
+      </div>
+
           <div>
             <p className={styles.eyebrow}>{periodLabel} operations</p>
             <h2 className={styles.cardTitle}>Your pharmacy at a glance</h2>
@@ -160,7 +184,7 @@ export function VendorDashboard({
               <div className={styles.orderRow} key={order.id}>
                 <div className="min-w-0">
                   <p className={styles.orderCode}>{order.orderCode}</p>
-                  <p className={styles.orderMeta}>{protectedCustomerLabel()} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {order.items.length} item{order.items.length === 1 ? "" : "s"}</p>
+              <p className={styles.orderMeta}>{protectedCustomerLabel()} · {order.items.length} item{order.items.length === 1 ? "" : "s"}</p>
                 </div>
                 <div className={styles.orderAmount}>{rupees.format(order.total)}<span className={styles.status}>{readableStatus(order.status)}</span></div>
               </div>

@@ -65,14 +65,21 @@ const headings: Record<
     description:
       "Review available funds and raise a withdrawal support ticket.",
   },
+  settings: {
+    eyebrow: "Vendor preferences",
+    title: "Settings",
+    description:
+      "Manage pharmacy-only workspace and order printing preferences.",
+  },
 };
 
-export function WorkspaceHero({ workspace }: { workspace: Workspace }) {
+export function WorkspaceHero({ workspace, userName }: { workspace: Workspace; userName?: string }) {
   const content = headings[workspace];
+  const title = workspace === "dashboard" && userName ? `Welcome back, ${userName}` : content.title;
   return (
     <div className={styles.hero}>
       <p className={styles.kicker}>{content.eyebrow}</p>
-      <h1 className={styles.heroTitle}>{content.title}</h1>
+      <h1 className={styles.heroTitle}>{title}</h1>
       <p className={styles.heroDescription}>{content.description}</p>
     </div>
   );
