@@ -8,7 +8,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { usePersistedRiderSession } from "@/store/usePersistedSession";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { AuthScreen } from "./AuthScreen";
-import { RiderDashboard } from "./RiderDashboard";
+import { RiderDashboardV2 } from "./RiderDashboardV2";
 
 export function RiderPortal() {
   const dispatch = useAppDispatch();
@@ -95,7 +95,7 @@ export function RiderPortal() {
       </main>
     );
   return (
-    <RiderDashboard
+    <RiderDashboardV2
       session={session}
       onSignOut={() => dispatch(clearSession())}
     />
