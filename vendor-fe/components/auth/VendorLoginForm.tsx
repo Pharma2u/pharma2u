@@ -1,7 +1,7 @@
 "use client";
 import { FormEvent, useState } from "react";
 import { PasswordInput } from "./PasswordInput";
-import Image from "next/image";
+import { CompanyLogo } from "../branding/CompanyLogo";
 type Props = {
   onSubmit: (phone: string, password: string) => Promise<void>;
   error: string;
@@ -21,7 +21,7 @@ export function VendorLoginForm({ onSubmit, error }: Props) {
         onSubmit={submit}
         className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
       >
-        <Image src="/images/logo/logo.png" alt="Pharma2U" width={150} height={52} className="h-12 w-auto object-contain" priority />
+        <CompanyLogo width={150} height={52} className="h-12 w-auto object-contain" priority />
         <h1 className="mt-3 text-3xl font-bold text-slate-900">
           Vendor portal
         </h1>

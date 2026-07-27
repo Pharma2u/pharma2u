@@ -16,6 +16,7 @@ import {
   CompanySetupPanel,
   HrmPanel,
   SubscriptionsPanel,
+  VendorProfileTypesPanel,
 } from "./ManagementPanels";
 import { AccountingPanel, LedgerPanel } from "./FinancePanels";
 import {
@@ -36,8 +37,15 @@ export function AdminWorkspace({
   onSignOut: () => void;
 }) {
   const [section, setSection] = useState<AdminSection>("dashboard");
-  const { data, setData, toggleSubscription, loading, error, reload } =
-    useWorkspaceData(session.token);
+  const {
+    data,
+    setData,
+    saveCompany,
+    toggleSubscription,
+    loading,
+    error,
+    reload,
+  } = useWorkspaceData(session.token);
   function navigate(next: AdminSection) {
     setSection(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -128,19 +136,28 @@ export function AdminWorkspace({
       );
       break;
     case "access":
-      content = <AccessPanel permissions={data.permissions} token={session.token} />;
+      content = (
+        <AccessPanel permissions={data.permissions} token={session.token} />
+      );
+      break;
+    case "vendor-profile-types":
+      content = (
+        <VendorProfileTypesPanel
+          items={data.profileTypes}
+          token={session.token}
+          onChange={(profileTypes) => setData({ ...data, profileTypes })}
+        />
+      );
       break;
     case "company":
       content = (
-        <CompanySetupPanel
-          company={data.company}
-          onSave={(company) => setData({ ...data, company })}
-        />
+        <CompanySetupPanel company={data.company} onSave={saveCompany} />
       );
       break;
     case "accounts":
       content = (
-        <ProvisioningPanel onProvisionAdmin={(name, phone, currentPassword) =>
+        <ProvisioningPanel
+          onProvisionAdmin={(name, phone, currentPassword) =>
             provisionAdmin(session.token, name, phone, currentPassword)
           }
         />

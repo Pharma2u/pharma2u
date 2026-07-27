@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   Bike,
@@ -21,6 +20,7 @@ import { getRiderFinance } from "@/lib/api";
 import { formatMoney } from "@/components/tasks/taskHelpers";
 import { FinancePanel } from "@/components/finance/FinancePanel";
 import { NotificationsMenu } from "./NotificationsMenu";
+import { CompanyLogo } from "@/components/branding/CompanyLogo";
 import { DashboardHome } from "./DashboardHome";
 import {
   IncentivesPanel,
@@ -121,9 +121,7 @@ export function RiderDashboardV2({
           onClick={() => navigate("dashboard")}
           className="flex h-[88px] items-center px-6"
         >
-          <Image
-            src="/images/logo/logo.png"
-            alt="Pharma2U"
+          <CompanyLogo
             width={155}
             height={50}
             className="h-11 w-auto object-contain"
@@ -196,9 +194,7 @@ export function RiderDashboardV2({
             onClick={() => navigate("dashboard")}
             className="lg:hidden"
           >
-            <Image
-              src="/images/logo/logo.png"
-              alt="Pharma2U"
+            <CompanyLogo
               width={120}
               height={40}
               className="h-9 w-auto object-contain"

@@ -8,6 +8,7 @@ import type {
   Subscription,
   SupportTicket,
   WorkspaceData,
+  VendorProfileType,
 } from "@/components/admin/workspace/types";
 
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
@@ -68,6 +69,20 @@ export const adminWorkspaceApi = {
   setUserAccess: (token: string, id: string, isActive: boolean) =>
     request<{ id: string; isActive: boolean }>(
       `/admin/access/users/${encodeURIComponent(id)}`,
+      token,
+      { method: "PATCH", body: JSON.stringify({ isActive }) },
+    ),
+  createVendorProfileType: (
+    token: string,
+    input: Pick<VendorProfileType, "name" | "description">,
+  ) =>
+    request<VendorProfileType>("/admin/vendor-profile-types", token, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateVendorProfileType: (token: string, id: string, isActive: boolean) =>
+    request<VendorProfileType>(
+      `/admin/vendor-profile-types/${encodeURIComponent(id)}`,
       token,
       { method: "PATCH", body: JSON.stringify({ isActive }) },
     ),

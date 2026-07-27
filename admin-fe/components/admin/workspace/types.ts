@@ -16,7 +16,8 @@ export type AdminSection =
   | "support"
   | "access"
   | "accounts"
-  | "company";
+  | "company"
+  | "vendor-profile-types";
 
 export type CompanyProfile = {
   name: string;
@@ -102,6 +103,14 @@ export type RoleUser = {
   createdAt: string;
   pharmacies: { name: string; address: string }[];
 };
+export type VendorProfileType = {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  isActive: boolean;
+};
+
 export type PermissionSummary = {
   role: string;
   users: number;
@@ -139,5 +148,6 @@ export type WorkspaceData = {
   customers: Customer[];
   customerSummary: { members: number; points: number };
   permissions: PermissionSummary[];
+  profileTypes: VendorProfileType[];
   dashboard: DashboardData;
 };

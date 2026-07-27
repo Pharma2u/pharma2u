@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
+import { companyLogoDataUrl } from "../utils/company-branding";
 
 const fields = [
   "name",
@@ -61,6 +62,7 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
     orders,
     applications,
     riders,
+    profileTypes,
   ] = await Promise.all([
     prisma.companyProfile.findUnique({ where: { id: "default" } }),
     prisma.ledgerEntry.findMany({ orderBy: { entryDate: "desc" } }),
@@ -97,6 +99,7 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
     prisma.user.count({
       where: { role: "rider", applicationStatus: "approved" },
     }),
+    prisma.vendorProfileType.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
   const subscriptionByPharmacy = new Map(
     subscriptions.map((item) => [item.pharmacyId, item]),
@@ -218,6 +221,7 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
       members: customerItems.length,
       points: customerItems.reduce((sum, item) => sum + item.points, 0),
     },
+    profileTypes,
     permissions: roles.map((item) => ({
       role: item.role,
       users: item._count._all,
@@ -269,6 +273,23 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
   });
 }
 
+
+export async function createVendorProfileType(req: Request, res: Response) {
+  const name = value(req.body, "name", 2, 60);
+  const description = value(req.body, "description", 2, 180);
+  const code = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+  if (!code) bad("name is invalid.");
+  const item = await prisma.vendorProfileType.create({ data: { name, code, description } });
+  res.status(201).json(item);
+}
+
+export async function updateVendorProfileType(req: Request, res: Response) {
+  const item = await prisma.vendorProfileType.update({
+    where: { id: String(req.params.id) },
+    data: { isActive: Boolean((req.body as Record<string, unknown>)?.isActive) },
+  });
+  res.json(item);
+}
 export async function saveCompany(req: Request, res: Response) {
   const data = {
     name: value(req.body, "name"),
@@ -281,8 +302,7 @@ export async function saveCompany(req: Request, res: Response) {
     pincode: value(req.body, "pincode"),
     gstin: value(req.body, "gstin", 0),
     registrationNumber: value(req.body, "registrationNumber", 0),
-    logoDataUrl:
-      typeof req.body?.logoDataUrl === "string" ? req.body.logoDataUrl : null,
+    logoDataUrl: companyLogoDataUrl(req.body?.logoDataUrl),
   };
   res.json(
     await prisma.companyProfile.upsert({

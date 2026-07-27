@@ -81,6 +81,11 @@ const navigation: { label: string; items: NavItem[] }[] = [
     items: [
       { id: "accounts", label: "Account provisioning", icon: UsersRound },
       { id: "access", label: "Roles & access", icon: ShieldCheck },
+      {
+        id: "vendor-profile-types",
+        label: "Vendor profile types",
+        icon: UserRoundCheck,
+      },
       { id: "company", label: "Company setup", icon: Settings },
     ],
   },
@@ -143,7 +148,11 @@ export function AdminShell({
                 height={40}
                 src={company.logoDataUrl}
                 alt="Company logo"
-                className="h-10 w-10 rounded-xl object-contain"
+                className={
+                  collapsed
+                    ? "h-9 w-9 rounded-xl object-contain"
+                    : "h-10 w-auto max-w-[190px] object-contain"
+                }
               />
             ) : (
               <Image
@@ -154,15 +163,10 @@ export function AdminShell({
                 className={
                   collapsed
                     ? "h-9 w-9 object-cover object-left"
-                    : "h-10 w-auto object-contain"
+                    : "h-10 w-[220px] object-contain"
                 }
                 priority
               />
-            )}
-            {!collapsed && company.logoDataUrl && (
-              <span className="truncate text-sm font-extrabold text-slate-900">
-                {company.name}
-              </span>
             )}
           </button>
           <button

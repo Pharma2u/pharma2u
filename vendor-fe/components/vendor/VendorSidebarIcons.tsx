@@ -8,6 +8,7 @@ import {
   Package,
   Receipt,
   Store,
+  Settings,
   Tags,
   Wallet,
   X,
@@ -97,6 +98,17 @@ const sections: {
         icon: Wallet,
         label: "Payout Management",
         detail: "Withdrawal support tickets",
+      },
+    ],
+  },
+  {
+    heading: "PREFERENCES",
+    items: [
+      {
+        id: "settings",
+        icon: Settings,
+        label: "Settings",
+        detail: "Printer and workspace preferences",
       },
     ],
   },

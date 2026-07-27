@@ -16,29 +16,36 @@ export const vendorStyles = {
     "rounded-[10px] border border-slate-300 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-600/30",
   layout:
     "mx-auto grid w-[min(100%-32px,1540px)] grid-cols-[256px_minmax(0,1fr)] gap-[22px] py-[22px] pb-10 max-[1080px]:grid-cols-[220px_minmax(0,1fr)] max-[1080px]:gap-4 max-[920px]:w-[min(100%-22px,1540px)] max-[920px]:grid-cols-1",
-  sidebar: "sticky top-[94px] max-h-[calc(100vh-116px)] self-start overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-3 shadow-[0_10px_32px_rgba(15,38,50,0.05)] max-[1080px]:static max-[1080px]:max-h-none max-[920px]:fixed max-[920px]:inset-y-0 max-[920px]:left-0 max-[920px]:z-50 max-[920px]:w-[min(86vw,320px)] max-[920px]:max-h-none max-[920px]:rounded-none max-[920px]:p-3 max-[920px]:transition-transform max-[920px]:duration-200",
-  navSection: "[&+&]:mt-[15px] [&+&]:border-t [&+&]:border-slate-100 [&+&]:pt-[13px]",
-  navHeading: "mx-2.5 mb-[7px] text-[9px] font-extrabold tracking-[0.16em] text-slate-400",
+  sidebar:
+    "sticky top-[94px] max-h-[calc(100vh-116px)] self-start overflow-y-auto rounded-[20px] border border-slate-200 bg-white p-3 shadow-[0_10px_32px_rgba(15,38,50,0.05)] max-[1080px]:static max-[1080px]:max-h-none max-[920px]:fixed max-[920px]:inset-y-0 max-[920px]:left-0 max-[920px]:z-50 max-[920px]:w-[min(86vw,320px)] max-[920px]:max-h-none max-[920px]:rounded-none max-[920px]:p-3 max-[920px]:transition-transform max-[920px]:duration-200",
+  navSection:
+    "[&+&]:mt-[15px] [&+&]:border-t [&+&]:border-slate-100 [&+&]:pt-[13px]",
+  navHeading:
+    "mx-2.5 mb-[7px] text-[9px] font-extrabold tracking-[0.16em] text-slate-400",
   navItem:
     "group grid w-full grid-cols-[34px_minmax(0,1fr)] items-center gap-2 rounded-xl p-2.5 text-left text-slate-600 transition hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-teal-600/30 max-[920px]:min-h-[54px] max-[920px]:grid-cols-[30px_minmax(0,1fr)] max-[920px]:gap-[7px] max-[920px]:p-2",
-  navItemActive: "border border-teal-200 bg-teal-100 text-teal-950 shadow-sm hover:bg-teal-100 hover:text-teal-950",
+  navItemActive:
+    "border border-teal-200 bg-teal-100 text-teal-950 shadow-sm hover:bg-teal-100 hover:text-teal-950",
   navIcon:
     "grid h-8 w-8 place-items-center rounded-[9px] bg-teal-50 text-sm font-extrabold text-teal-700 max-[920px]:h-[30px] max-[920px]:w-[30px]",
   navCopy: "min-w-0",
   navLabel: "block text-xs font-bold leading-[1.3] max-[560px]:text-[11px]",
-  navDetail: "mt-0.5 block truncate text-[10px] leading-[1.35] text-slate-400 group-hover:text-teal-800",
+  navDetail:
+    "mt-0.5 block truncate text-[10px] leading-[1.35] text-slate-400 group-hover:text-teal-800",
   sidebarOpen: "max-[920px]:translate-x-0",
   sidebarClosed: "max-[920px]:-translate-x-full",
-  mobileMenu: "hidden h-10 w-10 place-items-center rounded-lg border border-slate-300 text-xl text-slate-700 max-[920px]:grid",
-  mobileClose: "mb-3 ml-auto grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-lg text-slate-700 min-[921px]:hidden",
+  mobileMenu:
+    "hidden h-10 w-10 place-items-center rounded-lg border border-slate-300 text-xl text-slate-700 max-[920px]:grid",
+  mobileClose:
+    "mb-3 ml-auto grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-lg text-slate-700 min-[921px]:hidden",
   content: "min-w-0",
-  hero: "relative min-h-[145px] overflow-hidden rounded-[24px] bg-gradient-to-br from-teal-950 via-teal-700 to-teal-600 px-8 py-7 text-white shadow-[0_16px_40px_rgba(6,78,69,0.17)] max-[920px]:p-6 max-[560px]:min-h-[130px] max-[560px]:p-[22px]",
+  hero: "mb-5",
   heroTitle:
-    "relative z-10 my-2 text-[clamp(24px,3vw,32px)] font-bold leading-[1.15] tracking-[-0.035em] max-[560px]:text-2xl",
+    "mt-1 text-[clamp(26px,3vw,32px)] font-extrabold leading-tight tracking-[-0.035em] text-slate-950",
   heroDescription:
-    "relative z-10 m-0 max-w-[760px] text-[13px] leading-relaxed text-teal-100 max-[560px]:text-xs",
-  section: "mt-5",
-  card: "rounded-[20px] border border-slate-200 bg-white p-[22px] shadow-[0_8px_24px_rgba(15,38,50,0.035)] max-[560px]:p-[18px]",
+    "mt-1.5 max-w-[760px] text-sm leading-relaxed text-slate-500",
+  section: "",
+  card: "rounded-[18px] border border-slate-200 bg-white p-[22px] shadow-[0_8px_24px_rgba(15,38,50,0.035)] max-[560px]:p-[18px]",
   cardHeader: "flex items-start justify-between gap-4 max-[560px]:flex-col",
   cardTitle: "mt-1 text-[19px] font-bold leading-[1.3] tracking-[-0.02em]",
   muted: "mt-1 text-xs leading-relaxed text-slate-500",
