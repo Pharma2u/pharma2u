@@ -3,6 +3,34 @@ import type { ProductCategory } from "../generated/prisma/client";
 export class ProductValidationError extends Error {}
 
 const cats = ["otc", "prescription", "schedule_h"] as const;
+const productTypes = [
+  "TABLET",
+  "CAPSULE",
+  "SYRUP",
+  "BOTTLE",
+  "TUBE",
+  "JAR",
+  "TIN",
+  "INJECTION",
+  "DROPS",
+  "VIAL",
+  "AMPOULE",
+  "SACHET",
+  "RESP",
+  "POUCH",
+  "PACKET",
+  "POWDER",
+  "OINTMENT",
+  "CREAM",
+  "CONSUMABLE",
+  "PIECE",
+  "PAIR",
+  "ROLL",
+  "SET",
+  "PACK",
+  "UNIT",
+  "OTHER",
+] as const;
 
 const obj = (v: unknown) => {
   if (!v || typeof v !== "object" || Array.isArray(v))
@@ -48,20 +76,49 @@ function details(o: Record<string, unknown>, required: boolean) {
     "saltComposition",
     "storageInstructions",
     "batchNumber",
+    "purchaseUnit",
+    "hsnCode",
+    "rackNumber",
   ]) {
     const v = required ? str(o, k) : optional(o, k);
     if (v !== undefined) out[k] = v;
   }
 
-  for (const k of ["mrp", "discount", "deliveryTime"])
+  for (const k of [
+    "mrp",
+    "discount",
+    "deliveryTime",
+    "purchasePrice",
+    "gstPercent",
+    "freeStock",
+    "unitsPerStrip",
+    "stripsPerBox",
+    "reorderLevel",
+  ])
     if (o[k] !== undefined || required) {
       const n = finite(o, k);
-      if (n < 0 || (k === "deliveryTime" && !Number.isInteger(n)))
+      const integerField = [
+        "deliveryTime",
+        "freeStock",
+        "unitsPerStrip",
+        "stripsPerBox",
+        "reorderLevel",
+      ].includes(k);
+      if (n < 0 || (integerField && !Number.isInteger(n)))
         throw new ProductValidationError(
-          `${k} must be non-negative${k === "deliveryTime" ? " integer" : ""}.`,
+          `${k} must be a non-negative${integerField ? " integer" : " number"}.`,
         );
+      if (k === "gstPercent" && n > 100)
+        throw new ProductValidationError("gstPercent cannot exceed 100.");
       out[k] = n;
     }
+
+  if (o.productType !== undefined) {
+    const value = str(o, "productType").toUpperCase();
+    if (!(productTypes as readonly string[]).includes(value))
+      throw new ProductValidationError("Invalid productType.");
+    out.productType = value;
+  }
 
   if (o.expiryDate !== undefined) {
     const d = new Date(str(o, "expiryDate"));

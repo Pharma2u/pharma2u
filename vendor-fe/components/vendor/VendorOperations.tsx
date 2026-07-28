@@ -44,9 +44,9 @@ export function VendorOperations({
       />
     );
   if (workspace === "finance")
-    return <FinancialAccounting financials={data.financials} />;
+    return <FinancialAccounting financials={data.financials} loading={data.loading} loaded={data.financialsLoaded} error={data.error} onRefresh={reload} />;
   if (workspace === "reports")
-    return <FinancialReports financials={data.financials} />;
+    return <FinancialReports financials={data.financials} loading={data.loading} loaded={data.financialsLoaded} error={data.error} onRefresh={reload} />;
   if (workspace === "promotions") return <PromotionsCoupons token={token} />;
   return (
     <PayoutManagement

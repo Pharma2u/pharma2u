@@ -30,6 +30,15 @@ const publicImagePaths = <
 const page = (q: unknown) => Math.max(1, Number(q) || 1),
   limit = (q: unknown) => Math.min(100, Math.max(1, Number(q) || 20));
 
+async function vendorPharmacyPayload(id: string) {
+  const pharmacy = await prisma.pharmacy.findUnique({ where: { id } });
+  if (!pharmacy) return null;
+  const [point] = await prisma.$queryRaw<Array<{ lat: number | null; lng: number | null }>>(
+    Prisma.sql`SELECT ST_Y(location::geometry)::float AS lat, ST_X(location::geometry)::float AS lng FROM pharmacies WHERE id = ${id}`,
+  );
+  return { ...pharmacy, lat: point?.lat ?? null, lng: point?.lng ?? null };
+}
+
 export async function createPharmacy(req: Request, res: Response) {
   const input = validatePharmacyCreate(req.body);
 
@@ -287,13 +296,8 @@ export async function myPharmacy(req: Request, res: Response) {
     res.status(404).json({ error: "Pharmacy not found." });
     return;
   }
-  res.json({
-    ...pharmacy,
-    logoPath: pharmacy.logoPath ? pharmacyImageUrl(pharmacy.logoPath) : null,
-    bannerPath: pharmacy.bannerPath
-      ? pharmacyImageUrl(pharmacy.bannerPath)
-      : null,
-  });
+  const payload = await vendorPharmacyPayload(pharmacy.id);
+  res.json(publicImagePaths(payload!));
 }
 
 export async function updateMyPharmacyProfile(req: Request, res: Response) {
@@ -317,14 +321,19 @@ export async function updateMyPharmacyProfile(req: Request, res: Response) {
       ? await uploadPharmacyImage(banner, "banner")
       : undefined;
     if (bannerPath) uploaded.push(bannerPath);
+    const { lat, lng, ...profileData } = input as Record<string, unknown>;
     const updated = await prisma.pharmacy.update({
       where: { id: pharmacy.id },
       data: {
-        ...input,
+        ...profileData,
         ...(logoPath ? { logoPath } : {}),
         ...(bannerPath ? { bannerPath } : {}),
       },
     });
+    if (lat !== undefined)
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE pharmacies SET location = ST_SetSRID(ST_MakePoint(${lng as number}, ${lat as number}),4326) WHERE id = ${pharmacy.id}`,
+      );
     void deleteUploadedFiles(
       [
         logoPath ? pharmacy.logoPath : null,
@@ -332,13 +341,8 @@ export async function updateMyPharmacyProfile(req: Request, res: Response) {
       ].filter((path): path is string => Boolean(path)),
       "replaced pharmacy images",
     );
-    res.json({
-      ...updated,
-      logoPath: updated.logoPath ? pharmacyImageUrl(updated.logoPath) : null,
-      bannerPath: updated.bannerPath
-        ? pharmacyImageUrl(updated.bannerPath)
-        : null,
-    });
+    const payload = await vendorPharmacyPayload(updated.id);
+    res.json(publicImagePaths(payload!));
   } catch (error) {
     await deleteUploadedFiles(uploaded, "unsaved pharmacy images");
     throw error;

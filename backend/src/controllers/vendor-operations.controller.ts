@@ -39,7 +39,7 @@ async function vendorPharmacy(vendorId: string) {
 
 async function summary(vendorId: string) {
   const pharmacy = await vendorPharmacy(vendorId);
-  const [orders, bills, openPayouts] = await Promise.all([
+  const [orders, bills, openPayouts, products] = await Promise.all([
     prisma.order.findMany({
       where: {
         OR: [{ pharmacyId: pharmacy.id }, { relayPharmacyId: pharmacy.id }],
@@ -61,6 +61,10 @@ async function summary(vendorId: string) {
       where: { pharmacyId: pharmacy.id, status: { in: ["open", "approved"] } },
       _sum: { amount: true },
     }),
+    prisma.product.findMany({
+      where: { pharmacyId: pharmacy.id },
+      select: { stock: true, purchasePrice: true },
+    }),
   ]);
   const paid = orders.filter((order) => order.paymentStatus === "paid");
   const onlineRevenue = paid
@@ -80,24 +84,44 @@ async function summary(vendorId: string) {
     .filter((order) => order.status !== "delivered")
     .reduce((sum, order) => sum + order.total, 0);
   const pharmacyDiscounts = bills.reduce((sum, bill) => sum + bill.discount, 0);
+  const inventoryPurchaseValue = products.reduce(
+    (sum, product) => sum + product.stock * (product.purchasePrice ?? 0),
+    0,
+  );
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const ordersCreatedToday = orders.filter((order) => order.createdAt >= todayStart);
+  const ordersCreatedToday = orders.filter(
+    (order) => order.createdAt >= todayStart,
+  );
   const metricsFor = (items: typeof orders) => ({
     received: items.length,
-    pending: items.filter((order) => ["pending_verification", "verified"].includes(order.status)).length,
-    packed: items.filter((order) => ["awaiting_rider", "rider_assigned"].includes(order.status)).length,
-    outForDelivery: items.filter((order) => ["picked_up", "relay_pending", "on_the_way"].includes(order.status)).length,
+    pending: items.filter((order) =>
+      ["pending_verification", "verified"].includes(order.status),
+    ).length,
+    packed: items.filter((order) =>
+      ["awaiting_rider", "rider_assigned"].includes(order.status),
+    ).length,
+    outForDelivery: items.filter((order) =>
+      ["picked_up", "relay_pending", "on_the_way"].includes(order.status),
+    ).length,
     delivered: items.filter((order) => order.status === "delivered").length,
-    failed: items.filter((order) => ["rejected", "cancelled", "relay_failed", "disputed"].includes(order.status)).length,
+    failed: items.filter((order) =>
+      ["rejected", "cancelled", "relay_failed", "disputed"].includes(
+        order.status,
+      ),
+    ).length,
   });
   const today = {
     ...metricsFor(ordersCreatedToday),
     delivered: orders.filter(
-      (order) => order.status === "delivered" && order.deliveredAt && order.deliveredAt >= todayStart,
+      (order) =>
+        order.status === "delivered" &&
+        order.deliveredAt &&
+        order.deliveredAt >= todayStart,
     ).length,
   };
-  const allTime = metricsFor(orders);  const committedPayouts = openPayouts._sum.amount ?? 0;
+  const allTime = metricsFor(orders);
+  const committedPayouts = openPayouts._sum.amount ?? 0;
   const availableBalance = Math.max(
     0,
     onlineRevenue - heldBalance - committedPayouts,
@@ -105,11 +129,12 @@ async function summary(vendorId: string) {
   return {
     pharmacyId: pharmacy.id,
     today,
+    allTime,
     onlineRevenue,
     offlineRevenue,
     cashRevenue: cashCounterRevenue + codRevenue,
     receivable,
-    stockPayable: 0,
+    inventoryPurchaseValue,
     availableBalance,
     heldBalance,
     platformEarnings: onlineRevenue,
@@ -259,7 +284,6 @@ export async function listPayoutRequests(req: Request, res: Response) {
   });
 }
 
-
 export async function createPayoutRequest(req: Request, res: Response) {
   const input = body(req.body);
   const financials = await summary(req.user!.id);
@@ -275,8 +299,6 @@ export async function createPayoutRequest(req: Request, res: Response) {
   });
   res.status(201).json(ticket);
 }
-
-
 
 export async function getVendorSettings(req: Request, res: Response) {
   const pharmacy = await vendorPharmacy(req.user!.id);

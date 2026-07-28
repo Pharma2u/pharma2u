@@ -19,9 +19,9 @@ const headings: Record<
   },
   orders: {
     eyebrow: "Order operations",
-    title: "Pharma2U Orders Rcvd",
+    title: "Pharma2U Orders",
     description:
-      "Review and fulfil online orders with customer personal information protected.",
+      "Review, prepare and hand over online orders from your pharmacy.",
   },
   products: {
     eyebrow: "Unified inventory",
@@ -75,6 +75,7 @@ const headings: Record<
 
 export function WorkspaceHero({ workspace, userName }: { workspace: Workspace; userName?: string }) {
   const content = headings[workspace];
+  if (workspace === "finance" || workspace === "reports") return null;
   const title = workspace === "dashboard" && userName ? `Welcome back, ${userName}` : content.title;
   return (
     <div className={styles.hero}>

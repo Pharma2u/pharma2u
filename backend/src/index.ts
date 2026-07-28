@@ -61,12 +61,16 @@ app.use("/api", companyBrandingRoutes);
 app.use(
   (
     error: unknown,
-    _req: express.Request,
+    req: express.Request,
     res: express.Response,
     _next: express.NextFunction,
   ) => {
     if (error instanceof multer.MulterError) {
-      res.status(400).json({ error: "Invalid KYC image upload." });
+      res.status(400).json({
+        error: req.originalUrl.includes("/vendor/products")
+          ? "Invalid product image upload. Choose up to 10 JPEG, PNG or WebP images no larger than 5 MB each."
+          : "Invalid image upload.",
+      });
       return;
     }
     if (

@@ -31,11 +31,12 @@ export type FinancialSummary = {
   today: TodayOrderMetrics;
   allTime: TodayOrderMetrics;
   onlineRevenue: number;
+  offlineRevenue: number;
   cashRevenue: number;
   receivable: number;
   heldBalance: number;
   availableBalance: number;
-  stockPayable: number;
+  inventoryPurchaseValue: number;
   platformEarnings: number;
   pharmacyDiscounts: number;
   upcomingPayout: number;
@@ -45,6 +46,7 @@ export type FinancialSummary = {
 export type VendorData = {
   orders: VendorOrder[];
   loading: boolean;
+  financialsLoaded: boolean;
   error: string;
   financials: FinancialSummary;
 };

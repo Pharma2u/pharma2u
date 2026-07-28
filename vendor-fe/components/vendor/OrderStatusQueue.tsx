@@ -4,6 +4,8 @@ import {
   ChevronRight,
   Clock3,
   PackageCheck,
+  Download,
+  Search,
   RefreshCw,
   ShieldCheck,
   X,
@@ -16,7 +18,7 @@ import {
 import { filterOrders, readableStatus, rupees } from "./vendorUtils";
 import { vendorStyles as styles } from "./vendorStyles";
 
-const filters = ["Pending", "Out for Delivery", "Delivered", "Failed", "Return Orders"];
+const filters = ["All Orders", "Needs Review", "Preparing", "Ready for Pickup", "Out for Delivery", "Delivered", "Exceptions"];
 const tone: Record<VendorOrder["status"], string> = {
   pending_verification: "bg-amber-50 text-amber-800",
   verified: "bg-sky-50 text-sky-800",
@@ -52,13 +54,14 @@ export function OrderStatusQueue({
   error: string;
   onChanged: () => Promise<void>;
 }) {
-  const [filter, setFilter] = useState("Pending"),
+  const [filter, setFilter] = useState("All Orders"),
     [selected, setSelected] = useState<VendorOrder | null>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
-    [reason, setReason] = useState("");
+    [reason, setReason] = useState(""),
+    [query, setQuery] = useState("");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const shown = useMemo(() => filterOrders(orders, filter), [orders, filter]);
+  const shown = useMemo(() => filterOrders(orders, filter).filter((order) => `${order.orderCode} ${order.items.map((item) => item.name).join(" ")}`.toLowerCase().includes(query.toLowerCase())), [orders, filter, query]);
 
   useEffect(() => {
     if (!selected) return;
@@ -97,10 +100,10 @@ export function OrderStatusQueue({
     <section className={`${styles.section} ${styles.card}`}>
       <div className={styles.cardHeader}>
         <div>
-          <p className={styles.eyebrow}>Order operations</p>
+          <p className={styles.eyebrow}>Pharma2U orders</p>
           <h2 className={styles.cardTitle}>Orders</h2>
           <p className={styles.muted}>
-            Select any order to review items, payment and fulfilment actions.
+            Review orders, check payment and move each order through preparation and pickup.
           </p>
         </div>
         <button
@@ -126,7 +129,25 @@ export function OrderStatusQueue({
           </button>
         ))}
       </div>
-      {(error || message) && (
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-teal-700">Order flow</p><h3 className="mt-1 text-base font-bold text-slate-900">What happens after an order is received?</h3></div>
+          <p className="text-xs text-slate-500">Open an order to take the next action.</p>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-4">
+          {[["01", "Review", "Check prescription and payment"], ["02", "Approve", "Confirm the pharmacy can fulfil it"], ["03", "Pack", "Prepare the medicines securely"], ["04", "Hand over", "Give the package to the assigned rider"]].map(([number, title, detail], index) => <div key={title} className="relative rounded-xl border border-white bg-white p-3 shadow-sm"><span className="text-[10px] font-extrabold text-teal-700">{number}</span><p className="mt-1 text-sm font-bold text-slate-900">{title}</p><p className="mt-1 text-[11px] leading-relaxed text-slate-500">{detail}</p>{index < 3 && <span className="absolute -right-2 top-1/2 z-10 hidden text-slate-300 sm:block">→</span>}</div>)}
+        </div>
+      </div>      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <label className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by order ID or medicine" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-teal-500" />
+        </label>
+        <button type="button" onClick={() => {
+          const csv = [["Order ID", "Date", "Amount", "Payment", "Status"], ...shown.map((order) => [order.orderCode, order.createdAt, order.total, order.paymentStatus, order.status])].map((row) => row.join(",")).join("\n");
+          const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+          const link = document.createElement("a"); link.href = url; link.download = "pharma2u-orders.csv"; link.click(); URL.revokeObjectURL(url);
+        }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700"><Download size={15} /> Export orders</button>
+      </div>      {(error || message) && (
         <p className={styles.error} role="alert">
           {error || message}
         </p>
@@ -140,7 +161,7 @@ export function OrderStatusQueue({
       </div>
       <div className="mt-5 grid gap-3">
         {loading ? (
-          <p className={styles.empty}>Loading ordersâ€¦</p>
+          <p className={styles.empty}>Loading orders...</p>
         ) : shown.length === 0 ? (
           <div className={styles.empty}>
             <PackageCheck size={24} className="mx-auto mb-2 text-teal-700" />
@@ -168,7 +189,7 @@ export function OrderStatusQueue({
                   </span>
                 </div>
                 <p className="mt-2 truncate text-xs text-slate-600">
-                  {o.items.map((i) => `${i.name} Ã— ${i.qty}`).join(", ")}
+                  {o.items.map((i) => `${i.name} × ${i.qty}`).join(", ")}
                 </p>
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
                   <Clock3 size={12} />
@@ -245,13 +266,13 @@ export function OrderStatusQueue({
                         {rupees.format(i.price)} each
                       </small>
                     </span>
-                    <b>Ã— {i.qty}</b>
+                    <b>× {i.qty}</b>
                   </div>
                 ))}
               </div>
               {selected.status === "rider_assigned" && selected.pickupOtp && (
                 <div className="rounded-2xl bg-amber-50 p-4 text-amber-950">
-                  <b>Rider pickup code</b>
+                  <b>Rider pickup OTP</b>
                   <p className="mt-2 break-all font-mono text-3xl font-bold tracking-[.16em] sm:tracking-[.25em]">
                     {selected.pickupOtp}
                   </p>
@@ -300,7 +321,7 @@ export function OrderStatusQueue({
                       }
                       className={styles.primaryButton}
                     >
-                      {busy ? "Savingâ€¦" : "Approve order"}
+                      {busy ? "Saving..." : "Approve order"}
                     </button>
                   </div>
                 </>
@@ -314,7 +335,7 @@ export function OrderStatusQueue({
                     }
                     className={styles.primaryButton}
                   >
-                    {busy ? "Savingâ€¦" : "Mark as packed"}
+                    {busy ? "Saving..." : "Mark as packed"}
                   </button>
                 </div>
               )}

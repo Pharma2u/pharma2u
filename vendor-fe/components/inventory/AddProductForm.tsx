@@ -1,363 +1,845 @@
 "use client";
 
 import {
-  BadgeIndianRupee,
-  Boxes,
-  ChevronRight,
+  Download,
+  FileUp,
   ImagePlus,
-  PackageCheck,
-  Pill,
-  RotateCcw,
-  Sparkles,
+  Plus,
+  Save,
+  Trash2,
+  X,
 } from "lucide-react";
-import type {
-  ChangeEvent,
-  FormEvent,
-  InputHTMLAttributes,
-  ReactNode,
-} from "react";
+import type { ChangeEvent, FocusEvent, FormEvent, KeyboardEvent } from "react";
+import { useRef, useState } from "react";
+import type { ProductCategory } from "@/lib/authApi";
 import {
-  productCategories as categories,
-  productCategoryLabels as labels,
+  productCategories,
+  productCategoryLabels,
+  productTypes,
+  purchaseUnits,
+  type ProductType,
 } from "./productConfig";
 
-const control =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10";
+export type ProductDraft = {
+  id: string;
+  name: string;
+  genericName: string;
+  manufacturer: string;
+  hsnCode: string;
+  productType: ProductType;
+  category: ProductCategory;
+  purchaseUnit: string;
+  stock: string;
+  freeStock: string;
+  batchNumber: string;
+  expiryDate: string;
+  unitsPerStrip: string;
+  stripsPerBox: string;
+  mrp: string;
+  purchasePrice: string;
+  price: string;
+  unit: string;
+  gstPercent: string;
+  discount: string;
+  rackNumber: string;
+  reorderLevel: string;
+  description: string;
+  images: File[];
+};
 
-function Field({
-  label,
-  optional = false,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement> & {
-  label: string;
-  optional?: boolean;
-}) {
-  return (
-    <label className="grid gap-2 text-sm font-semibold text-slate-700">
-      <span>
-        {label}
-        {optional ? (
-          <span className="ml-1.5 text-xs font-medium text-slate-400">
-            Optional
-          </span>
-        ) : (
-          <span className="ml-1 text-rose-500" aria-hidden="true">
-            *
-          </span>
-        )}
-      </span>
-      <input
-        required={!optional}
-        {...props}
-        className={`${control} ${props.className ?? ""}`}
-      />
-    </label>
-  );
+let draftSequence = 0;
+const newId = () => `product-${Date.now()}-${++draftSequence}`;
+
+function defaultUnits(type: ProductType) {
+  if (["TABLET", "CAPSULE"].includes(type))
+    return { purchaseUnit: "STRIP", unit: "STRIP" };
+  if (["SYRUP", "BOTTLE", "DROPS"].includes(type))
+    return { purchaseUnit: "BOTTLE", unit: "BOTTLE" };
+  if (["INJECTION", "VIAL"].includes(type))
+    return { purchaseUnit: "VIAL", unit: "VIAL" };
+  if (type === "AMPOULE") return { purchaseUnit: "AMPOULE", unit: "AMPOULE" };
+  if (["TUBE", "OINTMENT", "CREAM"].includes(type))
+    return { purchaseUnit: "TUBE", unit: "TUBE" };
+  if (["SACHET", "POUCH", "PACKET"].includes(type))
+    return { purchaseUnit: "PACKET", unit: "PACKET" };
+  return { purchaseUnit: "UNIT", unit: "UNIT" };
 }
 
-function Section({
-  number,
-  icon,
-  title,
-  description,
-  children,
-}: {
-  number: string;
-  icon: ReactNode;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-      <div className="mb-5 flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-          {icon}
-        </div>
-        <div>
-          <span className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-emerald-700">
-            Step {number}
-          </span>
-          <h2 className="mt-0.5 text-lg font-bold text-slate-950">{title}</h2>
-          <p className="mt-0.5 text-sm leading-5 text-slate-500">
-            {description}
-          </p>
-        </div>
-      </div>
-      {children}
-    </section>
-  );
+function emptyDraft(): ProductDraft {
+  return {
+    id: newId(),
+    name: "",
+    genericName: "",
+    manufacturer: "",
+    hsnCode: "",
+    productType: "TABLET",
+    category: "otc",
+    purchaseUnit: "STRIP",
+    stock: "1",
+    freeStock: "0",
+    batchNumber: "",
+    expiryDate: "",
+    unitsPerStrip: "10",
+    stripsPerBox: "10",
+    mrp: "",
+    purchasePrice: "",
+    price: "",
+    unit: "STRIP",
+    gstPercent: "0",
+    discount: "0",
+    rackNumber: "",
+    reorderLevel: "0",
+    description: "",
+    images: [],
+  };
+}
+
+const gridControl =
+  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/10";
+
+function csvCells(line: string) {
+  const cells: string[] = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && quoted && line[index + 1] === '"') {
+      value += '"';
+      index += 1;
+    } else if (char === '"') quoted = !quoted;
+    else if (char === "," && !quoted) {
+      cells.push(value.trim());
+      value = "";
+    } else value += char;
+  }
+  cells.push(value.trim());
+  return cells;
+}
+
+const normalized = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+
+function csvValue(row: Record<string, string>, names: string[], fallback = "") {
+  for (const name of names) {
+    const key = Object.keys(row).find(
+      (candidate) => normalized(candidate) === normalized(name),
+    );
+    if (key && row[key]?.trim()) return row[key].trim();
+  }
+  return fallback;
+}
+
+function parseCsv(text: string): ProductDraft[] {
+  const lines = text
+    .replace(/\r/g, "")
+    .split("\n")
+    .filter((line) => line.trim());
+  if (lines.length < 2) return [];
+  const headers = csvCells(lines[0]);
+  return lines.slice(1).flatMap((line) => {
+    const values = csvCells(line);
+    const row = Object.fromEntries(
+      headers.map((header, index) => [header, values[index] ?? ""]),
+    );
+    const name = csvValue(row, [
+      "product_name",
+      "medicine_name",
+      "product",
+      "medicine",
+      "name",
+    ]);
+    if (!name) return [];
+    const rawType = csvValue(
+      row,
+      ["product_type", "medicine_type", "unit_type", "type"],
+      "TABLET",
+    ).toUpperCase();
+    const productType = (productTypes as readonly string[]).includes(rawType)
+      ? (rawType as ProductType)
+      : "OTHER";
+    const defaults = defaultUnits(productType);
+    const rawCategory = csvValue(row, ["category"], "otc").toLowerCase();
+    const category = (productCategories as readonly string[]).includes(
+      rawCategory,
+    )
+      ? (rawCategory as ProductCategory)
+      : "otc";
+    return [
+      {
+        ...emptyDraft(),
+        name,
+        genericName: csvValue(
+          row,
+          ["generic_name", "generic", "composition"],
+          name,
+        ),
+        manufacturer: csvValue(row, ["manufacturer", "company", "mfr"]),
+        hsnCode: csvValue(row, ["hsn", "hsn_code"]),
+        productType,
+        category,
+        purchaseUnit: csvValue(
+          row,
+          ["purchase_unit", "buying_as", "buying_unit"],
+          defaults.purchaseUnit,
+        ).toUpperCase(),
+        stock: csvValue(
+          row,
+          ["stock", "qty", "quantity", "opening_stock"],
+          "1",
+        ),
+        freeStock: csvValue(row, ["free_stock", "free_qty", "free"], "0"),
+        batchNumber: csvValue(row, ["batch_number", "batch_no", "batch"]),
+        expiryDate: csvValue(row, ["expiry_date", "expiry", "exp"]),
+        unitsPerStrip: csvValue(
+          row,
+          ["units_per_strip", "unitsperstrip"],
+          "10",
+        ),
+        stripsPerBox: csvValue(row, ["strips_per_box", "stripsperbox"], "10"),
+        mrp: csvValue(row, ["mrp"]),
+        purchasePrice: csvValue(row, [
+          "purchase_price",
+          "purchase_rate",
+          "cost_price",
+        ]),
+        price: csvValue(row, ["selling_price", "selling_rate", "price"]),
+        unit: csvValue(
+          row,
+          ["selling_unit", "sale_unit", "unit"],
+          defaults.unit,
+        ).toUpperCase(),
+        gstPercent: csvValue(row, ["gst_percent", "gst"], "0"),
+        discount: csvValue(row, ["discount_percent", "discount"], "0"),
+        rackNumber: csvValue(row, ["rack_number", "rack_no", "rack"]),
+        reorderLevel: csvValue(row, ["reorder_level", "low_stock_qty"], "0"),
+        description: csvValue(row, ["description", "notes"]),
+      },
+    ];
+  });
 }
 
 export function AddProductForm({
   adding,
-  images,
   onSubmit,
-  onImagesSelected,
-  onReset,
+  onError,
 }: {
   adding: boolean;
-  images: File[];
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onImagesSelected: (event: ChangeEvent<HTMLInputElement>) => void;
-  onReset: () => void;
+  onSubmit: (products: ProductDraft[]) => Promise<number>;
+  onError: (message: string) => void;
 }) {
+  const [rows, setRows] = useState<ProductDraft[]>([emptyDraft()]);
+  const [csvOpen, setCsvOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const addRow = () => setRows((current) => [...current, emptyDraft()]);
+  const update = <K extends keyof ProductDraft>(
+    id: string,
+    key: K,
+    value: ProductDraft[K],
+  ) =>
+    setRows((current) =>
+      current.map((row) => (row.id === id ? { ...row, [key]: value } : row)),
+    );
+
+  function changeType(row: ProductDraft, type: ProductType) {
+    const oldDefaults = defaultUnits(row.productType);
+    const nextDefaults = defaultUnits(type);
+    setRows((current) =>
+      current.map((item) =>
+        item.id === row.id
+          ? {
+              ...item,
+              productType: type,
+              purchaseUnit:
+                item.purchaseUnit === oldDefaults.purchaseUnit
+                  ? nextDefaults.purchaseUnit
+                  : item.purchaseUnit,
+              unit:
+                item.unit === oldDefaults.unit ? nextDefaults.unit : item.unit,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function focusGrid(rowIndex: number, columnIndex: number) {
+    const fields = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-product-grid-field='1']"),
+    );
+    const rowFields = fields.filter(
+      (field) => Number(field.dataset.rowIndex) === rowIndex,
+    );
+    const target =
+      rowFields[Math.min(Math.max(columnIndex, 0), rowFields.length - 1)];
+    target?.focus();
+    if (target instanceof HTMLInputElement) target.select();
+  }
+
+  function handleKey(event: KeyboardEvent<HTMLElement>, rowIndex: number) {
+    if (
+      !["Enter", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(
+        event.key,
+      )
+    )
+      return;
+    if (event.key === "Enter" || event.key.startsWith("Arrow"))
+      event.preventDefault();
+    const fields = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-product-grid-field='1']"),
+    );
+    const currentRowFields = fields.filter(
+      (field) => Number(field.dataset.rowIndex) === rowIndex,
+    );
+    const column = currentRowFields.indexOf(event.currentTarget);
+
+    if (event.key === "Enter") {
+      const nextField = currentRowFields[column + 1];
+      if (nextField) {
+        nextField.focus();
+        if (nextField instanceof HTMLInputElement) nextField.select();
+        return;
+      }
+
+      if (rowIndex < rows.length - 1) {
+        focusGrid(rowIndex + 1, 0);
+        return;
+      }
+
+      addRow();
+      window.setTimeout(() => focusGrid(rowIndex + 1, 0), 0);
+      return;
+    }
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const next =
+        fields[
+          fields.indexOf(event.currentTarget) +
+            (event.key === "ArrowRight" ? 1 : -1)
+        ];
+      next?.focus();
+      return;
+    }
+    const targetRow = event.key === "ArrowUp" ? rowIndex - 1 : rowIndex + 1;
+    if (targetRow < rows.length) {
+      focusGrid(targetRow, column);
+      return;
+    }
+    if (event.key === "ArrowDown" && rowIndex === rows.length - 1) {
+      addRow();
+      window.setTimeout(() => focusGrid(rowIndex + 1, column), 0);
+    }
+  }
+
+  function gridProps(rowIndex: number) {
+    return {
+      "data-product-grid-field": "1",
+      "data-row-index": rowIndex,
+      onKeyDown: (event: KeyboardEvent<HTMLElement>) =>
+        handleKey(event, rowIndex),
+      onFocus: (event: FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+        if (event.currentTarget instanceof HTMLInputElement)
+          event.currentTarget.select();
+      },
+    };
+  }
+
+  function selectImages(
+    event: ChangeEvent<HTMLInputElement>,
+    row: ProductDraft,
+  ) {
+    const images = Array.from(event.currentTarget.files ?? []);
+    const invalid = images.find(
+      (image) =>
+        !["image/jpeg", "image/png", "image/webp"].includes(image.type) ||
+        image.size > 5 * 1024 * 1024,
+    );
+    if (images.length > 10 || invalid) {
+      event.currentTarget.value = "";
+      onError(
+        images.length > 10
+          ? "Choose up to 10 images for each product."
+          : "Images must be JPEG, PNG or WebP and no larger than 5 MB each.",
+      );
+      return;
+    }
+    onError("");
+    update(row.id, "images", images);
+  }
+
+  async function importCsv(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    const imported = parseCsv(await file.text());
+    event.currentTarget.value = "";
+    if (!imported.length) {
+      onError("CSV has no valid rows. product_name is required.");
+      return;
+    }
+    setRows((current) =>
+      current.length === 1 && !current[0].name
+        ? imported
+        : [...current, ...imported],
+    );
+    setCsvOpen(false);
+    onError("");
+  }
+
+  function downloadTemplate() {
+    const csv =
+      "product_name,generic_name,manufacturer,hsn_code,product_type,category,purchase_unit,stock,free_stock,batch_number,expiry_date,units_per_strip,strips_per_box,mrp,purchase_price,selling_price,selling_unit,gst_percent,discount_percent,rack_number,reorder_level,description\n";
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "product-import-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const products = rows.filter((row) => row.name.trim());
+    if (!products.length) {
+      onError("Add at least one product name.");
+      return;
+    }
+    const invalidRow = products.findIndex(
+      (row) =>
+        !row.genericName.trim() ||
+        !row.price ||
+        Number(row.price) <= 0 ||
+        !Number.isInteger(Number(row.stock)) ||
+        Number(row.stock) < 0,
+    );
+    if (invalidRow >= 0) {
+      onError(
+        `Row ${invalidRow + 1}: generic name, selling price above zero, and whole-number stock are required.`,
+      );
+      return;
+    }
+    const badMrp = products.findIndex(
+      (row) => row.mrp && Number(row.mrp) < Number(row.price),
+    );
+    if (badMrp >= 0) {
+      onError(`Row ${badMrp + 1}: MRP cannot be lower than selling price.`);
+      return;
+    }
+    const saved = await onSubmit(products);
+    if (saved > 0) {
+      const savedIds = new Set(
+        products.slice(0, saved).map((product) => product.id),
+      );
+      setRows((current) => {
+        const remaining = current.filter((row) => !savedIds.has(row.id));
+        return remaining.length ? remaining : [emptyDraft()];
+      });
+    }
+  }
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-cyan-50 shadow-sm">
-        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-center lg:p-6">
-          <div className="flex items-start gap-4">
-            <div className="hidden h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-700 text-white shadow-lg shadow-emerald-700/15 sm:grid">
-              <Sparkles size={22} />
-            </div>
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-700">
-                Quick catalogue setup
-              </p>
-              <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
-                Add one medicine to your pharmacy
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Start with the medicine and selling details. Add batch, expiry,
-                images and customer information where available.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-            {["Medicine", "Stock & pricing", "Review & add"].map(
-              (step, index) => (
-                <div key={step} className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-3 py-2 ${index === 0 ? "bg-emerald-700 text-white" : "border border-slate-200 bg-white text-slate-600"}`}
-                  >
-                    {index + 1}. {step}
-                  </span>
-                  {index < 2 && (
-                    <ChevronRight
-                      size={14}
-                      className="hidden text-slate-300 sm:block"
-                    />
-                  )}
-                </div>
-              ),
-            )}
-          </div>
+    <form
+      onSubmit={submit}
+      className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50 px-5 py-4">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-700">
+            Catalogue stock entry
+          </p>
+          <h2 className="mt-1 text-xl font-black text-slate-950">
+            Products to add
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Enter products row by row or import CSV. Enter moves to the next
+            field on the right; arrow keys move around the grid.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={addRow}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white"
+          >
+            <Plus size={17} /> Add product
+          </button>
+          <button
+            type="button"
+            onClick={() => setCsvOpen((value) => !value)}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white"
+          >
+            <FileUp size={17} /> Import CSV
+          </button>
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700"
+          >
+            <Download size={17} /> Template
+          </button>
         </div>
       </div>
 
-      <Section
-        number="01"
-        icon={<Pill size={20} />}
-        title="Medicine information"
-        description="The main details used to identify this product in your catalogue."
-      >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Field name="name" label="Product name" placeholder="e.g. Dolo 650" />
-          <Field
-            name="genericName"
-            label="Generic name"
-            placeholder="e.g. Paracetamol"
-          />
-          <label className="grid gap-2 text-sm font-semibold text-slate-700">
-            <span>
-              Category<span className="ml-1 text-rose-500">*</span>
+      {csvOpen && (
+        <div className="border-b border-emerald-100 bg-emerald-50/50 p-5">
+          <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-emerald-300 bg-white p-5 text-center">
+            <FileUp className="mx-auto text-emerald-700" size={24} />
+            <span className="mt-2 block text-sm font-bold text-slate-800">
+              Choose product CSV
             </span>
-            <select
-              required
-              name="category"
-              defaultValue="otc"
-              className={control}
-            >
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {labels[item]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field
-            name="manufacturer"
-            label="Manufacturer"
-            placeholder="e.g. Micro Labs"
-            optional
-          />
-          <Field
-            name="saltComposition"
-            label="Salt composition"
-            placeholder="e.g. Paracetamol 650 mg"
-            optional
-          />
-          <Field
-            name="packSize"
-            label="Pack size"
-            placeholder="e.g. 15 tablets"
-            optional
-          />
-        </div>
-      </Section>
-
-      <Section
-        number="02"
-        icon={<BadgeIndianRupee size={20} />}
-        title="Pricing and opening stock"
-        description="Set the customer price and the quantity currently available to sell."
-      >
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Field
-            name="price"
-            label="Selling price (INR)"
-            type="number"
-            min="0.01"
-            step="0.01"
-            placeholder="0.00"
-          />
-          <Field
-            name="mrp"
-            label="MRP (INR)"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            optional
-          />
-          <Field
-            name="discount"
-            label="Discount (%)"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            placeholder="0"
-            optional
-          />
-          <Field
-            name="stock"
-            label="Opening stock"
-            type="number"
-            min="0"
-            step="1"
-            placeholder="0"
-          />
-          <Field
-            name="unit"
-            label="Selling unit"
-            placeholder="Strip, bottle, box"
-          />
-        </div>
-        <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-3 text-xs leading-5 text-amber-800">
-          <Boxes size={16} className="mt-0.5 shrink-0" />
-          MRP must be equal to or higher than the selling price. Opening stock
-          is the quantity available immediately after saving.
-        </div>
-      </Section>
-
-      <Section
-        number="03"
-        icon={<PackageCheck size={20} />}
-        title="Batch and fulfilment"
-        description="Useful traceability and delivery details for pharmacy operations."
-      >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field
-            name="batchNumber"
-            label="Batch / lot number"
-            placeholder="e.g. PCM-2607-A"
-            optional
-          />
-          <Field name="expiryDate" label="Expiry date" type="date" optional />
-          <Field
-            name="storageInstructions"
-            label="Storage instructions"
-            placeholder="e.g. Store below 25°C"
-            optional
-          />
-          <Field
-            name="deliveryTime"
-            label="Delivery time (minutes)"
-            type="number"
-            min="0"
-            step="1"
-            placeholder="30"
-            optional
-          />
-        </div>
-      </Section>
-
-      <Section
-        number="04"
-        icon={<ImagePlus size={20} />}
-        title="Customer-facing details"
-        description="Help customers recognise the medicine and understand the listing."
-      >
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <label className="group grid min-h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-5 py-6 text-center transition hover:border-emerald-300 hover:bg-emerald-50/40">
+            <span className="mt-1 block text-xs text-slate-500">
+              Download the template for accepted headers. You can review every
+              row before saving.
+            </span>
             <input
-              name="images"
+              ref={fileInput}
               type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              onChange={onImagesSelected}
+              accept=".csv,text/csv"
+              onChange={importCsv}
               className="sr-only"
             />
-            <span>
-              <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm">
-                <ImagePlus size={20} />
-              </span>
-              <span className="mt-3 block text-sm font-bold text-slate-800">
-                {images.length
-                  ? `${images.length} image${images.length === 1 ? "" : "s"} selected`
-                  : "Choose product images"}
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-slate-500">
-                Up to 10 JPEG, PNG or WebP files · 5 MB each
-              </span>
-              {images.length > 0 && (
-                <span className="mt-2 block max-w-lg truncate text-xs font-medium text-emerald-700">
-                  {images.map((image) => image.name).join(", ")}
-                </span>
-              )}
-            </span>
-          </label>
-          <label className="grid gap-2 text-sm font-semibold text-slate-700">
-            <span>
-              Product description
-              <span className="ml-1.5 text-xs font-medium text-slate-400">
-                Optional
-              </span>
-            </span>
-            <textarea
-              name="description"
-              rows={5}
-              className="min-h-32 w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-normal text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-              placeholder="Add a short customer-friendly description, usage notes or important product information."
-            />
           </label>
         </div>
-      </Section>
+      )}
 
-      <div className="sticky bottom-3 z-10 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-900/10 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs leading-5 text-slate-500">
-          Fields marked <span className="font-bold text-rose-500">*</span> are
-          required. You can edit the product later.
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="reset"
-            onClick={onReset}
-            disabled={adding}
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 sm:flex-none"
-          >
-            <RotateCcw size={16} />
-            Clear
-          </button>
-          <button
-            type="submit"
-            disabled={adding}
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-wait disabled:opacity-60 sm:flex-none"
-          >
-            <PackageCheck size={17} />
-            {adding ? "Adding product..." : "Add product"}
-          </button>
+      <div className="p-4 sm:p-5">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="min-w-[2600px] w-full border-collapse text-left text-xs">
+            <thead className="bg-slate-50 uppercase tracking-wide text-slate-500">
+              <tr>
+                {[
+                  "#",
+                  "Product *",
+                  "Generic *",
+                  "Manufacturer",
+                  "HSN",
+                  "Type *",
+                  "Category *",
+                  "Buying as",
+                  "Stock *",
+                  "Free",
+                  "Batch no",
+                  "Expiry",
+                  "Units/strip",
+                  "Strips/box",
+                  "MRP",
+                  "Purchase",
+                  "Selling *",
+                  "Sale unit *",
+                  "GST %",
+                  "Disc %",
+                  "Rack",
+                  "Reorder",
+                  "Images",
+                  "Description",
+                  "",
+                ].map((label) => (
+                  <th
+                    key={label || "action"}
+                    className="whitespace-nowrap border-r border-slate-100 px-3 py-3"
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => {
+                const props = gridProps(rowIndex);
+                return (
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 align-top hover:bg-emerald-50/20"
+                  >
+                    <td className="px-3 py-3 text-center font-black text-slate-500">
+                      {rowIndex + 1}
+                    </td>
+                    <td className="min-w-56 p-2">
+                      <input
+                        {...props}
+                        autoFocus={rowIndex === 0}
+                        value={row.name}
+                        onChange={(e) => update(row.id, "name", e.target.value)}
+                        onBlur={() => {
+                          if (!row.genericName && row.name)
+                            update(row.id, "genericName", row.name);
+                        }}
+                        placeholder="Product name"
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-52 p-2">
+                      <input
+                        {...props}
+                        value={row.genericName}
+                        onChange={(e) =>
+                          update(row.id, "genericName", e.target.value)
+                        }
+                        placeholder="Generic name"
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-40 p-2">
+                      <input
+                        {...props}
+                        value={row.manufacturer}
+                        onChange={(e) =>
+                          update(row.id, "manufacturer", e.target.value)
+                        }
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-28 p-2">
+                      <input
+                        {...props}
+                        value={row.hsnCode}
+                        onChange={(e) =>
+                          update(row.id, "hsnCode", e.target.value)
+                        }
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-36 p-2">
+                      <select
+                        {...props}
+                        value={row.productType}
+                        onChange={(e) =>
+                          changeType(row, e.target.value as ProductType)
+                        }
+                        className={gridControl}
+                      >
+                        {productTypes.map((type) => (
+                          <option key={type}>{type}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="min-w-40 p-2">
+                      <select
+                        {...props}
+                        value={row.category}
+                        onChange={(e) =>
+                          update(
+                            row.id,
+                            "category",
+                            e.target.value as ProductCategory,
+                          )
+                        }
+                        className={gridControl}
+                      >
+                        {productCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {productCategoryLabels[category]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="min-w-32 p-2">
+                      <select
+                        {...props}
+                        value={row.purchaseUnit}
+                        onChange={(e) =>
+                          update(row.id, "purchaseUnit", e.target.value)
+                        }
+                        className={gridControl}
+                      >
+                        {purchaseUnits.map((unit) => (
+                          <option key={unit}>{unit}</option>
+                        ))}
+                      </select>
+                    </td>
+                    {(
+                      [
+                        ["stock", "1"],
+                        ["freeStock", "0"],
+                      ] as const
+                    ).map(([key, placeholder]) => (
+                      <td key={key} className="min-w-24 p-2">
+                        <input
+                          {...props}
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={row[key]}
+                          onChange={(e) => update(row.id, key, e.target.value)}
+                          placeholder={placeholder}
+                          className={gridControl}
+                        />
+                      </td>
+                    ))}
+                    <td className="min-w-36 p-2">
+                      <input
+                        {...props}
+                        value={row.batchNumber}
+                        onChange={(e) =>
+                          update(row.id, "batchNumber", e.target.value)
+                        }
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-40 p-2">
+                      <input
+                        {...props}
+                        type="date"
+                        value={row.expiryDate}
+                        onChange={(e) =>
+                          update(row.id, "expiryDate", e.target.value)
+                        }
+                        className={gridControl}
+                      />
+                    </td>
+                    {(["unitsPerStrip", "stripsPerBox"] as const).map((key) => (
+                      <td key={key} className="min-w-28 p-2">
+                        <input
+                          {...props}
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={row[key]}
+                          onChange={(e) => update(row.id, key, e.target.value)}
+                          className={gridControl}
+                        />
+                      </td>
+                    ))}
+                    {(["mrp", "purchasePrice", "price"] as const).map((key) => (
+                      <td key={key} className="min-w-28 p-2">
+                        <input
+                          {...props}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row[key]}
+                          onChange={(e) => update(row.id, key, e.target.value)}
+                          className={gridControl}
+                        />
+                      </td>
+                    ))}
+                    <td className="min-w-28 p-2">
+                      <select
+                        {...props}
+                        value={row.unit}
+                        onChange={(e) => update(row.id, "unit", e.target.value)}
+                        className={gridControl}
+                      >
+                        {purchaseUnits.map((unit) => (
+                          <option key={unit}>{unit}</option>
+                        ))}
+                      </select>
+                    </td>
+                    {(["gstPercent", "discount"] as const).map((key) => (
+                      <td key={key} className="min-w-24 p-2">
+                        <input
+                          {...props}
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={row[key]}
+                          onChange={(e) => update(row.id, key, e.target.value)}
+                          className={gridControl}
+                        />
+                      </td>
+                    ))}
+                    <td className="min-w-24 p-2">
+                      <input
+                        {...props}
+                        value={row.rackNumber}
+                        onChange={(e) =>
+                          update(row.id, "rackNumber", e.target.value)
+                        }
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-28 p-2">
+                      <input
+                        {...props}
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={row.reorderLevel}
+                        onChange={(e) =>
+                          update(row.id, "reorderLevel", e.target.value)
+                        }
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="min-w-44 p-2">
+                      <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 font-bold text-emerald-800">
+                        <ImagePlus size={15} />
+                        {row.images.length
+                          ? `${row.images.length} selected`
+                          : "Add images"}
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(event) => selectImages(event, row)}
+                          className="sr-only"
+                        />
+                      </label>
+                    </td>
+                    <td className="min-w-52 p-2">
+                      <input
+                        {...props}
+                        value={row.description}
+                        onChange={(e) =>
+                          update(row.id, "description", e.target.value)
+                        }
+                        placeholder="Optional notes"
+                        className={gridControl}
+                      />
+                    </td>
+                    <td className="p-2">
+                      <button
+                        type="button"
+                        aria-label={`Remove row ${rowIndex + 1}`}
+                        disabled={rows.length === 1}
+                        onClick={() =>
+                          setRows((current) =>
+                            current.filter((item) => item.id !== row.id),
+                          )
+                        }
+                        className="grid h-10 w-10 place-items-center rounded-xl text-rose-600 hover:bg-rose-50 disabled:text-slate-300"
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-600">
+            <b>{rows.length}</b> row{rows.length === 1 ? "" : "s"} ready · Each
+            product supports up to 10 images.
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={adding}
+              onClick={() => {
+                setRows([emptyDraft()]);
+                onError("");
+              }}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700"
+            >
+              <X size={16} /> Clear
+            </button>
+            <button
+              disabled={adding}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-700 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-700/20 disabled:opacity-60"
+            >
+              <Save size={17} />
+              {adding
+                ? "Saving products..."
+                : `Save ${rows.filter((row) => row.name.trim()).length || ""} product${rows.filter((row) => row.name.trim()).length === 1 ? "" : "s"}`}
+            </button>
+          </div>
         </div>
       </div>
     </form>

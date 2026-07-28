@@ -12,11 +12,12 @@ const emptyFinancials: FinancialSummary = {
   today: { received: 0, pending: 0, packed: 0, outForDelivery: 0, delivered: 0, failed: 0 },
   allTime: { received: 0, pending: 0, packed: 0, outForDelivery: 0, delivered: 0, failed: 0 },
   onlineRevenue: 0,
+  offlineRevenue: 0,
   cashRevenue: 0,
   receivable: 0,
   heldBalance: 0,
   availableBalance: 0,
-  stockPayable: 0,
+  inventoryPurchaseValue: 0,
   platformEarnings: 0,
   pharmacyDiscounts: 0,
   upcomingPayout: 0,
@@ -30,6 +31,7 @@ export function useVendorData(
   const [financials, setFinancials] =
     useState<FinancialSummary>(emptyFinancials);
   const [loading, setLoading] = useState(true);
+  const [financialsLoaded, setFinancialsLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const reload = useCallback(async () => {
@@ -41,6 +43,7 @@ export function useVendorData(
       ]);
       setOrders(orderResponse.items);
       setFinancials(financialResponse);
+      setFinancialsLoaded(true);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -61,5 +64,5 @@ export function useVendorData(
     };
   }, [reload]);
 
-  return { orders, loading, error, financials, reload };
+  return { orders, loading, financialsLoaded, error, financials, reload };
 }

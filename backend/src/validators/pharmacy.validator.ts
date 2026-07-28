@@ -81,8 +81,35 @@ export function validatePharmacyUpdate(v: unknown) {
 export function validateVendorPharmacyProfile(v: unknown) {
   const o = body(v),
     out: Record<string, unknown> = {};
-  for (const key of ["name", "address", "openingTime", "closingTime"])
+  for (const key of [
+    "name",
+    "address",
+    "openingTime",
+    "closingTime",
+    "drugLicenseNumber",
+    "pharmacistName",
+    "pharmacistLicenseNumber",
+  ])
     if (o[key] !== undefined) out[key] = text(o, key);
+  const hasLat = o.lat !== undefined,
+    hasLng = o.lng !== undefined;
+  if (hasLat !== hasLng)
+    throw new PharmacyValidationError("lat and lng must be supplied together.");
+  if (hasLat) {
+    const lat = Number(o.lat),
+      lng = Number(o.lng);
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    )
+      throw new PharmacyValidationError("Coordinates are out of range.");
+    out.lat = lat;
+    out.lng = lng;
+  }
   if (o.operatingDays !== undefined) {
     const days = Array.isArray(o.operatingDays)
       ? o.operatingDays
