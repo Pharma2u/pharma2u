@@ -1,164 +1,88 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, LoaderCircle, Printer, ShieldCheck } from "lucide-react";
-import {
-  getVendorSettings,
-  updateVendorSettings,
-  type VendorSettings,
-} from "@/lib/authApi";
-
-const defaults: VendorSettings = {
-  pharmacyId: "",
-  printerUrl: null,
-  autoPrint: true,
-};
+import { LoaderCircle, MapPin } from "lucide-react";
+import { getMyPharmacy, updateMyPharmacyProfile, type Pharmacy } from "@/lib/authApi";
 
 export function VendorSettingsPanel({ token }: { token: string }) {
-  const [settings, setSettings] = useState<VendorSettings>(defaults);
-  const [printerUrl, setPrinterUrl] = useState("");
+  const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
-    void getVendorSettings(token)
-      .then((next) => {
-        if (!active) return;
-        setSettings(next);
-        setPrinterUrl(next.printerUrl ?? "");
-      })
-      .catch((cause) => {
-        if (active)
-          setError(
-            cause instanceof Error ? cause.message : "Unable to load settings.",
-          );
-      })
+    void getMyPharmacy(token)
+      .then((profile) => active && setPharmacy(profile))
+      .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Unable to load pharmacy settings."))
       .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [token]);
 
-  async function save() {
-    setSaving(true);
-    setMessage("");
-    setError("");
+  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true); setMessage(""); setError("");
+    const form = new FormData(event.currentTarget);
     try {
-      const saved = await updateVendorSettings(token, {
-        printerUrl: printerUrl.trim(),
-        autoPrint: settings.autoPrint,
+      const updated = await updateMyPharmacyProfile(token, {
+        name: String(form.get("name")).trim(),
+        address: String(form.get("address")).trim(),
+        openingTime: String(form.get("openingTime")),
+        closingTime: String(form.get("closingTime")),
+        drugLicenseNumber: String(form.get("drugLicenseNumber")).trim(),
+        pharmacistName: String(form.get("pharmacistName")).trim(),
+        pharmacistLicenseNumber: String(form.get("pharmacistLicenseNumber")).trim(),
+        lat: Number(form.get("lat")), lng: Number(form.get("lng")),
+        operatingDays: form.getAll("operatingDays").map(String),
       });
-      setSettings(saved);
-      setPrinterUrl(saved.printerUrl ?? "");
-      setMessage("Vendor settings saved.");
+      setPharmacy(updated); setMessage("Pharmacy profile saved.");
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Unable to save settings.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      setError(cause instanceof Error ? cause.message : "Unable to save pharmacy profile.");
+    } finally { setSaving(false); }
   }
 
-  if (loading)
-    return (
-      <div className="mt-6 grid min-h-48 place-items-center rounded-2xl border border-slate-200 bg-white">
-        <LoaderCircle className="animate-spin text-teal-700" size={24} />
-      </div>
+  function useCurrentLocation(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (!("geolocation" in navigator)) { setError("Location is not supported by this device."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const form = document.querySelector<HTMLFormElement>("#pharmacy-profile-form");
+        if (form) {
+          (form.elements.namedItem("lat") as HTMLInputElement).value = String(position.coords.latitude);
+          (form.elements.namedItem("lng") as HTMLInputElement).value = String(position.coords.longitude);
+        }
+        setLocating(false); setMessage("Current location captured. Save the profile to apply it.");
+      },
+      () => { setLocating(false); setError("Unable to access your location. Check browser permissions."); },
+      { enableHighAccuracy: true, timeout: 10000 },
     );
+  }
+
+  if (loading) return <div className="mt-6 grid min-h-48 place-items-center rounded-2xl border border-slate-200 bg-white"><LoaderCircle className="animate-spin text-teal-700" size={24} /></div>;
+  if (!pharmacy) return <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error || "Pharmacy not found."}</p>;
+
+  const fields = [
+    ["name", "Pharmacy name", pharmacy.name], ["address", "Full address", pharmacy.address],
+    ["drugLicenseNumber", "Drug licence number", pharmacy.drugLicenseNumber], ["pharmacistName", "Pharmacist name", pharmacy.pharmacistName],
+    ["pharmacistLicenseNumber", "Pharmacist licence number", pharmacy.pharmacistLicenseNumber],
+    ["openingTime", "Opening time", pharmacy.openingTime ?? "09:00"], ["closingTime", "Closing time", pharmacy.closingTime ?? "21:00"],
+  ];
 
   return (
-    <section className="mt-6 grid max-w-4xl gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-      >
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-teal-50 text-teal-700">
-            <Printer size={21} />
-          </span>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.15em] text-teal-700">
-              Order printing
-            </p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Printer preferences
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              Configure the local print service used for eligible paid and COD orders.
-            </p>
-          </div>
+    <section className="mt-6 max-w-4xl">
+      <form id="pharmacy-profile-form" onSubmit={saveProfile} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-teal-50 text-teal-700"><MapPin size={21} /></span><div><p className="text-xs font-bold uppercase tracking-[.15em] text-teal-700">Pharmacy profile</p><h2 className="mt-1 text-xl font-bold text-slate-950">Business details and location</h2><p className="mt-1 text-sm leading-6 text-slate-500">Update the information customers and delivery riders use for this pharmacy.</p></div></div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {fields.map(([name, label, value]) => <label key={name} className="grid gap-1 text-sm font-semibold text-slate-700">{label}<input name={name} required type={name.includes("Time") ? "time" : "text"} defaultValue={value} className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /></label>)}
+          <div className="sm:col-span-2"><p className="text-sm font-semibold text-slate-700">Map coordinates</p><div className="mt-1 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><input name="lat" required type="number" step="any" min="-90" max="90" defaultValue={pharmacy.lat ?? ""} placeholder="Latitude" className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /><input name="lng" required type="number" step="any" min="-180" max="180" defaultValue={pharmacy.lng ?? ""} placeholder="Longitude" className="rounded-xl border border-slate-200 px-3 py-2.5 font-normal" /><button type="button" onClick={useCurrentLocation} className="rounded-xl border border-teal-200 px-3 py-2.5 text-sm font-bold text-teal-700">{locating ? "Locating..." : "Use my location"}</button></div><p className="mt-1 text-xs text-slate-500">Used for nearby searches and delivery routing.</p></div>
+          <fieldset className="sm:col-span-2"><legend className="text-sm font-semibold text-slate-700">Operating days</legend><div className="mt-2 flex flex-wrap gap-3">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => <label key={day} className="flex items-center gap-1.5 text-sm text-slate-600"><input name="operatingDays" type="checkbox" value={day} defaultChecked={pharmacy.operatingDays.includes(day)} />{day}</label>)}</div></fieldset>
         </div>
-
-        <label className="mt-7 block text-sm font-semibold text-slate-700">
-          Printer service URL
-          <input
-            type="url"
-            value={printerUrl}
-            onChange={(event) => setPrinterUrl(event.target.value)}
-            placeholder="http://localhost:9100/print"
-            className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
-          />
-          <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">
-            Leave blank to disable printing. Use only a printer service managed by your pharmacy.
-          </span>
-        </label>
-
-        <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
-          <span>
-            <strong className="block text-sm text-slate-800">Automatically print new orders</strong>
-            <span className="mt-1 block text-xs text-slate-500">
-              Prints eligible orders once they appear in your order queue.
-            </span>
-          </span>
-          <input
-            type="checkbox"
-            checked={settings.autoPrint}
-            onChange={(event) =>
-              setSettings((current) => ({
-                ...current,
-                autoPrint: event.target.checked,
-              }))
-            }
-            className="h-5 w-5 accent-teal-700"
-          />
-        </label>
-
-        {(error || message) && (
-          <p
-            role={error ? "alert" : "status"}
-            className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
-          >
-            {error || message}
-          </p>
-        )}
-        <div className="mt-6 flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-xl bg-teal-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-teal-800 disabled:cursor-wait disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save settings"}
-          </button>
-        </div>
+        {(error || message) && <p role={error ? "alert" : "status"} className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{error || message}</p>}
+        <div className="mt-6 flex justify-end"><button disabled={saving} className="rounded-xl bg-teal-700 px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{saving ? "Saving..." : "Save pharmacy profile"}</button></div>
       </form>
-
-      <aside className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
-        <ShieldCheck className="text-emerald-700" size={22} />
-        <h2 className="mt-4 font-bold text-slate-900">Vendor-only controls</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          These settings apply only to this pharmacy. They cannot change the global company logo, customer experience, or another vendor’s workspace.
-        </p>
-        <p className="mt-5 flex items-center gap-2 text-xs font-semibold text-emerald-800">
-          <CheckCircle2 size={15} /> Stored for your pharmacy account
-        </p>
-      </aside>
     </section>
   );
 }

@@ -50,9 +50,19 @@ export type Product = {
   name: string;
   genericName: string;
   category: ProductCategory;
+  productType: string;
   price: number;
   stock: number;
   unit: string;
+  purchaseUnit?: string | null;
+  freeStock?: number;
+  purchasePrice?: number | null;
+  hsnCode?: string | null;
+  gstPercent?: number;
+  unitsPerStrip?: number | null;
+  stripsPerBox?: number | null;
+  rackNumber?: string | null;
+  reorderLevel?: number;
   isActive: boolean;
   description?: string | null;
   manufacturer?: string | null;
@@ -80,6 +90,8 @@ export type Pharmacy = {
   openingTime: string | null;
   closingTime: string | null;
   operatingDays: string[];
+  lat: number | null;
+  lng: number | null;
 };
 
 export async function loginVendor(
@@ -113,6 +125,11 @@ export type PharmacyProfileInput = {
   openingTime?: string;
   closingTime?: string;
   operatingDays?: string[];
+  drugLicenseNumber?: string;
+  pharmacistName?: string;
+  pharmacistLicenseNumber?: string;
+  lat?: number;
+  lng?: number;
   logo?: File;
   banner?: File;
 };
@@ -124,7 +141,7 @@ export function updateMyPharmacyProfile(
   for (const [key, value] of Object.entries(data)) {
     if (value instanceof File) form.set(key, value);
     else if (Array.isArray(value)) form.set(key, value.join(","));
-    else if (value) form.set(key, value);
+    else if (value !== undefined && value !== null) form.set(key, String(value));
   }
   return request<Pharmacy>("/vendor/pharmacy/me/profile", token, {
     method: "PATCH",
@@ -149,7 +166,8 @@ export function listProducts(token: string, search = "", category = "") {
   );
 }
 
-export type ProductInput = Omit<Product, "id" | "isActive" | "imageUrls"> & {
+export type ProductInput = Omit<Product, "id" | "isActive" | "imageUrls" | "productType"> & {
+  productType?: string;
   images?: File[];
 };
 
@@ -288,7 +306,7 @@ export type VendorFinancialSummary = {
   offlineRevenue: number;
   cashRevenue: number;
   receivable: number;
-  stockPayable: number;
+  inventoryPurchaseValue: number;
   availableBalance: number;
   heldBalance: number;
   platformEarnings: number;

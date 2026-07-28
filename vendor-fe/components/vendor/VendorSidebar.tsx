@@ -30,7 +30,7 @@ const sections: {
       {
         id: "orders",
         icon: "⇄",
-        label: "Pharma2U Orders Rcvd",
+        label: "Pharma2U Orders",
         detail: "Online order fulfilment",
       },
     ],

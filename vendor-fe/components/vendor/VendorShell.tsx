@@ -22,7 +22,6 @@ import {
 import { useState, type ReactNode } from "react";
 import { CompanyLogo } from "../branding/CompanyLogo";
 import type { Workspace } from "./types";
-import { VendorNotifications } from "./VendorNotifications";
 
 type Item = { id: Workspace; label: string; icon: LucideIcon };
 const navigation: { label: string; items: Item[] }[] = [
@@ -63,8 +62,6 @@ const navigation: { label: string; items: Item[] }[] = [
 export function VendorShell({
   active,
   onNavigate,
-  userName,
-  token,
   onSignOut,
   children,
 }: {
@@ -77,9 +74,6 @@ export function VendorShell({
 }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const current = navigation
-    .flatMap((group) => group.items)
-    .find((item) => item.id === active);
   const go = (id: Workspace) => {
     onNavigate(id);
     setOpen(false);
@@ -193,38 +187,7 @@ export function VendorShell({
       <div
         className={`transition-all duration-200 ${collapsed ? "lg:pl-[76px]" : "lg:pl-[258px]"}`}
       >
-        <header className="sticky top-0 z-30 h-[70px] border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-          <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="rounded-xl border border-slate-200 p-2 text-slate-600 lg:hidden"
-                aria-label="Open navigation"
-              >
-                <Menu size={20} />
-              </button>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[.16em] text-emerald-700">
-                  Vendor panel
-                </p>
-                <h2 className="truncate text-sm font-bold text-slate-900">
-                  {current?.label}
-                </h2>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <VendorNotifications token={token} />
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-bold text-slate-900">{userName}</p>
-                <p className="text-[11px] text-slate-500">Pharmacy vendor</p>
-              </div>
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-900 text-xs font-bold text-white">
-                {userName.slice(0, 2).toUpperCase()}
-              </div>
-            </div>
-          </div>
-        </header>
+        <button type="button" onClick={() => setOpen(true)} className="fixed right-4 top-4 z-30 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm lg:hidden" aria-label="Open navigation"><Menu size={20} /></button>
         <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-7">{children}</div>
       </div>
     </main>

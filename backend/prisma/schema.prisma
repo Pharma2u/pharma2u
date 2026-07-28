@@ -327,9 +327,19 @@ model Product {
   name                String
   genericName         String
   category            ProductCategory    @default(otc)
+  productType         String             @default("TABLET")
   price               Float
   stock               Int
   unit                String
+  purchaseUnit        String?
+  freeStock           Int                @default(0)
+  purchasePrice       Float?
+  hsnCode             String?
+  gstPercent          Float              @default(0)
+  unitsPerStrip       Int?
+  stripsPerBox        Int?
+  rackNumber          String?
+  reorderLevel        Int                @default(0)
   imagePath           String? // legacy primary image; ProductImage is the source of truth
   description         String?
   manufacturer        String?
