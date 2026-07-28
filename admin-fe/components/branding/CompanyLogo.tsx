@@ -50,7 +50,7 @@ export function CompanyLogo({
       width={width}
       height={height}
       priority={priority}
-      className={className}
+      className={`object-contain ${className ?? ""}`}
     />
   );
 }

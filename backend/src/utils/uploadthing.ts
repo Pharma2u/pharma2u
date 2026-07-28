@@ -1,6 +1,7 @@
 // Centralizes UploadThing uploads and document access URLs.
 import { randomUUID } from "crypto";
 import { UTApi, UTFile } from "uploadthing/server";
+import sharp from "sharp";
 
 if (!process.env.UPLOADTHING_TOKEN)
   throw new Error("UPLOADTHING_TOKEN must be set.");
@@ -88,17 +89,82 @@ export async function uploadProductImage(file: KycFile): Promise<string> {
 }
 
 /** Uploads a public-facing pharmacy logo or banner image. */
-export async function uploadPharmacyImage(file: KycFile, imageType: "logo" | "banner"): Promise<string> {
-  const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : "png";
+export async function uploadPharmacyImage(
+  file: KycFile,
+  imageType: "logo" | "banner",
+): Promise<string> {
+  const ext =
+    file.mimetype === "image/jpeg"
+      ? "jpg"
+      : file.mimetype === "image/webp"
+        ? "webp"
+        : "png";
   const customId = `pharmacy-${imageType}-${randomUUID()}`;
   try {
-    const result = await utapi.uploadFiles([new UTFile([file.buffer], `${customId}.${ext}`, { type: file.mimetype, customId })]);
-    if (result[0]?.error || !result[0]?.data?.key) throw uploadError("Pharmacy image upload failed.");
+    const result = await utapi.uploadFiles([
+      new UTFile([file.buffer], `${customId}.${ext}`, {
+        type: file.mimetype,
+        customId,
+      }),
+    ]);
+    if (result[0]?.error || !result[0]?.data?.key)
+      throw uploadError("Pharmacy image upload failed.");
     return result[0].data.key;
   } catch (error) {
     if ((error as { status?: number }).status === 502) throw error;
-    console.error(`UploadThing pharmacy ${imageType} upload failed: ${uploadthingErrorDetail(error)}`);
-    throw uploadError("Pharmacy image upload failed. Check UploadThing configuration.");
+    console.error(
+      `UploadThing pharmacy ${imageType} upload failed: ${uploadthingErrorDetail(error)}`,
+    );
+    throw uploadError(
+      "Pharmacy image upload failed. Check UploadThing configuration.",
+    );
+  }
+}
+/** Uploads the global company logo to UploadThing and returns its storage key. */
+export async function uploadCompanyLogo(file: KycFile): Promise<string> {
+  let normalizedBuffer: Buffer;
+  try {
+    normalizedBuffer = await sharp(file.buffer, {
+      limitInputPixels: 40_000_000,
+    })
+      .rotate()
+      .trim({ threshold: 12, lineArt: true, margin: 8 })
+      .resize({
+        width: 1200,
+        height: 500,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .png({ compressionLevel: 9 })
+      .toBuffer();
+  } catch {
+    throw Object.assign(
+      new Error(
+        "The selected logo could not be processed. Upload a valid PNG, JPG, or WebP image.",
+      ),
+      { status: 400 },
+    );
+  }
+
+  const customId = `company-logo-${randomUUID()}`;
+  try {
+    const result = await utapi.uploadFiles([
+      new UTFile([normalizedBuffer], `${customId}.png`, {
+        type: "image/png",
+        customId,
+      }),
+    ]);
+    if (result[0]?.error || !result[0]?.data?.key)
+      throw uploadError("Company logo upload failed.");
+    return result[0].data.key;
+  } catch (error) {
+    if ((error as { status?: number }).status === 502) throw error;
+    console.error(
+      `UploadThing company-logo upload failed: ${uploadthingErrorDetail(error)}`,
+    );
+    throw uploadError(
+      "Company logo upload failed. Check UploadThing configuration.",
+    );
   }
 }
 /** Best-effort cleanup for files uploaded before a database write failed. */

@@ -1,8 +1,22 @@
 import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
-import { companyLogoDataUrl } from "../utils/company-branding";
+import {
+  deleteUploadedFiles,
+  pharmacyImageUrl,
+  uploadCompanyLogo,
+} from "../utils/uploadthing";
 
+const companyWithLogoUrl = <
+  T extends { logoDataUrl: string | null; logoPath: string | null },
+>(
+  company: T,
+) => ({
+  ...company,
+  logoDataUrl: company.logoPath
+    ? pharmacyImageUrl(company.logoPath)
+    : (company.logoDataUrl ?? ""),
+});
 const fields = [
   "name",
   "legalName",
@@ -162,12 +176,12 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
       : [],
   );
   res.json({
-    company:
-      company ??
-      Object.fromEntries([
-        ...fields.map((key) => [key, ""]),
-        ["logoDataUrl", ""],
-      ]),
+    company: company
+      ? companyWithLogoUrl(company)
+      : Object.fromEntries([
+          ...fields.map((key) => [key, ""]),
+          ["logoDataUrl", ""],
+        ]),
     financeScope: "combined",
     ledger: ledger.map((item) => ({
       id: item.id,
@@ -262,31 +276,46 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
         : 0,
       netMarginPercent: delivered.length
         ? ((ledger
-            .filter((item) => item.type === "income" || item.type === "receivable")
+            .filter(
+              (item) => item.type === "income" || item.type === "receivable",
+            )
             .reduce((sum, item) => sum + item.amount, 0) -
             ledger
-              .filter((item) => item.type === "expense" || item.type === "payable")
+              .filter(
+                (item) => item.type === "expense" || item.type === "payable",
+              )
               .reduce((sum, item) => sum + item.amount, 0)) /
-            Math.max(delivered.reduce((sum, order) => sum + order.total, 0), 1)) * 100
+            Math.max(
+              delivered.reduce((sum, order) => sum + order.total, 0),
+              1,
+            )) *
+          100
         : 0,
     },
   });
 }
 
-
 export async function createVendorProfileType(req: Request, res: Response) {
   const name = value(req.body, "name", 2, 60);
   const description = value(req.body, "description", 2, 180);
-  const code = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+  const code = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40);
   if (!code) bad("name is invalid.");
-  const item = await prisma.vendorProfileType.create({ data: { name, code, description } });
+  const item = await prisma.vendorProfileType.create({
+    data: { name, code, description },
+  });
   res.status(201).json(item);
 }
 
 export async function updateVendorProfileType(req: Request, res: Response) {
   const item = await prisma.vendorProfileType.update({
     where: { id: String(req.params.id) },
-    data: { isActive: Boolean((req.body as Record<string, unknown>)?.isActive) },
+    data: {
+      isActive: Boolean((req.body as Record<string, unknown>)?.isActive),
+    },
   });
   res.json(item);
 }
@@ -302,17 +331,49 @@ export async function saveCompany(req: Request, res: Response) {
     pincode: value(req.body, "pincode"),
     gstin: value(req.body, "gstin", 0),
     registrationNumber: value(req.body, "registrationNumber", 0),
-    logoDataUrl: companyLogoDataUrl(req.body?.logoDataUrl),
   };
-  res.json(
-    await prisma.companyProfile.upsert({
-      where: { id: "default" },
-      create: { id: "default", ...data },
-      update: data,
-    }),
-  );
+  const company = await prisma.companyProfile.upsert({
+    where: { id: "default" },
+    create: { id: "default", ...data },
+    update: data,
+  });
+  res.json(companyWithLogoUrl(company));
 }
 
+export async function uploadCompanyLogoImage(req: Request, res: Response) {
+  const file = req.file;
+  if (!file) {
+    res.status(400).json({ error: "A PNG, JPG, or WebP logo is required." });
+    return;
+  }
+
+  const current = await prisma.companyProfile.findUnique({
+    where: { id: "default" },
+    select: { logoPath: true },
+  });
+  if (!current) {
+    res.status(409).json({
+      error: "Save the company details once before uploading its logo.",
+    });
+    return;
+  }
+
+  const logoPath = await uploadCompanyLogo(file);
+  try {
+    await prisma.companyProfile.update({
+      where: { id: "default" },
+      data: { logoPath, logoDataUrl: null },
+    });
+  } catch (error) {
+    await deleteUploadedFiles([logoPath], "unsaved company logo");
+    throw error;
+  }
+
+  if (current.logoPath && current.logoPath !== logoPath) {
+    void deleteUploadedFiles([current.logoPath], "replaced company logo");
+  }
+  res.json({ logoDataUrl: pharmacyImageUrl(logoPath) });
+}
 export async function createLedgerEntry(req: Request, res: Response) {
   const item = await prisma.ledgerEntry.create({
     data: {
@@ -324,18 +385,16 @@ export async function createLedgerEntry(req: Request, res: Response) {
       createdBy: req.user!.id,
     },
   });
-  res
-    .status(201)
-    .json({
-      id: item.id,
-      date: date(item.entryDate),
-      reference: item.reference,
-      description: item.description,
-      division: item.division,
-      type: item.type,
-      amount: item.amount,
-      status: item.status,
-    });
+  res.status(201).json({
+    id: item.id,
+    date: date(item.entryDate),
+    reference: item.reference,
+    description: item.description,
+    division: item.division,
+    type: item.type,
+    amount: item.amount,
+    status: item.status,
+  });
 }
 
 export async function createAnnouncement(req: Request, res: Response) {
@@ -347,15 +406,13 @@ export async function createAnnouncement(req: Request, res: Response) {
       publishedBy: req.user!.id,
     },
   });
-  res
-    .status(201)
-    .json({
-      id: item.id,
-      title: item.title,
-      message: item.message,
-      audience: item.audience,
-      publishedAt: date(item.publishedAt),
-    });
+  res.status(201).json({
+    id: item.id,
+    title: item.title,
+    message: item.message,
+    audience: item.audience,
+    publishedAt: date(item.publishedAt),
+  });
 }
 
 export async function createEmployee(req: Request, res: Response) {
@@ -368,16 +425,14 @@ export async function createEmployee(req: Request, res: Response) {
       monthlySalary: money(req.body, "monthlySalary"),
     },
   });
-  res
-    .status(201)
-    .json({
-      id: item.employeeCode,
-      name: item.name,
-      role: item.jobRole,
-      department: item.department,
-      monthlySalary: item.monthlySalary,
-      status: item.status,
-    });
+  res.status(201).json({
+    id: item.employeeCode,
+    name: item.name,
+    role: item.jobRole,
+    department: item.department,
+    monthlySalary: item.monthlySalary,
+    status: item.status,
+  });
 }
 
 export async function updateTicket(req: Request, res: Response) {

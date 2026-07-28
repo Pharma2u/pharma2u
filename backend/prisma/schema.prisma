@@ -81,10 +81,10 @@ model User {
   rejectionReason    String?
   createdAt          DateTime @default(now())
 
-  pharmacies         Pharmacy[]        @relation("VendorPharmacies")
-  ordersAsCustomer   Order[]           @relation("CustomerOrders")
-  ordersAsRider      Order[]           @relation("PrimaryRiderOrders")
-  ordersAsRelayRider Order[]           @relation("RelayRiderOrders")
+  pharmacies         Pharmacy[]         @relation("VendorPharmacies")
+  ordersAsCustomer   Order[]            @relation("CustomerOrders")
+  ordersAsRider      Order[]            @relation("PrimaryRiderOrders")
+  ordersAsRelayRider Order[]            @relation("RelayRiderOrders")
   riderLocation      RiderLocation?
   riderKyc           RiderKyc?
   savedAddresses     CustomerAddress[]
@@ -107,6 +107,7 @@ model VendorProfileType {
 
   @@map("vendor_profile_types")
 }
+
 model AdminAuditLog {
   id            String   @id @default(uuid())
   actingAdminId String
@@ -148,7 +149,6 @@ model Pharmacy {
   @@map("pharmacies")
 }
 
-
 model CounterBill {
   id                String            @id @default(uuid())
   pharmacyId        String
@@ -167,87 +167,94 @@ model CounterBill {
 }
 
 model CompanyProfile {
-  id String @id @default("default")
-  name String
-  legalName String
-  phone String
-  email String
-  address String
-  city String
-  state String
-  pincode String
-  gstin String
+  id                 String   @id @default("default")
+  name               String
+  legalName          String
+  phone              String
+  email              String
+  address            String
+  city               String
+  state              String
+  pincode            String
+  gstin              String
   registrationNumber String
-  logoDataUrl String?
-  updatedAt DateTime @updatedAt
+  logoDataUrl        String?
+  logoPath           String?
+  updatedAt          DateTime @updatedAt
+
   @@map("company_profiles")
 }
 
 model LedgerEntry {
-  id String @id @default(uuid())
-  reference String @unique
+  id          String   @id @default(uuid())
+  reference   String   @unique
   description String
-  division String
-  type String
-  amount Float
-  status String @default("pending")
-  entryDate DateTime @default(now())
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  division    String
+  type        String
+  amount      Float
+  status      String   @default("pending")
+  entryDate   DateTime @default(now())
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@index([division, entryDate])
   @@map("ledger_entries")
 }
 
 model AdminAnnouncement {
-  id String @id @default(uuid())
-  title String
-  message String
-  audience String
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  audience    String
   publishedBy String
   publishedAt DateTime @default(now())
+
   @@index([publishedAt])
   @@map("admin_announcements")
 }
 
 model Employee {
-  id String @id @default(uuid())
-  employeeCode String @unique
-  name String
-  jobRole String
-  department String
+  id            String   @id @default(uuid())
+  employeeCode  String   @unique
+  name          String
+  jobRole       String
+  department    String
   monthlySalary Float
-  status String @default("active")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   @@index([department, status])
   @@map("employees")
 }
 
 model SupportTicket {
-  id String @id @default(uuid())
-  ticketCode String @unique
-  subject String
-  requester String
-  category String
-  priority String @default("medium")
-  status String @default("open")
+  id         String   @id @default(uuid())
+  ticketCode String   @unique
+  subject    String
+  requester  String
+  category   String
+  priority   String   @default("medium")
+  status     String   @default("open")
   assignedTo String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   @@index([status, priority])
   @@map("support_tickets")
 }
 
 model PharmacySubscription {
-  id String @id @default(uuid())
-  pharmacyId String @unique
-  plan String @default("Unconfigured")
-  amount Float @default(0)
+  id          String    @id @default(uuid())
+  pharmacyId  String    @unique
+  plan        String    @default("Unconfigured")
+  amount      Float     @default(0)
   nextBilling DateTime?
-  autopay Boolean @default(false)
-  status String @default("attention")
-  updatedAt DateTime @updatedAt
+  autopay     Boolean   @default(false)
+  status      String    @default("attention")
+  updatedAt   DateTime  @updatedAt
+
   @@map("pharmacy_subscriptions")
 }
 
@@ -266,9 +273,9 @@ model CounterBillItem {
 }
 
 model VendorPromotion {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   pharmacyId   String
-  pharmacy     Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  pharmacy     Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
   title        String
   code         String
   amountOff    Float
@@ -306,6 +313,7 @@ model VendorSettings {
 
   @@map("vendor_settings")
 }
+
 model HomepageBanner {
   id        String   @id @default(uuid())
   title     String
@@ -320,6 +328,7 @@ model HomepageBanner {
   @@index([isActive, sortOrder])
   @@map("homepage_banners")
 }
+
 model Product {
   id                  String             @id @default(uuid())
   pharmacyId          String
@@ -449,7 +458,6 @@ model OrderEvent {
   @@map("order_events")
 }
 
-
 model StockReservation {
   id        String            @id @default(uuid())
   orderId   String
@@ -501,16 +509,16 @@ model RiderKyc {
 }
 
 model RiderLedgerEntry {
-  id            String   @id @default(uuid())
+  id            String         @id @default(uuid())
   riderId       String
-  rider         User     @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  rider         User           @relation(fields: [riderId], references: [id], onDelete: Cascade)
   orderId       String?
-  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order         Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
   type          String
   amount        Float
   description   String
   paymentMethod PaymentMethod?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime       @default(now())
 
   @@unique([riderId, orderId, type])
   @@index([riderId, createdAt])
@@ -529,7 +537,6 @@ model RiderLoginOtp {
   @@index([phone, createdAt])
   @@map("rider_login_otps")
 }
-
 
 model ProductImage {
   id        String   @id @default(uuid())
@@ -671,25 +678,26 @@ model Prescription {
   @@index([customerId, createdAt])
   @@map("prescriptions")
 }
+
 model PharmacyApplication {
-  id                      String   @id @default(uuid())
+  id                      String    @id @default(uuid())
   ownerName               String
-  ownerPhone              String   @unique
+  ownerPhone              String    @unique
   pharmacyName            String
   address                 String
   lat                     Float
   lng                     Float
-  drugLicenseNumber       String   @unique
+  drugLicenseNumber       String    @unique
   drugLicensePath         String
   pharmacistName          String
   pharmacistLicenseNumber String
   pharmacistLicensePath   String
-  status                  String   @default("pending")
+  status                  String    @default("pending")
   rejectionReason         String?
   reviewedAt              DateTime?
   reviewedBy              String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@index([status, createdAt])
   @@map("pharmacy_applications")

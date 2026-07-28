@@ -41,6 +41,8 @@ export async function initializeRealtime(
     }
   });
   io.on("connection", (socket) => {
+    const user = socket.data.user as { id: string; role: string };
+    if (user.role === "admin") socket.join("admin:operations");
     socket.on(
       "tracking:subscribe",
       async (
@@ -96,10 +98,12 @@ export function publishRiderLocation(
   >,
 ) {
   io?.to(`rider:${location.riderId}`).emit("rider:location", location);
+  io?.to("admin:operations").emit("operations:rider-location", location);
 }
 
 export function publishOrderUpdate(orderId: string, payload: unknown) {
   io?.to(`order:${orderId}`).emit("order:updated", payload);
+  io?.to("admin:operations").emit("operations:order-updated", { orderId, ...((payload && typeof payload === "object") ? payload as object : {}) });
 }
 
 type LiveRiderLocation = {

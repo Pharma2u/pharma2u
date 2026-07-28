@@ -22,11 +22,7 @@ import { FinancePanel } from "@/components/finance/FinancePanel";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { CompanyLogo } from "@/components/branding/CompanyLogo";
 import { DashboardHome } from "./DashboardHome";
-import {
-  IncentivesPanel,
-  SettingsPanel,
-  SupportPanel,
-} from "./UtilityPanels";
+import { IncentivesPanel, SettingsPanel, SupportPanel } from "./UtilityPanels";
 
 type View =
   | "dashboard"
@@ -119,12 +115,12 @@ export function RiderDashboardV2({
         <button
           type="button"
           onClick={() => navigate("dashboard")}
-          className="flex h-[88px] items-center px-6"
+          className="flex h-[106px] items-center px-4"
         >
           <CompanyLogo
-            width={155}
-            height={50}
-            className="h-11 w-auto object-contain"
+            width={230}
+            height={86}
+            className="h-[86px] w-[230px] object-contain"
             priority
           />
         </button>
@@ -147,7 +143,10 @@ export function RiderDashboardV2({
           <p className="mt-1 text-[10px] text-slate-400">Pharma2U Rider</p>
         </section>
 
-        <nav className="mt-4 flex-1 space-y-1 px-5" aria-label="Rider navigation">
+        <nav
+          className="mt-4 flex-1 space-y-1 px-5"
+          aria-label="Rider navigation"
+        >
           {navigation.map((item) => {
             const Icon = item.icon;
             const selected = view === item.id;
@@ -195,9 +194,9 @@ export function RiderDashboardV2({
             className="lg:hidden"
           >
             <CompanyLogo
-              width={120}
-              height={40}
-              className="h-9 w-auto object-contain"
+              width={132}
+              height={56}
+              className="h-14 w-[132px] object-contain"
               priority
             />
           </button>

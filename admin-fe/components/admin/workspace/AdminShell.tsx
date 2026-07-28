@@ -135,7 +135,7 @@ export function AdminShell({
         />
       )}
       <aside className={asideClass}>
-        <div className="flex h-[70px] items-center justify-between border-b border-slate-100 px-4">
+        <div className="flex h-[106px] items-center justify-between border-b border-slate-100 px-3">
           <button
             onClick={() => go("dashboard")}
             className="flex min-w-0 items-center gap-2.5"
@@ -144,26 +144,26 @@ export function AdminShell({
             {company.logoDataUrl ? (
               <Image
                 unoptimized
-                width={40}
-                height={40}
+                width={230}
+                height={86}
                 src={company.logoDataUrl}
                 alt="Company logo"
                 className={
                   collapsed
-                    ? "h-9 w-9 rounded-xl object-contain"
-                    : "h-10 w-auto max-w-[190px] object-contain"
+                    ? "h-14 w-14 rounded-xl object-contain"
+                    : "h-[86px] w-[230px] object-contain"
                 }
               />
             ) : (
               <Image
                 src="/images/logo/logo.png"
                 alt="Pharma2U"
-                width={122}
-                height={40}
+                width={230}
+                height={86}
                 className={
                   collapsed
-                    ? "h-9 w-9 object-cover object-left"
-                    : "h-10 w-[220px] object-contain"
+                    ? "h-14 w-14 object-contain"
+                    : "h-[86px] w-[230px] object-contain"
                 }
                 priority
               />

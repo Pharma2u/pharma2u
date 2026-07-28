@@ -561,7 +561,7 @@ export function InventoryPanel({
                 alt="Current pharmacy logo"
                 width={64}
                 height={64}
-                className="h-16 w-16 rounded-xl border border-slate-200 object-cover"
+                className="h-16 w-16 rounded-xl border border-slate-200 bg-white p-1 object-contain"
               />
             )}
             <input

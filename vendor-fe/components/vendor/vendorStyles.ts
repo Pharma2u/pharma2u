@@ -3,9 +3,9 @@ export const vendorStyles = {
   header:
     "sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur",
   headerInner:
-    "mx-auto flex min-h-[72px] w-[min(100%-32px,1540px)] items-center justify-between gap-5 max-[560px]:min-h-[62px] max-[560px]:gap-2.5",
+    "mx-auto flex min-h-[106px] w-[min(100%-32px,1540px)] items-center justify-between gap-5 max-[560px]:min-h-[80px] max-[560px]:gap-2.5",
   brand: "flex min-w-0 items-center gap-4",
-  logo: "h-[38px] w-[118px] object-contain max-[560px]:w-[100px]",
+  logo: "h-[86px] w-[230px] max-[560px]:h-14 max-[560px]:w-[132px]",
   brandCopy: "border-l border-slate-200 pl-4 max-[920px]:hidden",
   kicker:
     "m-0 text-[11px] font-extrabold uppercase tracking-[0.16em] text-teal-700",

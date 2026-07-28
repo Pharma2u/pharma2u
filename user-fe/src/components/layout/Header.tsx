@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useState } from "react";
 
@@ -15,11 +15,12 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { CompanyLogo } from "@/src/components/branding/CompanyLogo";
+import type { CompanyBrand } from "@/src/lib/branding";
 
 import { useCartStore } from "@/src/store/cartStore";
 import { AccountMenu } from "@/src/components/account/AccountMenu";
 
-export default function Header() {
+export default function Header({ brand }: { brand: CompanyBrand }) {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
 
   const addresses = useAddressStore((state) => state.addresses);
@@ -64,10 +65,11 @@ export default function Header() {
 
           <Link href="/" className="flex shrink-0 items-center">
             <CompanyLogo
-              width={190}
-              height={70}
+              brand={brand}
+              width={230}
+              height={86}
               priority
-              className="h-[92px] w-[92px] object-contain"
+              className="h-[86px] w-[230px]"
             />
           </Link>
 
@@ -86,7 +88,10 @@ export default function Header() {
               <p className="text-xs text-[#6B7280]">Delivering to</p>
 
               <div className="flex items-center gap-1">
-                <span title={locationText} className="truncate text-sm font-semibold text-[#17212B]">
+                <span
+                  title={locationText}
+                  className="truncate text-sm font-semibold text-[#17212B]"
+                >
                   {locationText}
                 </span>
 
@@ -173,10 +178,11 @@ export default function Header() {
 
               <Link href="/" className="flex shrink-0 items-center">
                 <CompanyLogo
-                  width={150}
-                  height={65}
+                  brand={brand}
+                  width={132}
+                  height={56}
                   priority
-                  className="h-[72px] w-[72px] object-contain"
+                  className="h-14 w-[132px]"
                 />
               </Link>
 
@@ -195,7 +201,10 @@ export default function Header() {
                   </p>
 
                   <div className="flex items-center gap-0.5">
-                    <span title={locationText} className="max-w-[110px] truncate text-xs font-semibold text-[#17212B]">
+                    <span
+                      title={locationText}
+                      className="max-w-[110px] truncate text-xs font-semibold text-[#17212B]"
+                    >
                       {locationText}
                     </span>
 
@@ -265,4 +274,3 @@ export default function Header() {
     </header>
   );
 }
-

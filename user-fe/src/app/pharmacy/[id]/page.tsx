@@ -56,7 +56,7 @@ export default async function PharmacyPage({
                   <ShieldCheck size={15} /> Verified pharmacy
                 </span>
                 <div className="mt-4 flex items-center gap-3">
-                  {pharmacy.logoPath && <img src={pharmacy.logoPath} alt={`${pharmacy.name} logo`} className="h-12 w-12 rounded-xl border border-white/30 object-cover" />}
+                  {pharmacy.logoPath && <img src={pharmacy.logoPath} alt={`${pharmacy.name} logo`} className="h-12 w-12 rounded-xl border border-white/30 bg-white p-1 object-contain" />}
                   <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{pharmacy.name}</h1>
                 </div>
                 <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-white/80">

@@ -91,19 +91,19 @@ export function VendorShell({
         />
       )}
       <aside className={aside}>
-        <div className="flex h-[70px] items-center justify-between border-b border-slate-100 px-4">
+        <div className="flex h-[106px] items-center justify-between border-b border-slate-100 px-3">
           <button
             type="button"
             onClick={() => go("dashboard")}
             aria-label="Open vendor dashboard"
           >
             <CompanyLogo
-              width={122}
-              height={40}
+              width={230}
+              height={86}
               className={
                 collapsed
-                  ? "h-9 w-9 object-cover object-left"
-                  : "h-10 w-auto object-contain"
+                  ? "h-14 w-14 object-contain"
+                  : "h-[86px] w-[230px] object-contain"
               }
               priority
             />

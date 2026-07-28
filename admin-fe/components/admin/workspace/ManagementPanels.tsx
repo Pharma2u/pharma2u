@@ -648,9 +648,11 @@ export function VendorProfileTypesPanel({
 }
 export function CompanySetupPanel({
   company,
+  token,
   onSave,
 }: {
   company: CompanyProfile;
+  token: string;
   onSave: (profile: CompanyProfile) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(company);
@@ -659,6 +661,7 @@ export function CompanySetupPanel({
   >({});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saveError, setSaveError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const field = (
@@ -683,24 +686,38 @@ export function CompanySetupPanel({
       )}
     </label>
   );
-  function upload(file?: File) {
+  async function upload(file?: File) {
     if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > 1024 * 1024) {
+    if (
+      !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+      file.size > 1024 * 1024
+    ) {
       setErrors((current) => ({
         ...current,
-        logoDataUrl: "Choose a PNG, JPG, or SVG smaller than 1 MB.",
+        logoDataUrl: "Choose a PNG, JPG, or WebP image smaller than 1 MB.",
       }));
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDraft((current) => ({
-        ...current,
-        logoDataUrl: String(reader.result),
-      }));
+
+    setUploadingLogo(true);
+    setSaveError("");
+    try {
+      const logoDataUrl = await adminWorkspaceApi.uploadCompanyLogo(
+        token,
+        file,
+      );
+      setDraft((current) => ({ ...current, logoDataUrl }));
       setErrors((current) => ({ ...current, logoDataUrl: undefined }));
-    };
-    reader.readAsDataURL(file);
+    } catch (cause) {
+      setSaveError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to upload company logo.",
+      );
+    } finally {
+      setUploadingLogo(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
   async function save() {
     const nextErrors: Partial<Record<keyof CompanyProfile, string>> = {};
@@ -765,7 +782,7 @@ export function CompanySetupPanel({
           <Card className="p-5">
             <h2 className="font-bold">Company logo</h2>
             <p className="mt-1 text-xs text-slate-500">
-              PNG, JPG or SVG · maximum 1 MB
+              PNG, JPG or WebP · maximum 1 MB
             </p>
             <div className="mt-4 grid min-h-44 place-items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
               {draft.logoDataUrl ? (
@@ -790,16 +807,18 @@ export function CompanySetupPanel({
             <input
               ref={fileRef}
               type="file"
-              accept="image/png,image/jpeg,image/svg+xml"
+              accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              onChange={(e) => upload(e.target.files?.[0])}
+              onChange={(e) => void upload(e.target.files?.[0])}
             />
             <Button
               variant="secondary"
               className="mt-3 w-full"
               onClick={() => fileRef.current?.click()}
+              disabled={uploadingLogo}
             >
-              <Camera size={16} /> Upload logo
+              <Camera size={16} />{" "}
+              {uploadingLogo ? "Uploading..." : "Upload logo"}
             </Button>
             {errors.logoDataUrl && (
               <p className="mt-2 text-xs font-semibold text-red-600">
