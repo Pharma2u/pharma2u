@@ -34,6 +34,25 @@ export const adminWorkspaceApi = {
       method: "PUT",
       body: JSON.stringify(company),
     }),
+  uploadCompanyLogo: async (token: string, logo: File) => {
+    const body = new FormData();
+    body.append("logo", logo);
+    const response = await fetch(base + "/admin/company/logo", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body,
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      logoDataUrl?: string;
+      error?: string;
+      message?: string;
+    };
+    if (response.status === 401) notifyAdminSessionExpired();
+    if (!response.ok || !data.logoDataUrl) {
+      throw new Error(data.error ?? data.message ?? "Logo upload failed.");
+    }
+    return data.logoDataUrl;
+  },
   createLedger: (token: string, item: LedgerEntry) =>
     request<LedgerEntry>("/admin/ledger", token, {
       method: "POST",

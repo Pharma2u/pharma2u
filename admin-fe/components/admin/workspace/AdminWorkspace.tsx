@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FleetPanel } from "../FleetPanel";
 import { HomepageBannersPanel } from "../HomepageBannersPanel";
-import { OperationsPanel } from "../OperationsPanel";
+import { LiveOperationsPanel } from "../live-operations/LiveOperationsPanel";
 import { PharmacyApplicationsPanel } from "../PharmacyApplicationsPanel";
 import { PharmacyOnboardingPanel } from "../PharmacyOnboardingPanel";
 import { ProvisioningPanel } from "../ProvisioningPanel";
@@ -64,7 +64,7 @@ export function AdminWorkspace({
       );
       break;
     case "operations":
-      content = <OperationsPanel token={session.token} />;
+      content = <LiveOperationsPanel token={session.token} />;
       break;
     case "pharmacy-applications":
       content = <PharmacyApplicationsPanel token={session.token} />;
@@ -151,7 +151,11 @@ export function AdminWorkspace({
       break;
     case "company":
       content = (
-        <CompanySetupPanel company={data.company} onSave={saveCompany} />
+        <CompanySetupPanel
+          company={data.company}
+          token={session.token}
+          onSave={saveCompany}
+        />
       );
       break;
     case "accounts":

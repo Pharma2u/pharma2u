@@ -11,7 +11,7 @@ export function VendorHeader({ name, token, onSignOut, onMenuOpen }: { name: str
       <div className={styles.headerInner}>
         <div className={styles.brand}>
           <button type="button" onClick={onMenuOpen} className={styles.mobileMenu} aria-label="Open navigation"><Menu size={21} aria-hidden="true" /></button>
-          <CompanyLogo width={118} height={38} className={styles.logo} priority />
+          <CompanyLogo width={230} height={86} className={styles.logo} priority />
           <div className={styles.brandCopy}><p className={styles.kicker}>Vendor portal</p><strong>Pharmacy workspace</strong></div>
         </div>
         <div className={styles.account}>

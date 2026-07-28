@@ -21,7 +21,12 @@ export function VendorLoginForm({ onSubmit, error }: Props) {
         onSubmit={submit}
         className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
       >
-        <CompanyLogo width={150} height={52} className="h-12 w-auto object-contain" priority />
+        <CompanyLogo
+          width={230}
+          height={86}
+          className="h-[86px] w-[230px]"
+          priority
+        />
         <h1 className="mt-3 text-3xl font-bold text-slate-900">
           Vendor portal
         </h1>
