@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bike,
   ChevronDown,
@@ -34,6 +35,18 @@ type View =
   | "support"
   | "settings";
 
+const riderViews: View[] = [
+  "dashboard", "earnings", "deliveries", "history", "incentives", "support", "settings",
+];
+
+function viewFromPath(pathname: string): View {
+  const view = pathname.split("/")[1];
+  return riderViews.includes(view as View) ? (view as View) : "dashboard";
+}
+
+function viewHref(view: View) {
+  return view === "dashboard" ? "/" : `/${view}`;
+}
 const navigation = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "earnings", label: "Earnings", icon: WalletCards },
@@ -82,7 +95,8 @@ export function RiderDashboardV2({
   session: RiderSession;
   onSignOut: () => void;
 }) {
-  const [view, setView] = useState<View>("dashboard");
+  const pathname = usePathname();
+  const view = viewFromPath(pathname);
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -102,7 +116,7 @@ export function RiderDashboardV2({
   }, [session.token, view]);
 
   function navigate(next: View) {
-    setView(next);
+    window.history.pushState(null, "", viewHref(next));
     setProfileOpen(false);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });

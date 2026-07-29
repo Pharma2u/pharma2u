@@ -98,12 +98,12 @@ export function VendorShell({
             aria-label="Open vendor dashboard"
           >
             <CompanyLogo
-              width={230}
-              height={86}
+              width={250}
+              height={100}
               className={
                 collapsed
                   ? "h-14 w-14 object-contain"
-                  : "h-[86px] w-[230px] object-contain"
+                  : "h-[100px] w-[230px] object-contain"
               }
               priority
             />

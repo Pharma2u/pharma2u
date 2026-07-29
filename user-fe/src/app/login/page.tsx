@@ -1,14 +1,16 @@
-﻿"use client";
+"use client";
 import { CustomerAuthForm } from "@/src/components/auth/CustomerAuthForm";
 import { setSession, type AuthSession } from "@/src/store/authStore";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 export default function CustomerAuthPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const dispatch = useDispatch();
   const [error, setError] = useState("");
+  const initialMode = pathname === "/signup" ? "register" : "login";
   async function submit(
     mode: "login" | "register",
     values: {
@@ -56,7 +58,7 @@ export default function CustomerAuthPage() {
   }
   return (
     <main className="grid min-h-[calc(100vh-82px)] place-items-center bg-[#f6f8f9] p-5">
-      <CustomerAuthForm onSubmit={submit} error={error} />
+      <CustomerAuthForm initialMode={initialMode} onSubmit={submit} error={error} />
     </main>
   );
 }

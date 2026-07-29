@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+
 import { LoaderCircle, LockKeyhole } from "lucide-react";
 import { changePassword } from "@/lib/api";
 import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
@@ -12,6 +13,7 @@ import { RiderDashboardV2 } from "./RiderDashboardV2";
 
 export function RiderPortal() {
   const dispatch = useAppDispatch();
+
   const { session, hydrated } = usePersistedRiderSession();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");

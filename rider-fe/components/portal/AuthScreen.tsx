@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Bike, CheckCircle2, ShieldCheck, WalletCards } from "lucide-react";
 import type { RiderSession } from "@/store/authSlice";
 import { ApplicationForm } from "@/components/auth/ApplicationForm";
@@ -11,7 +12,8 @@ export function AuthScreen({
 }: {
   onAuthenticated: (session: RiderSession) => void;
 }) {
-  const [mode, setMode] = useState<"login" | "apply">("login");
+  const pathname = usePathname();
+  const mode = pathname === "/apply" ? "apply" : "login";
   return (
     <main className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[0.9fr_1.1fr]">
       <section className="relative overflow-hidden bg-slate-950 px-6 py-8 text-white sm:px-10 lg:flex lg:min-h-screen lg:flex-col lg:justify-between lg:p-14">
@@ -62,18 +64,18 @@ export function AuthScreen({
       <section className="flex items-center justify-center p-4 py-10 sm:p-10">
         <div className="w-full max-w-2xl">
           <div className="mb-6 flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
-            <button
-              onClick={() => setMode("login")}
-              className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold ${mode === "login" ? "bg-slate-950 text-white" : "text-slate-500"}`}
+            <Link
+              href="/"
+              className={`flex-1 rounded-xl px-4 py-3 text-center text-sm font-semibold ${mode === "login" ? "bg-slate-950 text-white" : "text-slate-500"}`}
             >
               Sign in
-            </button>
-            <button
-              onClick={() => setMode("apply")}
-              className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold ${mode === "apply" ? "bg-slate-950 text-white" : "text-slate-500"}`}
+            </Link>
+            <Link
+              href="/apply"
+              className={`flex-1 rounded-xl px-4 py-3 text-center text-sm font-semibold ${mode === "apply" ? "bg-slate-950 text-white" : "text-slate-500"}`}
             >
               Join as rider
-            </button>
+            </Link>
           </div>
           {mode === "login" ? (
             <section className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 sm:p-8">
