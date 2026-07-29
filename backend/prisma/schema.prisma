@@ -92,6 +92,10 @@ model User {
   prescriptions      Prescription[]
   notifications      NotificationLog[]
   riderLedger        RiderLedgerEntry[]
+  feedbackSubmitted  CustomerFeedback[]  @relation("FeedbackCustomer")
+  feedbackReviewed   CustomerFeedback[]  @relation("FeedbackReviewer")
+  loyaltyAccount     LoyaltyAccount?
+  loyaltyTransactions LoyaltyTransaction[]
 
   @@map("users")
 }
@@ -144,9 +148,31 @@ model Pharmacy {
   promotions              VendorPromotion[]
   payoutRequests          PayoutRequest[]
   vendorSettings          VendorSettings?
+  employees               PharmacyEmployee[]
 
   @@index([vendorUserId])
   @@map("pharmacies")
+}
+
+model PharmacyEmployee {
+  id             String   @id @default(uuid())
+  pharmacyId     String
+  pharmacy       Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  employeeCode   String   @unique
+  name           String
+  phone          String
+  email          String?
+  designation    String
+  employmentType String   @default("full_time")
+  monthlySalary  Float    @default(0)
+  joiningDate    DateTime
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([pharmacyId, status])
+  @@index([pharmacyId, name])
+  @@map("pharmacy_employees")
 }
 
 model CounterBill {
@@ -425,6 +451,9 @@ model Order {
   payment               Payment?
   refund                Refund?
   riderLedgerEntries    RiderLedgerEntry[]
+  loyaltyPointsUsed     Int                @default(0)
+  loyaltyDiscount       Float              @default(0)
+  loyaltyTransactions   LoyaltyTransaction[]
 
   @@index([status])
   @@index([customerId])
@@ -612,10 +641,90 @@ model NotificationLog {
   payload   Json?
   sentAt    DateTime?
   failedAt  DateTime?
+  readAt    DateTime?
   createdAt DateTime  @default(now())
 
   @@index([userId, createdAt])
   @@map("notification_logs")
+}
+
+model CustomerFeedback {
+  id                String              @id @default(uuid())
+  customerId        String
+  customer          User                @relation("FeedbackCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  category          String
+  subject           String
+  message           String
+  pageUrl           String?
+  status            String              @default("pending")
+  adminNote         String?
+  rewardPoints      Int                 @default(0)
+  reviewedById      String?
+  reviewedBy        User?               @relation("FeedbackReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  rewardTransaction LoyaltyTransaction?
+  images            FeedbackImage[]
+
+  @@index([status, createdAt])
+  @@index([customerId, createdAt])
+  @@map("customer_feedback")
+}
+
+model FeedbackImage {
+  id         String           @id @default(uuid())
+  feedbackId String
+  feedback   CustomerFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  path       String
+  sortOrder  Int              @default(0)
+  createdAt  DateTime         @default(now())
+
+  @@index([feedbackId, sortOrder])
+  @@map("feedback_images")
+}
+
+model LoyaltyAccount {
+  id             String   @id @default(uuid())
+  customerId     String   @unique
+  customer       User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  balance        Int      @default(0)
+  lifetimeEarned Int      @default(0)
+  lifetimeUsed   Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id          String            @id @default(uuid())
+  customerId  String
+  customer    User              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  feedbackId  String?           @unique
+  feedback    CustomerFeedback? @relation(fields: [feedbackId], references: [id], onDelete: SetNull)
+  orderId     String?
+  order       Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type        String
+  points      Int
+  description String
+  createdBy   String?
+  createdAt   DateTime          @default(now())
+
+  @@index([customerId, createdAt])
+  @@unique([orderId, type])
+  @@map("loyalty_transactions")
+}
+
+model LoyaltySetting {
+  id                    String   @id @default("default")
+  rupeesPerPoint        Float    @default(1)
+  minimumRedeemPoints   Int      @default(1)
+  defaultFeedbackReward Int      @default(50)
+  isActive              Boolean  @default(true)
+  updatedBy             String?
+  updatedAt             DateTime @updatedAt
+
+  @@map("loyalty_settings")
 }
 
 model Refund {

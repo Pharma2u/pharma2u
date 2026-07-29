@@ -12,6 +12,7 @@ import {
   triggerOrderRefund,
 } from "../services/payment-lifecycle.service";
 import { fetchRazorpayPayment } from "../services/razorpay.service";
+import { refundRedeemedPoints } from "../services/loyalty.service";
 
 function body(v: unknown) {
   if (!v || typeof v !== "object" || Array.isArray(v))
@@ -122,6 +123,7 @@ export async function cancelMyOrder(req: Request, res: Response) {
       await tx.refund.create({
         data: { orderId: id, amount: order.total, reason },
       });
+    await refundRedeemedPoints(tx, order);
   });
   let refundStatus: string | null = null;
   if (order.paymentStatus === "paid") {

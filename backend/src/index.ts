@@ -16,6 +16,7 @@ import pharmacyApplicationRoutes from "./routes/pharmacy-application.routes";
 import adminWorkspaceRoutes from "./routes/admin-workspace.routes";
 import notificationRoutes from "./routes/notification.routes";
 import companyBrandingRoutes from "./routes/company-branding.routes";
+import feedbackLoyaltyRoutes from "./routes/feedback-loyalty.routes";
 import { razorpayWebhook } from "./controllers/order.controller";
 import { assertJwtSecret } from "./utils/jwt";
 import { ValidationError } from "./validators/auth.validator";
@@ -57,6 +58,7 @@ app.use("/api", pharmacyApplicationRoutes);
 app.use("/api", adminWorkspaceRoutes);
 app.use("/api", notificationRoutes);
 app.use("/api", companyBrandingRoutes);
+app.use("/api", feedbackLoyaltyRoutes);
 
 app.use(
   (
@@ -69,6 +71,8 @@ app.use(
       res.status(400).json({
         error: req.originalUrl.includes("/vendor/products")
           ? "Invalid product image upload. Choose up to 10 JPEG, PNG or WebP images no larger than 5 MB each."
+          : req.originalUrl.includes("/feedback")
+            ? "Invalid feedback screenshot upload. Choose up to 5 JPEG, PNG or WebP images no larger than 5 MB each."
           : "Invalid image upload.",
       });
       return;

@@ -93,6 +93,7 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
         phone: true,
         createdAt: true,
         ordersAsCustomer: { select: { total: true, status: true } },
+        loyaltyAccount: { select: { balance: true } },
       },
     }),
     prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
@@ -123,7 +124,7 @@ export async function getAdminWorkspace(_req: Request, res: Response) {
       (order) => order.status === "delivered",
     );
     const spend = completed.reduce((sum, order) => sum + order.total, 0);
-    const points = Math.floor(spend / 10);
+    const points = customer.loyaltyAccount?.balance ?? 0;
     return {
       id: customer.id,
       name: customer.name,

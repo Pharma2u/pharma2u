@@ -1,8 +1,9 @@
-﻿// Implements admin pharmacy onboarding and vendor pharmacy retrieval.
+// Implements admin pharmacy onboarding and vendor pharmacy retrieval.
 import bcrypt from "bcrypt";
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../config/prisma";
+import { publishVendorStatus } from "../realtime";
 import { generateTempPassword } from "../utils/generateTempPassword";
 import {
   validatePharmacyCreate,
@@ -364,10 +365,10 @@ export async function setMyPharmacyOpenStatus(req: Request, res: Response) {
     return;
   }
 
-  res.json(
-    await prisma.pharmacy.update({
-      where: { id: pharmacy.id },
-      data: { isOpen: req.body.isOpen },
-    }),
-  );
+  const updated = await prisma.pharmacy.update({
+    where: { id: pharmacy.id },
+    data: { isOpen: req.body.isOpen },
+  });
+  publishVendorStatus(updated.id, updated.isOpen);
+  res.json(updated);
 }

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
-import type { OrderStatus } from "../generated/prisma/client";
+import { Prisma, type OrderStatus } from "../generated/prisma/client";
 
 const ACTIVE: OrderStatus[] = [
   "rider_assigned",
@@ -43,9 +43,25 @@ export async function getLiveOperations(_req: Request, res: Response) {
       },
       orderBy: { name: "asc" },
     }),
-    prisma.pharmacy.findMany({
-      select: { id: true, name: true, address: true, isOpen: true },
-    }),
+    prisma.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        address: string;
+        isOpen: boolean;
+        lat: number | null;
+        lng: number | null;
+      }>
+    >(Prisma.sql`
+      SELECT
+        id,
+        name,
+        address,
+        "isOpen",
+        ST_Y(location::geometry)::float AS lat,
+        ST_X(location::geometry)::float AS lng
+      FROM pharmacies
+    `),
     prisma.payment.count({
       where: {
         status: "failed",
@@ -149,7 +165,13 @@ export async function getLiveOperations(_req: Request, res: Response) {
       criticalAlerts: criticalAlerts.reduce((sum, item) => sum + item.count, 0),
     },
     riders: riderItems,
-    pharmacies,
+    pharmacies: pharmacies.map(({ lat, lng, ...pharmacy }) => ({
+      ...pharmacy,
+      location:
+        lat !== null && lng !== null
+          ? { lat, lng }
+          : null,
+    })),
     orders: orderItems,
     delayedOrders: orderItems.filter((order) =>
       delayed.some((item) => item.id === order.id),
