@@ -22,7 +22,13 @@ export type LiveOperationsData = {
     } | null;
     currentOrder: { id: string; orderCode: string; status: string } | null;
   }[];
-  pharmacies: { id: string; name: string; address: string; isOpen: boolean }[];
+  pharmacies: {
+    id: string;
+    name: string;
+    address: string;
+    isOpen: boolean;
+    location: { lat: number; lng: number } | null;
+  }[];
   orders: LiveOrder[];
   delayedOrders: LiveOrder[];
   activities: {

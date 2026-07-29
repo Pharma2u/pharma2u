@@ -172,13 +172,16 @@ export function SubscriptionsPanel({
 
 export function HrmPanel({
   employees,
-  onChange,
+  onCreate,
 }: {
   employees: Employee[];
-  onChange: (items: Employee[]) => void;
+  onCreate: (
+    employee: Pick<Employee, "name" | "role" | "department" | "monthlySalary">,
+  ) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({
     name: "",
     role: "",
@@ -189,7 +192,7 @@ export function HrmPanel({
     (sum, employee) => sum + employee.monthlySalary,
     0,
   );
-  function add() {
+  async function add() {
     const salary = Number(draft.salary);
     if (
       draft.name.trim().length < 2 ||
@@ -199,20 +202,24 @@ export function HrmPanel({
       setError("Enter a valid name, role, and monthly salary.");
       return;
     }
-    onChange([
-      ...employees,
-      {
-        id: `EMP-${Date.now().toString().slice(-4)}`,
+    setSaving(true);
+    setError("");
+    try {
+      await onCreate({
         name: draft.name.trim(),
         role: draft.role.trim(),
         department: draft.department,
         monthlySalary: salary,
-        status: "active",
-      },
-    ]);
-    setOpen(false);
-    setError("");
-    setDraft({ name: "", role: "", department: "Operations", salary: "" });
+      });
+      setOpen(false);
+      setDraft({ name: "", role: "", department: "Operations", salary: "" });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to save employee.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <>
@@ -269,7 +276,9 @@ export function HrmPanel({
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={add}>Save employee</Button>
+            <Button disabled={saving} onClick={() => void add()}>
+              {saving ? "Saving..." : "Save employee"}
+            </Button>
           </div>
         </Card>
       )}

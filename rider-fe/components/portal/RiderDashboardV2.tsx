@@ -21,6 +21,7 @@ import { formatMoney } from "@/components/tasks/taskHelpers";
 import { FinancePanel } from "@/components/finance/FinancePanel";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { CompanyLogo } from "@/components/branding/CompanyLogo";
+import { useRiderAvailability } from "@/components/tasks/useRiderAvailability";
 import { DashboardHome } from "./DashboardHome";
 import { IncentivesPanel, SettingsPanel, SupportPanel } from "./UtilityPanels";
 
@@ -85,6 +86,7 @@ export function RiderDashboardV2({
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const availability = useRiderAvailability(session.token);
   const firstName = session.name.trim().split(/\s+/)[0] || "Partner";
   const initials = session.name
     .split(/\s+/)
@@ -104,6 +106,11 @@ export function RiderDashboardV2({
     setProfileOpen(false);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function signOut() {
+    availability.goOffline();
+    onSignOut();
   }
 
   const heading =
@@ -257,7 +264,7 @@ export function RiderDashboardV2({
                   </div>
                   <button
                     type="button"
-                    onClick={onSignOut}
+                    onClick={signOut}
                     className="mt-2 flex w-full items-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-bold text-red-700"
                   >
                     <LogOut size={16} /> Sign out
@@ -276,9 +283,18 @@ export function RiderDashboardV2({
           </h1>
           <p className="mt-1 text-xs text-slate-500">{copy[view].detail}</p>
         </div>
-        {view === "dashboard" && <DashboardHome token={session.token} />}
+        {view === "dashboard" && (
+          <DashboardHome
+            token={session.token}
+            availability={availability}
+          />
+        )}
         {view === "deliveries" && (
-          <DashboardHome token={session.token} tasksOnly />
+          <DashboardHome
+            token={session.token}
+            availability={availability}
+            tasksOnly
+          />
         )}
         {view === "earnings" && <FinancePanel token={session.token} />}
         {view === "history" && (
@@ -287,7 +303,7 @@ export function RiderDashboardV2({
         {view === "incentives" && <IncentivesPanel />}
         {view === "support" && <SupportPanel />}
         {view === "settings" && (
-          <SettingsPanel name={session.name} onSignOut={onSignOut} />
+          <SettingsPanel name={session.name} onSignOut={signOut} />
         )}
       </section>
 

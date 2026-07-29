@@ -9,6 +9,8 @@ import type {
   SupportTicket,
   WorkspaceData,
   VendorProfileType,
+  CustomerFeedback,
+  LoyaltySetting,
 } from "@/components/admin/workspace/types";
 
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
@@ -53,17 +55,26 @@ export const adminWorkspaceApi = {
     }
     return data.logoDataUrl;
   },
-  createLedger: (token: string, item: LedgerEntry) =>
+  createLedger: (
+    token: string,
+    item: Pick<LedgerEntry, "description" | "division" | "type" | "amount">,
+  ) =>
     request<LedgerEntry>("/admin/ledger", token, {
       method: "POST",
       body: JSON.stringify(item),
     }),
-  createAnnouncement: (token: string, item: Announcement) =>
+  createAnnouncement: (
+    token: string,
+    item: Pick<Announcement, "title" | "message" | "audience">,
+  ) =>
     request<Announcement>("/admin/announcements", token, {
       method: "POST",
       body: JSON.stringify(item),
     }),
-  createEmployee: (token: string, item: Employee) =>
+  createEmployee: (
+    token: string,
+    item: Pick<Employee, "name" | "role" | "department" | "monthlySalary">,
+  ) =>
     request<Employee>("/admin/employees", token, {
       method: "POST",
       body: JSON.stringify(item),
@@ -105,4 +116,26 @@ export const adminWorkspaceApi = {
       token,
       { method: "PATCH", body: JSON.stringify({ isActive }) },
     ),
+  feedback: (token: string, status: string) =>
+    request<{ items: CustomerFeedback[]; counts: Record<string, number> }>(
+      `/admin/feedback?status=${encodeURIComponent(status)}`,
+      token,
+    ),
+  reviewFeedback: (
+    token: string,
+    id: string,
+    review: { action: "reward" | "reject"; rewardPoints: number; adminNote: string },
+  ) =>
+    request<CustomerFeedback>(
+      `/admin/feedback/${encodeURIComponent(id)}/review`,
+      token,
+      { method: "PATCH", body: JSON.stringify(review) },
+    ),
+  loyaltySetting: (token: string) =>
+    request<LoyaltySetting>("/admin/loyalty-settings", token),
+  updateLoyaltySetting: (token: string, setting: LoyaltySetting) =>
+    request<LoyaltySetting>("/admin/loyalty-settings", token, {
+      method: "PUT",
+      body: JSON.stringify(setting),
+    }),
 };

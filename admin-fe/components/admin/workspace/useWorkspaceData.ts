@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminWorkspaceApi } from "@/lib/adminWorkspaceApi";
-import type { CompanyProfile, Subscription, WorkspaceData } from "./types";
+import type {
+  Announcement,
+  CompanyProfile,
+  Employee,
+  LedgerEntry,
+  Subscription,
+  SupportTicket,
+  WorkspaceData,
+} from "./types";
 
 const blankCompany: CompanyProfile = {
   name: "",
@@ -77,84 +85,96 @@ export function useWorkspaceData(token: string) {
     };
   }, [load]);
 
-  const setData = useCallback(
-    (next: WorkspaceData) => {
-      const previous = data;
-      updateData(next);
-      void (async () => {
-        try {
-          if (
-            JSON.stringify(previous.company) !== JSON.stringify(next.company)
-          ) {
-            await adminWorkspaceApi.saveCompany(token, next.company);
-          } else {
-            const ledger = next.ledger.find(
-              (item) => !previous.ledger.some((old) => old.id === item.id),
-            );
-            const announcement = next.announcements.find(
-              (item) =>
-                !previous.announcements.some((old) => old.id === item.id),
-            );
-            const employee = next.employees.find(
-              (item) => !previous.employees.some((old) => old.id === item.id),
-            );
-            const ticket = next.tickets.find(
-              (item) =>
-                previous.tickets.find((old) => old.id === item.id)?.status !==
-                item.status,
-            );
-            if (ledger) {
-              const saved = await adminWorkspaceApi.createLedger(token, ledger);
-              updateData((current) => ({
-                ...current,
-                ledger: current.ledger.map((item) =>
-                  item.id === ledger.id ? saved : item,
-                ),
-              }));
-            } else if (announcement) {
-              const saved = await adminWorkspaceApi.createAnnouncement(
-                token,
-                announcement,
-              );
-              updateData((current) => ({
-                ...current,
-                announcements: current.announcements.map((item) =>
-                  item.id === announcement.id ? saved : item,
-                ),
-              }));
-            } else if (employee) {
-              const saved = await adminWorkspaceApi.createEmployee(
-                token,
-                employee,
-              );
-              updateData((current) => ({
-                ...current,
-                employees: current.employees.map((item) =>
-                  item.id === employee.id ? saved : item,
-                ),
-              }));
-            } else if (ticket) {
-              const saved = await adminWorkspaceApi.updateTicket(token, ticket);
-              updateData((current) => ({
-                ...current,
-                tickets: current.tickets.map((item) =>
-                  item.id === saved.id ? saved : item,
-                ),
-              }));
-            }
-          }
-          setError("");
-        } catch (cause) {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Unable to save the change.",
-          );
-          void load(true);
-        }
-      })();
+  const setData = useCallback((next: WorkspaceData) => {
+    updateData(next);
+  }, []);
+
+  const createLedger = useCallback(
+    async (
+      input: Pick<LedgerEntry, "description" | "division" | "type" | "amount">,
+    ) => {
+      try {
+        const saved = await adminWorkspaceApi.createLedger(token, input);
+        updateData((current) => ({
+          ...current,
+          ledger: [saved, ...current.ledger],
+        }));
+        setError("");
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to save ledger entry.",
+        );
+        throw cause;
+      }
     },
-    [data, load, token],
+    [token],
+  );
+
+  const createAnnouncement = useCallback(
+    async (input: Pick<Announcement, "title" | "message" | "audience">) => {
+      try {
+        const saved = await adminWorkspaceApi.createAnnouncement(token, input);
+        updateData((current) => ({
+          ...current,
+          announcements: [saved, ...current.announcements],
+        }));
+        setError("");
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to publish announcement.",
+        );
+        throw cause;
+      }
+    },
+    [token],
+  );
+
+  const createEmployee = useCallback(
+    async (
+      input: Pick<Employee, "name" | "role" | "department" | "monthlySalary">,
+    ) => {
+      try {
+        const saved = await adminWorkspaceApi.createEmployee(token, input);
+        updateData((current) => ({
+          ...current,
+          employees: [saved, ...current.employees],
+        }));
+        setError("");
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Unable to save employee.",
+        );
+        throw cause;
+      }
+    },
+    [token],
+  );
+
+  const updateTicket = useCallback(
+    async (input: SupportTicket) => {
+      try {
+        const saved = await adminWorkspaceApi.updateTicket(token, input);
+        updateData((current) => ({
+          ...current,
+          tickets: current.tickets.map((item) =>
+            item.id === saved.id ? saved : item,
+          ),
+        }));
+        setError("");
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to update support ticket.",
+        );
+        throw cause;
+      }
+    },
+    [token],
   );
 
   const toggleSubscription = useCallback(
@@ -205,6 +225,10 @@ export function useWorkspaceData(token: string) {
     data,
     setData,
     saveCompany,
+    createLedger,
+    createAnnouncement,
+    createEmployee,
+    updateTicket,
     toggleSubscription,
     loading,
     error,

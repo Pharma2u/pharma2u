@@ -28,6 +28,7 @@ import { DashboardPanel } from "./DashboardPanel";
 import { AdminShell } from "./AdminShell";
 import type { AdminSection } from "./types";
 import { useWorkspaceData } from "./useWorkspaceData";
+import { FeedbackPanel, LoyaltySettingsPanel } from "../FeedbackLoyaltyPanels";
 
 export function AdminWorkspace({
   session,
@@ -41,6 +42,10 @@ export function AdminWorkspace({
     data,
     setData,
     saveCompany,
+    createLedger,
+    createAnnouncement,
+    createEmployee,
+    updateTicket,
     toggleSubscription,
     loading,
     error,
@@ -88,12 +93,7 @@ export function AdminWorkspace({
       content = <AccountingPanel data={data} onChange={setData} />;
       break;
     case "ledger":
-      content = (
-        <LedgerPanel
-          entries={data.ledger}
-          onChange={(ledger) => setData({ ...data, ledger })}
-        />
-      );
+      content = <LedgerPanel entries={data.ledger} onCreate={createLedger} />;
       break;
     case "subscriptions":
       content = (
@@ -107,16 +107,13 @@ export function AdminWorkspace({
       content = (
         <AnnouncementsPanel
           items={data.announcements}
-          onChange={(announcements) => setData({ ...data, announcements })}
+          onCreate={createAnnouncement}
         />
       );
       break;
     case "hrm":
       content = (
-        <HrmPanel
-          employees={data.employees}
-          onChange={(employees) => setData({ ...data, employees })}
-        />
+        <HrmPanel employees={data.employees} onCreate={createEmployee} />
       );
       break;
     case "customers":
@@ -127,13 +124,14 @@ export function AdminWorkspace({
         />
       );
       break;
+    case "feedback":
+      content = <FeedbackPanel token={session.token} />;
+      break;
+    case "loyalty-settings":
+      content = <LoyaltySettingsPanel token={session.token} />;
+      break;
     case "support":
-      content = (
-        <SupportPanel
-          tickets={data.tickets}
-          onChange={(tickets) => setData({ ...data, tickets })}
-        />
-      );
+      content = <SupportPanel tickets={data.tickets} onUpdate={updateTicket} />;
       break;
     case "access":
       content = (

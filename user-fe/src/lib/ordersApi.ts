@@ -7,6 +7,7 @@ export type CreateOrderInput = {
   deliveryInstructions?: string;
   deliveryFee?: number;
   estimatedMinutes?: number;
+  redeemPoints?: number;
 };
 
 type ApiFailure = { error?: string; message?: string };

@@ -178,14 +178,17 @@ export function AccountingPanel({
 
 export function LedgerPanel({
   entries,
-  onChange,
+  onCreate,
 }: {
   entries: LedgerEntry[];
-  onChange: (entries: LedgerEntry[]) => void;
+  onCreate: (
+    entry: Pick<LedgerEntry, "description" | "division" | "type" | "amount">,
+  ) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({
     description: "",
     amount: "",
@@ -201,7 +204,7 @@ export function LedgerPanel({
       ),
     [entries, query],
   );
-  function addEntry() {
+  async function addEntry() {
     const amount = Number(draft.amount);
     if (
       draft.description.trim().length < 3 ||
@@ -211,28 +214,29 @@ export function LedgerPanel({
       setError("Enter a description and a valid amount greater than zero.");
       return;
     }
-    const now = new Date();
-    onChange([
-      {
-        id: `TXN-${Date.now().toString().slice(-6)}`,
-        date: now.toISOString().slice(0, 10),
-        reference: `MAN-${Date.now().toString().slice(-4)}`,
+    setSaving(true);
+    setError("");
+    try {
+      await onCreate({
         description: draft.description.trim(),
         division: draft.division,
         type: draft.type,
         amount,
-        status: "pending",
-      },
-      ...entries,
-    ]);
-    setDraft({
-      description: "",
-      amount: "",
-      type: "income",
-      division: "pharmacy",
-    });
-    setError("");
-    setShowForm(false);
+      });
+      setDraft({
+        description: "",
+        amount: "",
+        type: "income",
+        division: "pharmacy",
+      });
+      setShowForm(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to save ledger entry.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <>
@@ -312,7 +316,9 @@ export function LedgerPanel({
             <Button variant="secondary" onClick={() => setShowForm(false)}>
               Cancel
             </Button>
-            <Button onClick={addEntry}>Save entry</Button>
+            <Button disabled={saving} onClick={() => void addEntry()}>
+              {saving ? "Saving..." : "Save entry"}
+            </Button>
           </div>
         </Card>
       )}
