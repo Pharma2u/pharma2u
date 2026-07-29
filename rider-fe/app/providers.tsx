@@ -1,6 +1,9 @@
-﻿"use client";
+"use client";
+
 import { Provider } from "react-redux";
 import { store } from "@/store/store";
-export function AppProviders({ children }: { children: React.ReactNode }) {
-  return <Provider store={store}>{children}</Provider>;
+import { BrandProvider, type Brand } from "@/components/branding/BrandContext";
+
+export function AppProviders({ children, brand }: { children: React.ReactNode; brand: Brand }) {
+  return <Provider store={store}><BrandProvider brand={brand}>{children}</BrandProvider></Provider>;
 }

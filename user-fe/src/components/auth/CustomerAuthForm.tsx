@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { PasswordInput } from "./PasswordInput";
 type Mode = "login" | "register";
 type Props = {
@@ -14,9 +15,10 @@ type Props = {
     },
   ) => Promise<void>;
   error: string;
+  initialMode: Mode;
 };
-export function CustomerAuthForm({ onSubmit, error }: Props) {
-  const [mode, setMode] = useState<Mode>("login");
+export function CustomerAuthForm({ initialMode, onSubmit, error }: Props) {
+  const [mode] = useState<Mode>(initialMode);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -111,15 +113,14 @@ export function CustomerAuthForm({ onSubmit, error }: Props) {
               : "Create customer account"}
         </button>
       </form>
-      <button
-        type="button"
-        onClick={() => setMode(mode === "login" ? "register" : "login")}
+      <Link
+        href={mode === "login" ? "/signup" : "/login"}
         className="mt-5 w-full text-sm font-semibold text-[#2eb68f]"
       >
         {mode === "login"
           ? "New here? Register"
           : "Already registered? Sign in"}
-      </button>
+      </Link>
     </section>
   );
 }

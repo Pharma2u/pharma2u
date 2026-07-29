@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { FleetPanel } from "../FleetPanel";
 import { HomepageBannersPanel } from "../HomepageBannersPanel";
 import { LiveOperationsPanel } from "../live-operations/LiveOperationsPanel";
@@ -29,6 +29,23 @@ import { AdminShell } from "./AdminShell";
 import type { AdminSection } from "./types";
 import { useWorkspaceData } from "./useWorkspaceData";
 import { FeedbackPanel, LoyaltySettingsPanel } from "../FeedbackLoyaltyPanels";
+const adminSections: AdminSection[] = [
+  "dashboard", "operations", "pharmacy-applications", "pharmacy-onboarding",
+  "rider-applications", "rider-onboarding", "fleet", "banners", "accounting",
+  "subscriptions", "announcements", "hrm", "ledger", "customers", "feedback",
+  "loyalty-settings", "support", "access", "accounts", "company", "vendor-profile-types",
+];
+
+function sectionFromPath(pathname: string): AdminSection {
+  const section = pathname.split("/")[1];
+  return adminSections.includes(section as AdminSection)
+    ? (section as AdminSection)
+    : "dashboard";
+}
+
+function sectionHref(section: AdminSection) {
+  return section === "dashboard" ? "/" : `/${section}`;
+}
 
 export function AdminWorkspace({
   session,
@@ -37,7 +54,8 @@ export function AdminWorkspace({
   session: AuthSession;
   onSignOut: () => void;
 }) {
-  const [section, setSection] = useState<AdminSection>("dashboard");
+  const pathname = usePathname();
+  const section = sectionFromPath(pathname);
   const {
     data,
     setData,
@@ -47,12 +65,12 @@ export function AdminWorkspace({
     createEmployee,
     updateTicket,
     toggleSubscription,
-    loading,
+
     error,
     reload,
   } = useWorkspaceData(session.token);
   function navigate(next: AdminSection) {
-    setSection(next);
+    window.history.pushState(null, "", sectionHref(next));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -167,12 +185,6 @@ export function AdminWorkspace({
       break;
   }
 
-  if (loading)
-    content = (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-500">
-        Loading live admin data…
-      </div>
-    );
   return (
     <AdminShell
       active={section}

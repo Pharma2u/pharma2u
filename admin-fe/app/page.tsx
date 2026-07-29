@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { AdminLoginForm } from "@/components/auth/AdminLoginForm";
 import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 import { AdminWorkspace } from "@/components/admin/workspace/AdminWorkspace";
@@ -16,6 +17,7 @@ import { usePersistedAdminSession } from "@/store/usePersistedSession";
 
 export default function AdminPortal() {
   const dispatch = useAppDispatch();
+
   const { session, hydrated } = usePersistedAdminSession();
   const [error, setError] = useState("");
 
@@ -30,6 +32,7 @@ export default function AdminPortal() {
     setError("");
     try {
       dispatch(setSession(await loginAdmin(phone, password)));
+
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
     }

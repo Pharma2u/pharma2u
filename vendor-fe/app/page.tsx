@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { VendorLoginForm } from "@/components/auth/VendorLoginForm";
 import { InventoryPanel } from "@/components/inventory/InventoryPanel";
@@ -16,17 +17,36 @@ import { changePassword, loginVendor } from "@/lib/authApi";
 import { clearSession, passwordChanged, setSession } from "@/store/authSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { usePersistedVendorSession } from "@/store/usePersistedSession";
+const vendorWorkspaces: Workspace[] = [
+  "dashboard", "billing", "orders", "products", "add-product", "pharmacy",
+  "finance", "reports", "promotions", "payouts", "settings",
+];
+
+function workspaceFromPath(pathname: string): Workspace {
+  const section = pathname.split("/")[1];
+  return vendorWorkspaces.includes(section as Workspace)
+    ? (section as Workspace)
+    : "dashboard";
+}
+
+function workspaceHref(workspace: Workspace) {
+  return workspace === "dashboard" ? "/" : `/${workspace}`;
+}
 
 export default function VendorPortal() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
   const { session, hydrated } = usePersistedVendorSession();
   const [error, setError] = useState("");
-  const [workspace, setWorkspace] = useState<Workspace>("dashboard");
+  const workspace = workspaceFromPath(pathname);
+  const navigateToWorkspace = (next: Workspace) => window.history.pushState(null, "", workspaceHref(next));
 
   async function login(phone: string, password: string) {
     setError("");
     try {
       dispatch(setSession(await loginVendor(phone, password)));
+      router.replace("/");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
     }
@@ -60,7 +80,7 @@ export default function VendorPortal() {
       token={session.token}
       name={session.name}
       workspace={workspace}
-      onWorkspaceChange={setWorkspace}
+      onWorkspaceChange={navigateToWorkspace}
       onSignOut={() => dispatch(clearSession())}
     />
   );

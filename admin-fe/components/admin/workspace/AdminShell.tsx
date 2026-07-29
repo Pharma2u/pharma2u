@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { AdminSection, CompanyProfile } from "./types";
+import { useBrand } from "@/components/branding/BrandContext";
 
 type NavItem = { id: AdminSection; label: string; icon: LucideIcon };
 const navigation: { label: string; items: NavItem[] }[] = [
@@ -110,8 +111,11 @@ export function AdminShell({
   onSignOut: () => void;
   children: ReactNode;
 }) {
+  const brand = useBrand();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const logoDataUrl = company.logoDataUrl || brand.logoDataUrl;
+  const companyName = company.name || brand.name;
   const activeItem = navigation
     .flatMap((group) => group.items)
     .find((item) => item.id === active);
@@ -145,32 +149,29 @@ export function AdminShell({
             className="flex min-w-0 items-center gap-2.5"
             aria-label="Open dashboard"
           >
-            {company.logoDataUrl ? (
+            {logoDataUrl ? (
               <Image
                 unoptimized
                 width={230}
                 height={86}
-                src={company.logoDataUrl}
+                src={logoDataUrl}
                 alt="Company logo"
                 className={
                   collapsed
-                    ? "h-14 w-14 rounded-xl object-contain"
-                    : "h-[86px] w-[230px] object-contain"
+                    ? "h-14 w-14 rounded-xl object-cover object-center"
+                    : "h-[86px] w-[230px] object-cover object-center"
                 }
               />
             ) : (
-              <Image
-                src="/images/logo/logo.png"
-                alt="Pharma2U"
-                width={230}
-                height={86}
+              <span
                 className={
                   collapsed
-                    ? "h-14 w-14 object-contain"
-                    : "h-[86px] w-[230px] object-contain"
+                    ? "grid h-14 w-14 place-items-center rounded-xl text-xs font-bold text-emerald-700"
+                    : "grid h-[86px] w-[230px] place-items-center rounded-xl px-4 text-sm font-bold tracking-[0.14em] text-emerald-700"
                 }
-                priority
-              />
+              >
+                {collapsed ? (companyName || "A").slice(0, 2).toUpperCase() : companyName}
+              </span>
             )}
           </button>
           <button
