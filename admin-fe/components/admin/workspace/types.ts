@@ -13,6 +13,8 @@ export type AdminSection =
   | "hrm"
   | "ledger"
   | "customers"
+  | "feedback"
+  | "loyalty-settings"
   | "support"
   | "access"
   | "accounts"
@@ -90,6 +92,31 @@ export type Customer = {
   spend: number;
   points: number;
   tier: string;
+};
+
+export type CustomerFeedback = {
+  id: string;
+  category: string;
+  subject: string;
+  message: string;
+  pageUrl: string | null;
+  status: "pending" | "rewarded" | "rejected";
+  adminNote: string | null;
+  rewardPoints: number;
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  customer: { name: string; phone: string; email: string | null };
+  images: Array<{ id: string; url: string; sortOrder: number }>;
+};
+
+export type LoyaltySetting = {
+  id: string;
+  rupeesPerPoint: number;
+  minimumRedeemPoints: number;
+  defaultFeedbackReward: number;
+  isActive: boolean;
+  updatedAt?: string;
 };
 
 export type RoleUser = {

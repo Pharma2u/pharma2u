@@ -20,10 +20,6 @@ export default function HomepageBannerCarousel({
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    setActive((value) => Math.min(value, Math.max(0, banners.length - 1)));
-  }, [banners.length]);
-
-  useEffect(() => {
     if (banners.length < 2) return;
     const timer = window.setInterval(
       () => setActive((value) => (value + 1) % banners.length),
@@ -32,7 +28,8 @@ export default function HomepageBannerCarousel({
     return () => window.clearInterval(timer);
   }, [banners.length]);
   if (!banners.length) return null;
-  const banner = banners[active];
+  const visibleActive = active % banners.length;
+  const banner = banners[visibleActive];
   const previous = () =>
     setActive((value) => (value - 1 + banners.length) % banners.length);
   const next = () => setActive((value) => (value + 1) % banners.length);
@@ -102,8 +99,8 @@ export default function HomepageBannerCarousel({
               type="button"
               onClick={() => setActive(index)}
               aria-label={`Show banner ${index + 1}`}
-              aria-current={index === active ? "true" : undefined}
-              className={`h-2 rounded-full transition-all ${index === active ? "w-5 bg-white" : "w-2 bg-white/50"}`}
+              aria-current={index === visibleActive ? "true" : undefined}
+              className={`h-2 rounded-full transition-all ${index === visibleActive ? "w-5 bg-white" : "w-2 bg-white/50"}`}
             />
           ))}
         </div>

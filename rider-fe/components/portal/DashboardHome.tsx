@@ -16,18 +16,19 @@ import { getRiderFinance, type RiderFinance } from "@/lib/api";
 import { formatMoney } from "@/components/tasks/taskHelpers";
 import { AvailabilityPanel } from "@/components/tasks/AvailabilityPanel";
 import { TaskCard } from "@/components/tasks/TaskCard";
-import { useRiderAvailability } from "@/components/tasks/useRiderAvailability";
+import type { RiderAvailability } from "@/components/tasks/useRiderAvailability";
 import { useRiderTasks } from "@/components/tasks/useRiderTasks";
 import { LiveLocationCard } from "./LiveLocationCard";
 
 export function DashboardHome({
   token,
+  availability,
   tasksOnly = false,
 }: {
   token: string;
+  availability: RiderAvailability;
   tasksOnly?: boolean;
 }) {
-  const availability = useRiderAvailability(token);
   const tasks = useRiderTasks(token, availability.isOnline);
   const [dashboard, setDashboard] = useState<RiderDashboardData | null>(null);
   const [finance, setFinance] = useState<RiderFinance | null>(null);
@@ -217,7 +218,8 @@ export function DashboardHome({
             <LiveLocationCard
               isOnline={availability.isOnline}
               fallback={
-                location ? { lat: location.lat, lng: location.lng } : null
+                availability.location ??
+                (location ? { lat: location.lat, lng: location.lng } : null)
               }
             />
             <section className="rounded-[1.35rem] border border-slate-200 bg-white p-5">

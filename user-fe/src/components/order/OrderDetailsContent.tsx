@@ -195,19 +195,25 @@ export default function OrderDetailsContent({
           Number.isFinite(liveOrder.pharmacy.location?.lat) &&
           Number.isFinite(liveOrder.pharmacy.location?.lng)
         ) {
-          setLiveOrigin({
-            lat: liveOrder.pharmacy.location!.lat,
-            lng: liveOrder.pharmacy.location!.lng,
-          });
+          const lat = liveOrder.pharmacy.location!.lat;
+          const lng = liveOrder.pharmacy.location!.lng;
+          setLiveOrigin((current) =>
+            current?.lat === lat && current.lng === lng
+              ? current
+              : { lat, lng },
+          );
         }
         if (
           Number.isFinite(liveOrder.dropLat) &&
           Number.isFinite(liveOrder.dropLng)
         ) {
-          setLiveDestination({
-            lat: liveOrder.dropLat as number,
-            lng: liveOrder.dropLng as number,
-          });
+          const lat = liveOrder.dropLat as number;
+          const lng = liveOrder.dropLng as number;
+          setLiveDestination((current) =>
+            current?.lat === lat && current.lng === lng
+              ? current
+              : { lat, lng },
+          );
         }
       } catch {
         // Keep the last known status while a refresh is temporarily unavailable.

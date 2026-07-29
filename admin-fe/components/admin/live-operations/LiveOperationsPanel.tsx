@@ -81,6 +81,7 @@ export function LiveOperationsPanel({ token }: { token: string }) {
     const refresh = () => void load(true);
     socket.on("operations:rider-location", refresh);
     socket.on("operations:order-updated", refresh);
+    socket.on("operations:vendor-status", refresh);
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void load(true);
     }, 30_000);
@@ -92,6 +93,9 @@ export function LiveOperationsPanel({ token }: { token: string }) {
   }, [load, token]);
   const selectedRider =
     data.riders.find((item) => item.id === selectedRiderId) ?? null;
+  const locatedOpenVendors = data.pharmacies.filter(
+    (pharmacy) => pharmacy.isOpen && pharmacy.location,
+  ).length;
   const shownOrders = useMemo(
     () =>
       filter === "all"
@@ -168,11 +172,11 @@ export function LiveOperationsPanel({ token }: { token: string }) {
             <div>
               <h2 className="font-bold text-slate-900">Live Map</h2>
               <p className="text-xs text-slate-500">
-                Riders update automatically as locations arrive.
+                Live riders and open vendor locations update automatically.
               </p>
             </div>
             <span className="text-xs font-semibold text-emerald-700">
-              {data.metrics.ridersOnline} online
+              {data.metrics.ridersOnline} riders - {locatedOpenVendors} vendors
             </span>
           </div>
           <div className="relative h-[430px]">
@@ -181,6 +185,14 @@ export function LiveOperationsPanel({ token }: { token: string }) {
               selectedRiderId={selectedRiderId}
               onSelectRider={setSelectedRiderId}
             />
+            <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2 text-[11px] font-bold">
+              <span className="rounded-full bg-white px-2.5 py-1.5 text-emerald-700 shadow ring-1 ring-slate-200">
+                Rider
+              </span>
+              <span className="rounded-lg bg-white px-2.5 py-1.5 text-teal-800 shadow ring-1 ring-slate-200">
+                V Open vendor
+              </span>
+            </div>
             {selectedRider && (
               <aside className="absolute bottom-4 left-4 w-64 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200">
                 <button

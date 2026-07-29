@@ -20,38 +20,47 @@ const currency = new Intl.NumberFormat("en-IN", {
 
 export function AnnouncementsPanel({
   items,
-  onChange,
+  onCreate,
 }: {
   items: Announcement[];
-  onChange: (items: Announcement[]) => void;
+  onCreate: (
+    announcement: Pick<Announcement, "title" | "message" | "audience">,
+  ) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({
     title: "",
     message: "",
     audience: "all" as Announcement["audience"],
   });
-  function publish() {
+  async function publish() {
     if (draft.title.trim().length < 4 || draft.message.trim().length < 10) {
       setError(
         "Title must contain at least 4 characters and the message at least 10.",
       );
       return;
     }
-    onChange([
-      {
-        id: `ANN-${Date.now().toString().slice(-5)}`,
-        ...draft,
+    setSaving(true);
+    setError("");
+    try {
+      await onCreate({
         title: draft.title.trim(),
         message: draft.message.trim(),
-        publishedAt: new Date().toISOString().slice(0, 10),
-      },
-      ...items,
-    ]);
-    setDraft({ title: "", message: "", audience: "all" });
-    setError("");
-    setOpen(false);
+        audience: draft.audience,
+      });
+      setDraft({ title: "", message: "", audience: "all" });
+      setOpen(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to publish announcement.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <>
@@ -115,8 +124,8 @@ export function AnnouncementsPanel({
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={publish}>
-              <Send size={16} /> Publish now
+            <Button disabled={saving} onClick={() => void publish()}>
+              <Send size={16} /> {saving ? "Publishing..." : "Publish now"}
             </Button>
           </div>
         </Card>
@@ -280,10 +289,10 @@ export function CustomersPanel({
 
 export function SupportPanel({
   tickets,
-  onChange,
+  onUpdate,
 }: {
   tickets: SupportTicket[];
-  onChange: (items: SupportTicket[]) => void;
+  onUpdate: (ticket: SupportTicket) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const visible = tickets.filter((ticket) =>
@@ -292,16 +301,10 @@ export function SupportPanel({
       .includes(query.toLowerCase()),
   );
   const advance = (ticket: SupportTicket) =>
-    onChange(
-      tickets.map((item) =>
-        item.id === ticket.id
-          ? {
-              ...item,
-              status: ticket.status === "open" ? "in-progress" : "resolved",
-            }
-          : item,
-      ),
-    );
+    onUpdate({
+      ...ticket,
+      status: ticket.status === "open" ? "in-progress" : "resolved",
+    });
   return (
     <>
       <PageHeading
@@ -387,7 +390,10 @@ export function SupportPanel({
                 {ticket.status}
               </StatusBadge>
               {ticket.status !== "resolved" && (
-                <Button variant="secondary" onClick={() => advance(ticket)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void advance(ticket)}
+                >
                   {ticket.status === "open" ? "Assign to me" : "Resolve"}
                 </Button>
               )}

@@ -33,6 +33,8 @@ export default function NearbyPharmaciesSection({
   const selectedAddress = addresses.find(
     (address) => address.id === selectedAddressId,
   );
+  const serviceAreaName =
+    selectedAddress?.city || selectedAddress?.fullAddress || "your area";
 
   useEffect(() => {
     if (
@@ -201,14 +203,34 @@ export default function NearbyPharmaciesSection({
             ))}
           </div>
         ) : (
-          <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-[#DCD6EC] bg-[#FAF9FE] px-6 text-center">
-            <MapPin className="mb-3 text-[#6A3EE6]" size={28} />
-            <p className="text-sm font-bold text-[#28243A]">
-              No pharmacies within 10 km
+          <div className="relative flex min-h-56 flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#E2D9FA] bg-gradient-to-br from-[#F8F5FF] via-white to-[#EEFBF7] px-6 py-8 text-center">
+            <div
+              aria-hidden="true"
+              className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[#E8E0FF]/70 blur-2xl"
+            />
+            <div className="relative mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-white text-[#6238E4] shadow-[0_10px_30px_rgba(98,56,228,0.14)]">
+              <Store size={30} strokeWidth={1.8} />
+              <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[#24B58B] text-white">
+                <MapPin size={14} />
+              </span>
+            </div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#6238E4]">
+              Coming soon
             </p>
-            <p className="mt-1 text-xs text-[#777386]">
-              Try another delivery location or check again later.
+            <h3 className="mt-2 text-lg font-extrabold tracking-tight text-[#28243A]">
+              We&apos;re not in {serviceAreaName} yet
+            </h3>
+            <p className="mt-2 max-w-md text-xs leading-5 text-[#6F6A7D] sm:text-sm">
+              There isn&apos;t a partner pharmacy serving this location right
+              now. We&apos;re working to bring Pharma2U to your area soon.
             </p>
+            <button
+              type="button"
+              onClick={() => setLocationOpen(true)}
+              className="relative mt-5 rounded-xl border border-[#D9CEF8] bg-white px-5 py-2.5 text-xs font-bold text-[#6238E4] shadow-sm transition hover:border-[#BCA9F2] hover:bg-[#F8F5FF]"
+            >
+              Change location
+            </button>
           </div>
         )}
 

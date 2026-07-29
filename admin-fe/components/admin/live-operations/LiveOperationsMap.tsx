@@ -10,6 +10,17 @@ const token =
   process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ??
   process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>'"]/g, (character) =>
+    ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#039;",
+      '"': "&quot;",
+    })[character]!,
+  );
+
 export function LiveOperationsMap({
   data,
   selectedRiderId,
@@ -47,8 +58,14 @@ export function LiveOperationsMap({
   }, []);
   useEffect(() => {
     if (!map.current) return;
-    const visible = data.riders.filter((rider) => rider.location);
-    const ids = new Set(visible.map((rider) => rider.id));
+    const visibleRiders = data.riders.filter((rider) => rider.location);
+    const visibleVendors = data.pharmacies.filter(
+      (pharmacy) => pharmacy.isOpen && pharmacy.location,
+    );
+    const ids = new Set([
+      ...visibleRiders.map((rider) => `rider:${rider.id}`),
+      ...visibleVendors.map((pharmacy) => `vendor:${pharmacy.id}`),
+    ]);
     markers.current.forEach((marker, id) => {
       if (!ids.has(id)) {
         marker.remove();
@@ -56,10 +73,11 @@ export function LiveOperationsMap({
       }
     });
     const bounds = new mapboxgl.LngLatBounds();
-    visible.forEach((rider) => {
+    visibleRiders.forEach((rider) => {
       const location = rider.location!;
       const point: [number, number] = [location.lng, location.lat];
-      const existing = markers.current.get(rider.id);
+      const markerId = `rider:${rider.id}`;
+      const existing = markers.current.get(markerId);
       if (existing) existing.setLngLat(point);
       else {
         const element = document.createElement("button");
@@ -69,9 +87,36 @@ export function LiveOperationsMap({
         element.textContent = rider.name.slice(0, 1).toUpperCase();
         element.onclick = () => onSelectRider(rider.id);
         markers.current.set(
-          rider.id,
+          markerId,
           new mapboxgl.Marker({ element, anchor: "center" })
             .setLngLat(point)
+            .addTo(map.current!),
+        );
+      }
+      bounds.extend(point);
+    });
+    visibleVendors.forEach((pharmacy) => {
+      const location = pharmacy.location!;
+      const point: [number, number] = [location.lng, location.lat];
+      const markerId = `vendor:${pharmacy.id}`;
+      const existing = markers.current.get(markerId);
+      if (existing) existing.setLngLat(point);
+      else {
+        const element = document.createElement("button");
+        element.type = "button";
+        element.title = `${pharmacy.name} - Open vendor`;
+        element.setAttribute("aria-label", `${pharmacy.name}, open vendor`);
+        element.style.cssText =
+          "display:grid;place-items:center;width:34px;height:34px;border-radius:10px;border:3px solid white;box-shadow:0 2px 12px #0f172a40;color:white;font-size:11px;font-weight:800;background:#0f766e";
+        element.textContent = "V";
+        const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
+          `<strong>${escapeHtml(pharmacy.name)}</strong><br/><span>${escapeHtml(pharmacy.address)}</span><br/><span style="color:#047857;font-weight:700">Open now</span>`,
+        );
+        markers.current.set(
+          markerId,
+          new mapboxgl.Marker({ element, anchor: "center" })
+            .setLngLat(point)
+            .setPopup(popup)
             .addTo(map.current!),
         );
       }
@@ -80,10 +125,11 @@ export function LiveOperationsMap({
     if (!bounds.isEmpty() && !selectedRiderId)
       map.current.fitBounds(bounds, {
         padding: 56,
-        maxZoom: visible.length === 1 ? 14 : 12,
+        maxZoom:
+          visibleRiders.length + visibleVendors.length === 1 ? 14 : 12,
         duration: 450,
       });
-  }, [data.riders, onSelectRider, selectedRiderId]);
+  }, [data.pharmacies, data.riders, onSelectRider, selectedRiderId]);
   if (!token)
     return (
       <div className="flex h-full min-h-80 items-center justify-center rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">

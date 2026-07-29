@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
 import Link from "next/link";
@@ -14,6 +14,7 @@ import {
   Clock3,
   CreditCard,
   FileText,
+  Gift,
   LoaderCircle,
   MapPin,
   Plus,
@@ -35,6 +36,7 @@ import {
 } from "@/src/lib/ordersApi";
 import { ProductThumbnail } from "@/src/components/product/ProductThumbnail";
 import type { AuthRootState } from "@/src/store/authStore";
+import { feedbackLoyaltyApi, type LoyaltySummary } from "@/src/lib/feedbackLoyalty";
 
 import { useAddressStore } from "@/src/store/addressStore";
 import { useCartStore } from "@/src/store/cartStore";
@@ -118,6 +120,15 @@ export default function CheckoutContent() {
    */
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
+  const [loyalty, setLoyalty] = useState<LoyaltySummary | null>(null);
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
+
+  useEffect(() => {
+    if (!session?.token) return;
+    let active = true;
+    void feedbackLoyaltyApi.loyalty(session.token).then((value) => { if (active) setLoyalty(value); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [session?.token]);
 
   /*
    * DELIVERY INSTRUCTIONS
@@ -143,7 +154,14 @@ export default function CheckoutContent() {
 
   const deliveryFee = 0;
 
-  const totalAmount = subtotal + deliveryFee;
+  const maximumRedeemable = loyalty?.isActive && loyalty.balance >= loyalty.minimumRedeemPoints
+    ? Math.min(loyalty.balance, Math.floor(Math.max(0, subtotal + deliveryFee - 1) / loyalty.rupeesPerPoint))
+    : 0;
+  const redeemPoints = useLoyaltyPoints && paymentMethod === "cod" && maximumRedeemable >= (loyalty?.minimumRedeemPoints ?? 1)
+    ? maximumRedeemable
+    : 0;
+  const loyaltyDiscount = redeemPoints * (loyalty?.rupeesPerPoint ?? 0);
+  const totalAmount = subtotal + deliveryFee - loyaltyDiscount;
 
   /*
    * DELIVERY TIME
@@ -310,6 +328,7 @@ export default function CheckoutContent() {
         deliveryInstructions: deliveryInstructions.trim() || undefined,
         deliveryFee,
         estimatedMinutes: estimatedDeliveryTime,
+        redeemPoints,
       });
       if (hasPrescriptionProducts && prescriptionFile) {
         await uploadOrderPrescription(session.token, created.id, prescriptionFile);
@@ -734,6 +753,13 @@ export default function CheckoutContent() {
               ))}
             </div>
 
+            {loyalty?.isActive && loyalty.balance > 0 && (
+              <div className="mt-5 rounded-2xl border border-[#DDD3F8] bg-[#F7F4FF] p-4">
+                <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#5B3DF5]"><Gift size={19} /></span><div className="min-w-0 flex-1"><p className="text-sm font-bold text-[#28243A]">Use loyalty points</p><p className="mt-0.5 text-xs text-[#777386]">{loyalty.balance.toLocaleString("en-IN")} available · 1 point = ₹{loyalty.rupeesPerPoint.toLocaleString("en-IN")}</p></div><button type="button" role="switch" aria-checked={useLoyaltyPoints} disabled={paymentMethod !== "cod" || maximumRedeemable < loyalty.minimumRedeemPoints} onClick={() => setUseLoyaltyPoints((value) => !value)} className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${useLoyaltyPoints && paymentMethod === "cod" ? "bg-[#5B3DF5]" : "bg-[#CFC9D8]"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${useLoyaltyPoints && paymentMethod === "cod" ? "left-6" : "left-1"}`} /></button></div>
+                {paymentMethod !== "cod" ? <p className="mt-3 text-[11px] text-[#7A6542]">Choose cash on delivery to use points safely.</p> : maximumRedeemable < loyalty.minimumRedeemPoints ? <p className="mt-3 text-[11px] text-[#777386]">This order needs at least {loyalty.minimumRedeemPoints.toLocaleString("en-IN")} redeemable points.</p> : useLoyaltyPoints && <p className="mt-3 text-xs font-bold text-emerald-700">{redeemPoints.toLocaleString("en-IN")} points applied · You save ₹{loyaltyDiscount.toLocaleString("en-IN")}</p>}
+              </div>
+            )}
+
             {/* PRICE DETAILS */}
 
             <div className="mt-6 border-t border-[#EDF0EF] pt-5">
@@ -759,6 +785,7 @@ export default function CheckoutContent() {
 
                   <span className="font-semibold text-[#2EB68F]">FREE</span>
                 </div>
+                {redeemPoints > 0 && <div className="flex justify-between text-sm"><span className="text-[#64717D]">Loyalty points ({redeemPoints.toLocaleString("en-IN")})</span><span className="font-semibold text-[#5B3DF5]">- Rs. {loyaltyDiscount.toLocaleString("en-IN")}</span></div>}
               </div>
 
               <div className="my-5 border-t border-[#EDF0EF]" />

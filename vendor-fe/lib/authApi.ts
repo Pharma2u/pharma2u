@@ -141,7 +141,8 @@ export function updateMyPharmacyProfile(
   for (const [key, value] of Object.entries(data)) {
     if (value instanceof File) form.set(key, value);
     else if (Array.isArray(value)) form.set(key, value.join(","));
-    else if (value !== undefined && value !== null) form.set(key, String(value));
+    else if (value !== undefined && value !== null)
+      form.set(key, String(value));
   }
   return request<Pharmacy>("/vendor/pharmacy/me/profile", token, {
     method: "PATCH",
@@ -166,7 +167,10 @@ export function listProducts(token: string, search = "", category = "") {
   );
 }
 
-export type ProductInput = Omit<Product, "id" | "isActive" | "imageUrls" | "productType"> & {
+export type ProductInput = Omit<
+  Product,
+  "id" | "isActive" | "imageUrls" | "productType"
+> & {
   productType?: string;
   images?: File[];
 };
@@ -414,4 +418,58 @@ export function updateVendorSettings(
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
+export type PharmacyEmployee = {
+  id: string;
+  employeeCode: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  designation: string;
+  employmentType: "full_time" | "part_time" | "contract";
+  monthlySalary: number;
+  joiningDate: string;
+  status: "active" | "on_leave" | "inactive";
+  createdAt: string;
+};
+
+export type PharmacyEmployeeInput = {
+  name: string;
+  phone: string;
+  email?: string;
+  designation: string;
+  employmentType: PharmacyEmployee["employmentType"];
+  monthlySalary: number;
+  joiningDate: string;
+};
+
+export function listPharmacyEmployees(token: string) {
+  return request<{ items: PharmacyEmployee[] }>(
+    "/vendor/pharmacy/employees",
+    token,
+  );
+}
+
+export function createPharmacyEmployee(
+  token: string,
+  input: PharmacyEmployeeInput,
+) {
+  return request<PharmacyEmployee>("/vendor/pharmacy/employees", token, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePharmacyEmployee(
+  token: string,
+  id: string,
+  input: Partial<PharmacyEmployeeInput> & {
+    status?: PharmacyEmployee["status"];
+  },
+) {
+  return request<PharmacyEmployee>(
+    `/vendor/pharmacy/employees/${encodeURIComponent(id)}`,
+    token,
+    { method: "PATCH", body: JSON.stringify(input) },
+  );
 }

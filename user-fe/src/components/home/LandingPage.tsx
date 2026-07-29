@@ -10,6 +10,7 @@ import { getPublicProducts } from "@/src/lib/products";
 import { getHomepageBanners } from "@/src/lib/homepageBanners";
 import HomepageBannerCarousel from "@/src/components/home/HomepageBannerCarousel";
 import type { Product } from "@/src/data/products";
+import LoyaltyRewardBar from "@/src/components/home/LoyaltyRewardBar";
 
 const categoryLabel = (value: string) =>
   value.split(" ").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
@@ -76,6 +77,7 @@ export default async function LandingPage() {
   return (
     <main className="bg-white text-[#201C35]">
       <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6">
+        <LoyaltyRewardBar />
         <HomepageBannerCarousel banners={banners} />
         <section className="mt-10">
           <div className="mb-5 flex items-end justify-between">

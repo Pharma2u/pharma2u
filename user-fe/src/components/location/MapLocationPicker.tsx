@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 
 type Coordinates = { latitude: number; longitude: number };
@@ -18,43 +18,75 @@ export function MapLocationPicker({
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
+  const onChangeRef = useRef(onChange);
+  const valueLatitude = value?.latitude;
+  const valueLongitude = value?.longitude;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const ensureMarker = useCallback(() => {
+    if (!map.current) return null;
+    if (!marker.current) {
+      marker.current = new mapboxgl.Marker({ draggable: true });
+      marker.current.on("dragend", () => {
+        const position = marker.current?.getLngLat();
+        if (position) {
+          onChangeRef.current({
+            latitude: position.lat,
+            longitude: position.lng,
+          });
+        }
+      });
+      marker.current.addTo(map.current);
+    }
+    return marker.current;
+  }, []);
 
   useEffect(() => {
     if (!container.current || map.current || !mapboxToken) return;
-    const initial: [number, number] = value
-      ? [value.longitude, value.latitude]
-      : defaultCenter;
     mapboxgl.accessToken = mapboxToken;
     const instance = new mapboxgl.Map({
       container: container.current,
-      center: initial,
-      zoom: value ? 15 : 11,
+      center: defaultCenter,
+      zoom: 11,
       style: "mapbox://styles/mapbox/streets-v12",
     });
-    const setMarker = (lng: number, lat: number) => {
-      if (!marker.current) {
-        marker.current = new mapboxgl.Marker({ draggable: true });
-        marker.current.on("dragend", () => {
-          const position = marker.current!.getLngLat();
-          onChange({ latitude: position.lat, longitude: position.lng });
-        });
-      }
-      marker.current.setLngLat([lng, lat]).addTo(instance);
-    };
-    if (value) setMarker(value.longitude, value.latitude);
-    instance.on("click", (event) => {
-      setMarker(event.lngLat.lng, event.lngLat.lat);
-      onChange({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
-    });
     map.current = instance;
+    instance.on("click", (event) => {
+      ensureMarker()?.setLngLat(event.lngLat);
+      onChangeRef.current({
+        latitude: event.lngLat.lat,
+        longitude: event.lngLat.lng,
+      });
+    });
     return () => {
       instance.remove();
       map.current = null;
       marker.current = null;
     };
-  }, [onChange, value]);
+  }, [ensureMarker]);
 
-  if (!mapboxToken) return <div className="mt-2 grid h-56 w-full place-items-center rounded-xl border border-[#DDE5E2] bg-slate-50 px-4 text-center text-sm text-slate-500">Map is temporarily unavailable. Add NEXT_PUBLIC_MAPBOX_TOKEN to enable delivery pin selection.</div>;
+  useEffect(() => {
+    if (valueLatitude == null || valueLongitude == null || !map.current) return;
+    const isFirstPin = !marker.current;
+    ensureMarker()?.setLngLat([valueLongitude, valueLatitude]);
+    if (isFirstPin) {
+      map.current.jumpTo({
+        center: [valueLongitude, valueLatitude],
+        zoom: 15,
+      });
+    }
+  }, [ensureMarker, valueLatitude, valueLongitude]);
+
+  if (!mapboxToken)
+    return (
+      <div className="mt-2 grid h-56 w-full place-items-center rounded-xl border border-[#DDE5E2] bg-slate-50 px-4 text-center text-sm text-slate-500">
+        Map is temporarily unavailable. Add NEXT_PUBLIC_MAPBOX_TOKEN to enable
+        delivery pin selection.
+      </div>
+    );
 
   return (
     <div

@@ -5,6 +5,7 @@ import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { VendorLoginForm } from "@/components/auth/VendorLoginForm";
 import { InventoryPanel } from "@/components/inventory/InventoryPanel";
 import { VendorSettingsPanel } from "@/components/vendor/VendorSettingsPanel";
+import { PharmacyStaffPanel } from "@/components/vendor/PharmacyStaffPanel";
 import { VendorOperations } from "@/components/vendor/VendorOperations";
 import { VendorShell } from "@/components/vendor/VendorShell";
 import { WorkspaceHero } from "@/components/vendor/WorkspaceHero";
@@ -111,13 +112,23 @@ function AuthenticatedPortal({
       <WorkspaceHero workspace={workspace} userName={name} />
       {workspace === "settings" ? (
         <VendorSettingsPanel token={token} />
+      ) : workspace === "pharmacy" ? (
+        <div className="space-y-5">
+          <InventoryPanel
+            key={workspace}
+            token={token}
+            showCatalogue={false}
+            showPharmacyProfile
+          />
+          <PharmacyStaffPanel token={token} />
+        </div>
       ) : inventoryWorkspace ? (
         <InventoryPanel
           key={workspace}
           token={token}
           startAdding={workspace === "add-product"}
           showCatalogue={workspace === "products"}
-          showPharmacyProfile={workspace === "pharmacy"}
+          showPharmacyProfile={false}
         />
       ) : (
         <VendorOperations
