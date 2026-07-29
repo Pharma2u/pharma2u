@@ -15,6 +15,7 @@ import {
   razorpayKeyId,
 } from "../services/razorpay.service";
 import { publishOrderUpdate } from "../realtime";
+import { refundRedeemedPoints } from "../services/loyalty.service";
 
 type DeliveryStatus = "picked_up" | "on_the_way" | "delivered";
 type TaskLeg = "primary" | "relay";
@@ -146,6 +147,10 @@ export async function placeMatchedOrder(req: Request, res: Response) {
   const dropLat = hasDropCoordinates ? parsedDropLat : null;
   const dropLng = hasDropCoordinates ? parsedDropLng : null;
   const paymentMethod = input.paymentMethod as (typeof PAYMENT_METHODS)[number];
+  const redeemPoints = Number(input.redeemPoints ?? 0);
+  if (!Number.isInteger(redeemPoints) || redeemPoints < 0) {
+    throw httpError("redeemPoints must be a non-negative whole number.");
+  }
 
   if (
     !PAYMENT_METHODS.includes(paymentMethod as (typeof PAYMENT_METHODS)[number])
@@ -181,11 +186,33 @@ export async function placeMatchedOrder(req: Request, res: Response) {
       0,
     );
     const deliveryFee = Math.max(0, Number(input.deliveryFee) || 0);
+    let loyaltyDiscount = 0;
+    if (redeemPoints > 0) {
+      if (paymentMethod !== "cod") {
+        throw httpError("Loyalty points can currently be used with cash on delivery.");
+      }
+      const setting = await tx.loyaltySetting.findUnique({ where: { id: "default" } });
+      if (!setting?.isActive) throw httpError("The loyalty programme is currently unavailable.", 409);
+      if (redeemPoints < setting.minimumRedeemPoints) {
+        throw httpError(`Use at least ${setting.minimumRedeemPoints} loyalty points.`);
+      }
+      const maximum = Math.floor(Math.max(0, subtotal + deliveryFee - 1) / setting.rupeesPerPoint);
+      if (redeemPoints > maximum) {
+        throw httpError(`You can use up to ${maximum} points on this order.`);
+      }
+      await tx.loyaltyAccount.upsert({ where: { customerId: req.user!.id }, create: { customerId: req.user!.id }, update: {} });
+      const debited = await tx.loyaltyAccount.updateMany({
+        where: { customerId: req.user!.id, balance: { gte: redeemPoints } },
+        data: { balance: { decrement: redeemPoints }, lifetimeUsed: { increment: redeemPoints } },
+      });
+      if (!debited.count) throw httpError("Your loyalty points balance is too low.", 409);
+      loyaltyDiscount = Math.round(redeemPoints * setting.rupeesPerPoint * 100) / 100;
+    }
     // Promotions can make delivery free for a customer, but never erase rider pay.
     const riderEarning = Math.max(35, deliveryFee);
     const estimatedMinutes = Math.max(1, Number(input.estimatedMinutes) || 30);
 
-    return tx.order.create({
+    const created = await tx.order.create({
       data: {
         orderCode: createOrderCode(),
         customerId: req.user!.id,
@@ -201,7 +228,9 @@ export async function placeMatchedOrder(req: Request, res: Response) {
         subtotal,
         deliveryFee,
         riderEarning,
-        total: subtotal + deliveryFee,
+        loyaltyPointsUsed: redeemPoints,
+        loyaltyDiscount,
+        total: subtotal + deliveryFee - loyaltyDiscount,
         paymentMethod,
         dropAddress,
         dropLat,
@@ -236,13 +265,25 @@ export async function placeMatchedOrder(req: Request, res: Response) {
         payment: {
           create: {
             provider: paymentMethod === "cod" ? "cod" : "razorpay",
-            amount: subtotal + deliveryFee,
+            amount: subtotal + deliveryFee - loyaltyDiscount,
             status: "pending",
           },
         },
       },
       include: { items: true, payment: true },
     });
+    if (redeemPoints > 0) {
+      await tx.loyaltyTransaction.create({
+        data: {
+          customerId: req.user!.id,
+          orderId: created.id,
+          type: "order_redemption",
+          points: -redeemPoints,
+          description: `Points used on order ${created.orderCode}`,
+        },
+      });
+    }
+    return created;
   });
 
   if (paymentMethod === "cod") {
@@ -435,6 +476,7 @@ export async function verifyVendorOrder(req: Request, res: Response) {
           data: { orderId: order.id, amount: order.total, reason },
         });
       }
+      await refundRedeemedPoints(tx, order);
     });
   }
 

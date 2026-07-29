@@ -8,6 +8,8 @@ import { verifyAuthToken } from "./utils/jwt";
 
 let io: Server | undefined;
 
+console.log("Realtime module loaded");
+
 export async function initializeRealtime(
   server: HttpServer,
   origins: string[],
@@ -99,6 +101,13 @@ export function publishRiderLocation(
 ) {
   io?.to(`rider:${location.riderId}`).emit("rider:location", location);
   io?.to("admin:operations").emit("operations:rider-location", location);
+}
+
+export function publishVendorStatus(pharmacyId: string, isOpen: boolean) {
+  io?.to("admin:operations").emit("operations:vendor-status", {
+    pharmacyId,
+    isOpen,
+  });
 }
 
 export function publishOrderUpdate(orderId: string, payload: unknown) {

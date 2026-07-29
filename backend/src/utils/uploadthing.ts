@@ -55,6 +55,26 @@ export async function uploadPrivateDocument(
   }
 }
 
+export async function uploadFeedbackScreenshot(file: KycFile): Promise<string> {
+  let normalized: Buffer;
+  try {
+    normalized = await sharp(file.buffer, { limitInputPixels: 40_000_000 })
+      .rotate()
+      .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 88 })
+      .toBuffer();
+  } catch {
+    throw Object.assign(
+      new Error("One of the selected screenshots is not a valid image."),
+      { status: 400 },
+    );
+  }
+  return uploadPrivateDocument(
+    { buffer: normalized, mimetype: "image/webp" },
+    "feedback-screenshot",
+  );
+}
+
 export async function signedDocumentUrl(key: string): Promise<string> {
   return (await utapi.generateSignedURL(key, { expiresIn: "15m" })).ufsUrl;
 }
